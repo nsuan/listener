@@ -344,7 +344,7 @@ end
 local g_msgtypes = { 
 	SAY=1, PARTY=1, PARTY_LEADER=1, RAID=1, RAID_LEADER=1, RAID_WARNING=1, YELL=1;
 	EMOTE=2;
-	TEXT_EMOTE=3;
+	TEXT_EMOTE=3; ROLL=3;
 }	
 
 local g_m1_prefix = {

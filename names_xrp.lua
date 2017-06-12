@@ -5,6 +5,7 @@ local L = Main.Locale
  
 -------------------------------------------------------------------------------
 local function Resolve( name, guid )
+	if not guid then return name end
 	local color = nil
 	
 	local ch = xrp.characters.byGUID[ guid ]

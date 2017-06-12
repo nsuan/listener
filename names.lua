@@ -15,7 +15,10 @@ end
 
 -------------------------------------------------------------------------------
 local function GetCharacterClassColor( guid )
-	  
+	if not guid then
+		return nil -- unknown player guid
+	end
+	
 	local _, cls = GetPlayerInfoByGUID( guid )
 	if cls and RAID_CLASS_COLORS[cls] then
 		local c = RAID_CLASS_COLORS[cls]

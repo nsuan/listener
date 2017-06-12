@@ -10,6 +10,13 @@ local g_history_size = 50
 
 local g_loadtime = 0
 
+-- english is "%s rolls %d (%d-%d)";
+local SYSTEM_ROLL_PATTERN = RANDOM_ROLL_RESULT 
+
+SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%%s", "(%%S+)" )
+SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%%d", "(%%d+)" )
+SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%(%(%%d%+%)%-%(%%d%+%)%)", "%%((%%d+)%%-(%%d+)%%)" ) -- this is what we call voodoo?
+
 --[[
  Chat history database:
     Main.chat_history = {
@@ -236,6 +243,8 @@ function Main:OnEnable()
 	self:RegisterEvent( "CHAT_MSG_RAID_LEADER", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_RAID_WARNING", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_YELL", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_SYSTEM", "OnSystemMsg" )
+	self:RegisterMessage( "DiceMaster4_Roll", "OnDiceMasterRoll" )
 	
 	-- just create a stupid frame for this
 	
@@ -340,6 +349,30 @@ function Main:CheckPoke( msg, sender )
 end
 
 -------------------------------------------------------------------------------
+-- Hook for DiceMaster4 roll messages.
+--
+function Main:OnDiceMasterRoll( event, sender, message )
+	self:AddChatHistory( sender, "ROLL", message )
+end
+
+-------------------------------------------------------------------------------
+-- Hook for system messages (player rolls)
+--
+function Main:OnSystemMsg( event, message )
+	if DiceMaster4 then
+		-- user is using DiceMaster4, and we should instead listen for dicemaster events
+		return
+	end
+	
+	local sender, roll, min, max = message:match( SYSTEM_ROLL_PATTERN )
+	if sender then
+		print( "roll", message )
+		-- this is a roll message
+		self:AddChatHistory( sender, "ROLL", message )
+	end
+end
+
+-------------------------------------------------------------------------------
 function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
 	local filters = ChatFrame_GetMessageEventFilters( event )
 	event = event:sub( 10 )
@@ -417,7 +450,7 @@ end
 
 -------------------------------------------------------------------------------
 function Main:AddChatHistory( sender, event, message, language, guid )
-	
+ 
 	--local time = date("*t")
 	--time = string.format( "[%02d:%02d]", time.hour, time.min );
 	
@@ -431,12 +464,12 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 	
 	self.chat_history[sender] = self.chat_history[sender] or {}
 	
-	local isplayer = guid == UnitGUID( "player" )
+	local isplayer = sender == UnitName("player")
 	
 	local langdef = language
 	if not langdef or langdef == "" then langdef = GetDefaultLanguage() end
 	
-	if Main.LanguageFilter and guid ~= UnitGUID( "player" ) then
+	if Main.LanguageFilter and not isplayer then
 		-- language filter option enabled
 	
 		if Main.LanguageFilter.known[langdef] then
@@ -501,7 +534,6 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 		entry.p = true -- is player
 		entry.r = true -- read
 	end
-	
 	if event == "YELL" then
 		entry.r = true -- yells dont cause unread messages
 	end
@@ -518,27 +550,24 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 	if not entry.r then
 		table.insert( self.unread_entries, entry )
 	end
-	
-	local add_message = true
+	 
 	
 	if entry.p then
 		-- player is posting...
 	--	if event == "SAY" or event == "EMOTE" or event == "TEXT_EMOTE" then
 			-- player is publicly emoting, clear read status
-			Main:MarkAllRead( true )
-			--add_message = false
+			Main:MarkAllRead( true ) 
 	--	end
 	end
 	
 	-- if the player's target emotes, then beep+flash
-	if Main.db.profile.sound.target and guid == UnitGUID("target") and guid ~= UnitGUID("player") then
+	if Main.db.profile.sound.target and UnitName("target") == sender or guid == UnitGUID( "target" ) and not isplayer then
 		Main:PlayMessageBeep()
 		Main:FlashClient()
 	end
-	
-	if add_message and 
-		((Main.db.char.showhidden or Main.player_list[sender] == 1 or (Main.db.char.listen_all and Main.player_list[sender] ~= 0)) or guid == UnitGUID("player")) then
-		
+ 
+	if ((Main.db.char.showhidden or Main.player_list[sender] == 1 or (Main.db.char.listen_all and Main.player_list[sender] ~= 0)) or isplayer) then
+		 
 		Main:AddMessage( entry, true )
 	
 		Main:UpdateHighlight()

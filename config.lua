@@ -77,6 +77,7 @@ local DB_DEFAULTS = {
 			RAID_LEADER    = Hexc "58c9ff";
 			RAID_WARNING   = Hexc "d961ff";
 			YELL           = Hexc "ff0000";
+			ROLL           = Hexc "ffff00";
 			
 			P_SAY            = Hexc "30f715";
 			P_EMOTE          = Hexc "30f715";
@@ -87,6 +88,7 @@ local DB_DEFAULTS = {
 			P_RAID_LEADER    = Hexc "30f715";
 			P_RAID_WARNING   = Hexc "30f715";
 			P_YELL           = Hexc "ff0000";
+			P_ROLL           = Hexc "30f715";
 			
 			highlight           = { 0.15, 0.15, 0.15, 1 };
 			highlight_mouseover = Hexc "2e0007ff";
@@ -492,6 +494,7 @@ do
 	add_color_option( "RAID_LEADER",  "Raid Leader",  "Color for raid leader messages." )
 	add_color_option( "RAID_WARNING", "Raid Warning", "Color for raid warning messages." )
 	add_color_option( "YELL",         "Yell",         "Color for /yell messages." )
+	add_color_option( "ROLL",         "Rolls",        "Color for /roll messages." )
 	
 end
   

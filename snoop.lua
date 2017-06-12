@@ -100,6 +100,7 @@ function Main:Snoop_SetText( name )
 		g_snooped_types["RAID"] = 1
 		g_snooped_types["RAID_LEADER"] = 1
 		g_snooped_types["RAID_WARNING"] = 1
+		g_snooped_types["ROLL"] = 1
 	end
 	
 	local count = 0

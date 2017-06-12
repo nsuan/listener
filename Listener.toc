@@ -1,0 +1,30 @@
+## Interface: 70200
+## Title: Listener
+## Notes: Public chat assistant.
+## Author: Tammya-MoonGuard
+## SavedVariables: ListenerAddonSaved
+## SavedVariablesPerCharacter: ListenerChatHistory
+## OptionalDeps: totalRP3 MyRolePlay XRP
+## Version: 1.5.1
+embeds.xml
+
+init.lua
+sharedmedia.lua
+
+locale\index.xml
+
+listener.lua
+frame.lua
+config.lua
+minimapbutton.lua
+snoop.lua
+names.lua
+names_trp3.lua
+names_mrp.lua
+names_xrp.lua
+help.lua
+
+ListenerFrameButton.xml
+HelpNote.xml
+listener.xml
+

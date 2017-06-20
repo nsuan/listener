@@ -1,3 +1,7 @@
+## 1.5.3
+Bugfix: Fix option to toggle target emotes beeps. (and added separate option)
+Bugfix: Targeting yourself no longer causes a beep.
+
 ## 1.5.2
 
 Patch 7.2.5 support.

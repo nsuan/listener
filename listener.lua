@@ -561,7 +561,7 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 	end
 	
 	-- if the player's target emotes, then beep+flash
-	if Main.db.profile.sound.target and UnitName("target") == sender or guid == UnitGUID( "target" ) and not isplayer then
+	if Main.db.profile.sound.target and (UnitName("target") == sender or guid == UnitGUID( "target" )) and not isplayer then
 		Main:PlayMessageBeep()
 		Main:FlashClient()
 	end

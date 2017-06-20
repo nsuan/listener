@@ -243,15 +243,25 @@ Main.config_options = {
 				playsound = {
 					order = 60;
 					name = L["Play Sound On Message"];
-					desc = L["Play a sound when a new message is received or your target emotes."];
+					desc = L["Play a sound when a new message is received."];
 					width = "full";
 					type = "toggle";
 					set = function( info, val ) Main.db.profile.sound.msg = val end;
 					get = function( info ) return Main.db.profile.sound.msg end;
 				};
 				
-				soundthrottle = {
+				playsound_target = {
 					order = 61;
+					name = L["Play Sound On Target Emote"];
+					desc = L["Play a sound when your current target emotes."];
+					width = "full";
+					type = "toggle";
+					set = function( info, val ) Main.db.profile.sound.target = val end;
+					get = function( info ) return Main.db.profile.sound.target end;
+				};
+				
+				soundthrottle = {
+					order = 62;
 					name = L["Sound Throttle Time"];
 					desc = L["Minimum amount of time between emotes before playing another sound is allowed."];
 					type = "range";

@@ -382,7 +382,7 @@ function Main:FormatChatMessage( e, hidden )
 	
 	local stamp = ""
 	if Main.db.profile.frame.timestamps then
-		stamp = date( "[%H:%M] ", e.t )
+		stamp = date( "%H:%M ", e.t )
 		
 		stamp = "|cff808080" .. stamp .. "|r" 
 	end

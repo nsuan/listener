@@ -76,11 +76,6 @@ function Main:Snoop_SetText( name )
 		return
 	end
 	
-	local color_say = GetHexCode( Main.db.profile.colors.SAY )
-	local color_say = GetHexCode( Main.db.profile.colors.SAY )
-	local color_say = GetHexCode( Main.db.profile.colors.SAY )
-	local color_say = GetHexCode( Main.db.profile.colors.SAY )
-	
 	local text = ""
 	
 	local curtime = time()
@@ -142,19 +137,14 @@ function Main:Snoop_SetText( name )
 				text = "|n" .. text
 			end
 			
-			local color = GetHexCode( Main.db.profile.colors[e.e] )
+			local color = "|c" .. GetHexCode( Main.db.profile.colors[e.e] )
+			
+			-- replace |r in message with the text color code instead
+			local msgtext = e.m
+			msgtext = msgtext:gsub( "|r", color )
 			
 			local prefix = (Main.db.profile.snoop.partyprefix and g_prefixes[ e.e ]) or ""
-			text = string.format( "%s |c%s%s%s|r", stamp, color, prefix, e.m ) .. text
-			--[[if e.e == "SAY" then
-				text = string.format( "%s %s", stamp, e.m ) .. text
-			elseif e.e == "YELL" then
-				text = string.format( "%s |c%s%s|r", stamp, e.m ) .. text
-			elseif e.e == "EMOTE" then
-				text = string.format( "%s |cfff18d0a%s|r", stamp, e.m ) .. text
-			elseif e.e == "TEXT_EMOTE" then
-				text = string.format( "%s |cfff18d0a%s|r", stamp, e.m ) .. text
-			end]]
+			text = string.format( "%s %s%s%s", stamp, color, prefix, msgtext ) .. text
 			
 			count = count + 1
 			if count == 10 then break end

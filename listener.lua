@@ -353,6 +353,7 @@ end
 --
 function Main:OnDiceMasterRoll( event, sender, message )
 	self:AddChatHistory( sender, "ROLL", message )
+	self:Snoop_DoUpdate( sender )
 end
 
 -------------------------------------------------------------------------------
@@ -366,9 +367,9 @@ function Main:OnSystemMsg( event, message )
 	
 	local sender, roll, min, max = message:match( SYSTEM_ROLL_PATTERN )
 	if sender then
-		print( "roll", message )
 		-- this is a roll message
 		self:AddChatHistory( sender, "ROLL", message )
+		self:Snoop_DoUpdate( sender )
 	end
 end
 
@@ -382,29 +383,41 @@ function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a
 		end
 	end
 	
-	local skipfilters = false
+	if filters then 
+		local skipfilters = false
 
-	if message:sub(1,3) == "|| " then
-		-- trp hack for npc emotes
-		skipfilters = true
-	elseif message:sub(1,2) == "'s" and event == "EMOTE" then
-		-- trp hack for 's stuff
-		skipfilters = true
-	end
-	
-	if not skipfilters then
-		for _, filterFunc in next, filters do
-			local block, na1, na2, na3, na4, na5, na6, na7, na8, na9, na10, na11, na12, na13, na14 = filterFunc( ListenerFrameChat, "CHAT_MSG_"..event, message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
-			if( block ) then
-				return
-			elseif( na1 ) then
-				message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 = na1, na2, na3, na4, na5, na6, na7, na8, na9, na10, na11, na12, na13, na14
+		if message:sub(1,3) == "|| " then
+			-- trp hack for npc emotes
+			skipfilters = true
+		elseif message:sub(1,2) == "'s" and event == "EMOTE" then
+			-- trp hack for 's stuff
+		--	skipfilters = true
+		end
+		
+		if not skipfilters then
+			for _, filterFunc in next, filters do
+				local block, na1, na2, na3, na4, na5, na6, na7, na8, na9, na10, na11, na12, na13, na14 = filterFunc( ListenerFrameChat, "CHAT_MSG_"..event, message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
+				if( block ) then
+					return
+				elseif( na1 and type(na1) == "string" ) then
+					local skip = false
+					if event == "EMOTE" and message:sub(1,2) == "'s" and na1:sub(1,2) ~= "'s" then
+						skip = true -- block out trp's ['s] hack
+					end
+					if event == "EMOTE" and message:sub(1,2) == ", " and na1:sub(1,2) ~= ", " then
+						skip = true -- block out trp's [, ] hack
+					end
+					  
+					if not skip then
+						message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 = na1, na2, na3, na4, na5, na6, na7, na8, na9, na10, na11, na12, na13, na14
+					end
+				end
 			end
 		end
 	end
 	
 	self:AddChatHistory( sender, event, message, language, guid )
-	self:Snoop_DoUpdate()
+	self:Snoop_DoUpdate( sender )
 end
 
 -------------------------------------------------------------------------------
@@ -561,7 +574,8 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 	end
 	
 	-- if the player's target emotes, then beep+flash
-	if Main.db.profile.sound.target and (UnitName("target") == sender or guid == UnitGUID( "target" )) and not isplayer then
+	if Main.db.profile.sound.target and (UnitName("target") == sender or (guid and guid == UnitGUID( "target" ))) and not isplayer then
+		
 		Main:PlayMessageBeep()
 		Main:FlashClient()
 	end

@@ -31,10 +31,20 @@ function Main:Snoop_Setup()
 	
 end
 
-function Main:Snoop_DoUpdate()
-	g_update_time = 0
+-------------------------------------------------------------------------------
+-- Force refresh of the snooper window if the current target matches.
+--
+-- @param sender Name to check current target against.
+--
+function Main:Snoop_DoUpdate( sender )
+	if g_current_name == sender then
+		g_update_time = 0
+	end
 end
 
+-------------------------------------------------------------------------------
+-- Refresh the snooper display.
+--
 function Main:Snoop_OnUpdate()
 
 	if Main.snoop_unlocked then return end
@@ -155,6 +165,8 @@ function Main:Snoop_SetText( name )
 end
 
 -------------------------------------------------------------------------------
+-- Load settings from configuration database.
+--
 function Main:Snoop_LoadSettings()
 	
 	ListenerSnoopFrame:ClearAllPoints()
@@ -175,6 +187,10 @@ function Main:Snoop_LoadSettings()
 end
 
 -------------------------------------------------------------------------------
+-- Show/hide snooper window.
+--
+-- @param show True to show. Saves setting in config DB.
+--
 function Main:Snoop_Show( show ) 
 	self.db.profile.snoop.show = show
 	if show then
@@ -185,30 +201,48 @@ function Main:Snoop_Show( show )
 end
 
 -------------------------------------------------------------------------------
+-- Change the snooper font and save settings.
+--
+-- @param font Font to use. This is a SharedMedia name, not a font path.
+--
 function Main:Snoop_SetFont( font )
 	self.db.profile.snoop.font.face = font
 	self:Snoop_LoadFont()
 end
 
 -------------------------------------------------------------------------------
+-- Change the font size and save settings.
+--
+-- @param size Height of font.
+--
 function Main:Snoop_SetFontSize( size )
 	self.db.profile.snoop.font.size = size
 	self:Snoop_LoadFont()
 end
 
 -------------------------------------------------------------------------------
+-- Change the font outline and save settings.
+--
+-- @param val 2 = OUTLINE, 3 = THICKOUTLINE, 1/nil = no outline
+--
 function Main:Snoop_SetOutline( val )
 	self.db.profile.snoop.font.outline = val
 	self:Snoop_LoadFont()
 end
 
 -------------------------------------------------------------------------------
+-- Change the text shadow setting and save config.
+--
+-- @param val true/false to apply text shadow.
+--
 function Main:Snoop_SetShadow( val )
 	self.db.profile.snoop.font.shadow = val
 	self:Snoop_LoadFont()
 end
 
 -------------------------------------------------------------------------------
+-- Refresh the font used in the snooper window according to the configuration.
+--
 function Main:Snoop_LoadFont()
 	local outline = nil
 	if self.db.profile.snoop.font.outline == 2 then
@@ -230,6 +264,8 @@ function Main:Snoop_LoadFont()
 end
 
 -------------------------------------------------------------------------------
+-- Unlock the snooper frame and allow it to be dragged around.
+--
 function Main:Snoop_Unlock()
 	if not ListenerSnoopFrame.editor then
 		local frame = CreateFrame( "Frame", nil, ListenerSnoopFrame )
@@ -297,6 +333,8 @@ Proin porta, erat id sagittis fermentum, elit lectus porttitor augue, eget rhonc
 end
 
 -------------------------------------------------------------------------------
+-- Lock the snooper frame and save the position in the settings.
+--
 function Main:Snoop_Lock()
 	if ListenerSnoopFrame.editor then
 		self.snoop_unlocked = false

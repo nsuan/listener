@@ -1,8 +1,15 @@
+## 1.5.4
+Bugfix: Fixed bug reported by iodinesky regarding chat filters.
+Bugfix: Snooper window better supports color codes.
+Bugfix: Removed debug roll message.
+Bugfix: Fixed /roll bypassing conditions to make a notification.
+Enhancement: Shortened timestamp format by removing brackets.
+Optimization: Some snooper window optimizations.
+
 ## 1.5.3
 Bugfix: Fix option to toggle target emotes beeps. (and added separate option)
 Bugfix: Targeting yourself no longer causes a beep.
 
 ## 1.5.2
-
 Patch 7.2.5 support.
 Added tracking for player rolls.

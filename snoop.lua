@@ -37,6 +37,12 @@ end
 -- @param sender Name to check current target against.
 --
 function Main:Snoop_DoUpdate( sender )
+	if sender == nil then
+		g_update_time = 0
+		return
+	end
+	
+	sender = sender:gsub( "-.*", "" )
 	if g_current_name == sender then
 		g_update_time = 0
 	end

@@ -1,3 +1,6 @@
+## 1.5.5
+Fixed a bug with snooper not updating immediately.
+
 ## 1.5.4
 Bugfix: Fixed bug reported by iodinesky regarding chat filters.
 Bugfix: Snooper window better supports color codes.

@@ -461,6 +461,32 @@ function Main:OnLeaveCombat()
 	end
 end
 
+local RAID_TARGETS = { 
+	star     = 1; rt1 = 1;
+	circle   = 2; rt2 = 2;
+	diamond  = 3; rt3 = 3;
+	triangle = 4; rt4 = 4;
+	moon     = 5; rt5 = 5;
+	square   = 6; rt6 = 6;
+	x        = 7; rt7 = 7;
+	cross    = 7; 
+	skull    = 8; rt8 = 8;
+}
+
+-------------------------------------------------------------------------------
+-- Substitute raid target keywords with textures.
+--
+local function SubRaidTargets( message )
+	message = message:gsub( "{(%S-)}", function( term )
+		term = term:lower()
+		local t = RAID_TARGETS[term]
+		if t then
+			return "|TInterface/TargetingFrame/UI-RaidTargetingIcon_" .. t .. ":0|t"
+		end 
+	end)
+	return message
+end
+
 -------------------------------------------------------------------------------
 function Main:AddChatHistory( sender, event, message, language, guid )
  
@@ -479,7 +505,10 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 	
 	local isplayer = sender == UnitName("player")
 	
-	local langdef = language
+	---------------------------------------------------------------------------
+	-- Language Filter
+	---------------------------------------------------------------------------
+	local langdef = language -- langdef is language or default language
 	if not langdef or langdef == "" then langdef = GetDefaultLanguage() end
 	
 	if Main.LanguageFilter and not isplayer then
@@ -519,7 +548,11 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 	if language and language ~= GetDefaultLanguage() and language ~= "" then
 		message = string.format( "[%s] %s", language, message )
 	end
+	---------------------------------------------------------------------------
 	
+	---------------------------------------------------------------------------
+	-- RPConnect splitter
+	---------------------------------------------------------------------------
 	if Main.RPConnect and event == "PARTY" or event == "RAID" or event == "RAID_LEADER" then
 		local name = message:match( "^<%[(.+)%]" )
 		if name and not UnitName( name ) then
@@ -531,7 +564,9 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 			self.chat_history[sender] = self.chat_history[sender] or {}
 		end
 	end
+	---------------------------------------------------------------------------
 	
+	message = SubRaidTargets( message )
 	
 	local entry = {
 		id = Main.next_lineid;
@@ -539,8 +574,7 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 		e  = event;
 		m  = message;
 		s  = sender;
-		
-		g = guid;
+		g  = guid;
 	}
 	
 	if isplayer then

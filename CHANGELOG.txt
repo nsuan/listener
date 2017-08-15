@@ -1,3 +1,6 @@
+## 1.5.6
+Raid target substitution.
+
 ## 1.5.5
 Fixed a bug with snooper not updating immediately.
 

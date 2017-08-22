@@ -461,6 +461,7 @@ function Main:OnLeaveCombat()
 	end
 end
 
+-------------------------------------------------------------------------------
 local RAID_TARGETS = { 
 	star     = 1; rt1 = 1;
 	circle   = 2; rt2 = 2;

@@ -341,6 +341,7 @@ function Main:CheckPoke( msg, sender )
 			if msg:find( "orders you to open fire." ) then return end
 			if msg:find( "asks you to wait." ) then return end
 			if msg:find( "tells you to attack" ) then return end
+			if msg:find( "motions for you to follow." ) then return end
 		
 			PlaySoundFile( SharedMedia:Fetch( "sound", "ListenerPoke" ), "Master" )
 			Main:FlashClient()

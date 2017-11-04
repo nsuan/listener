@@ -379,17 +379,28 @@ local function GetEntryColor( e )
 end
 
 local g_msgtypes = { 
+
+	-- with colon
 	SAY=1, PARTY=1, PARTY_LEADER=1, RAID=1, RAID_LEADER=1, RAID_WARNING=1, YELL=1;
+	INSTANCE=1, INSTANCE_LEADER=1;
+	
+	-- without colon
 	EMOTE=2;
+	
+	-- with name substitution
 	TEXT_EMOTE=3; ROLL=3;
 }	
 
 local g_m1_prefix = {
-	PARTY        = "[P] ";
-	PARTY_LEADER = "[PL] ";
-	RAID         = "[R] ";
-	RAID_LEADER  = "[RL] ";
-	RAID_WARNING = "[RW] ";
+	PARTY            = "[P] ";
+	PARTY_LEADER     = "[P] ";
+	RAID             = "[R] ";
+	RAID_LEADER      = "[R] ";
+	INSTANCE         = "[I] ";
+	INSTANCE_LEADER  = "[I] ";
+	GUILD            = "[G] ";
+	OFFICER          = "[O] ";
+	RAID_WARNING     = "[RW] ";
 }
 
 -------------------------------------------------------------------------------

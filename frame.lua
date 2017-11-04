@@ -19,6 +19,10 @@ local g_mouseover_highlight
 -- if the user clicks on the frame at the moment a message is added, its ignore to prevent error
 local g_clickblock = 0
 
+-- for the probe function
+local g_probe_target = nil -- the name of the unit we're currently probing
+local g_probe_target_time = 0 -- the time of the last successful target found
+
 local Me = {
 	hl_texes = {};
 	
@@ -131,49 +135,71 @@ end
 -------------------------------------------------------------------------------
 function Main:TogglePlayerClicked( button )
 
-	if button == "LeftButton" then
-		if IsShiftKeyDown() then
-			Main:SetListenAll( not Main.db.char.listen_all )
-		else
-		
-			if UnitExists( "target" ) then 
-				if UnitIsPlayer( "target" ) and UnitIsFriend( "target", "player" ) then
-					if UnitGUID("target") == UnitGUID( "player" ) then return end
-					
-					self:TogglePlayer( UnitName( "target" ), true )
-				end
+	if button == "LeftButton" then 
+		if UnitExists( "target" ) then 
+			if UnitIsPlayer( "target" ) and UnitIsFriend( "target", "player" ) then
+				if UnitGUID("target") == UnitGUID( "player" ) then return end
+				
+				self:TogglePlayer( UnitName( "target" ), true )
 			end
-			
 		end
 	elseif button == "RightButton" then
-		Main:SetShowHidden( not Main.db.char.showhidden )
+		Main:ShowFrameMenu()
 	end
 end
 
 -------------------------------------------------------------------------------
-function Main:ProbePlayer()
-	local unit
+function Main:ProbePlayer( force )
+	if force then g_probe_target = nil end
+	
+	local unit, unitname
 	if UnitExists( "target" ) then 
 		unit = "target"
-	else
+	elseif UnitExists( "mouseover" ) then
 		unit = "mouseover"
 	end
 	
-	local on = false
+	if unit and UnitGUID( unit ) == UnitGUID("player") then unit = nil end
+	if not UnitIsPlayer( unit ) then unit = nil end
+	if unit then unitname = UnitName( unit ) end
+
+	if unitname then
+		-- reset the timer if we have a valid unit
+		g_probe_target_time = GetTime()
+	end
 	
-	if UnitGUID( unit ) == UnitGUID( 'player' ) then
-		on = true
-	elseif UnitIsPlayer( unit ) then
-		local name = UnitName( unit )
-		
-		if name then
-			on = self.player_list[name] == 1 or (Main.db.char.listen_all and self.player_list[name] ~= 0)
-	
+	if not unitname then
+		if GetTime() < g_probe_target_time + 1.5 then
+			unitname = g_probe_target
 		end
 	end
 	
-	ListenerFrameBarToggle:SetOn( on )
-	ListenerFrameBarToggle:RefreshTooltip()
+	
+	if g_probe_target == unitname then 
+		return -- already a match
+	end
+	
+	g_probe_target = unitname
+	
+	local on = false
+	
+	local title = "—"
+	
+	if unitname then
+		
+		on = self.player_list[unitname] == 1 or (Main.db.char.listen_all and self.player_list[unitname] ~= 0)
+		local name, icon, color = self:GetICName( unitname, UnitGUID(unit) )
+		title = " " .. name
+		
+	end
+	
+	ListenerFrame.bar2.title:SetText( title )
+	
+	if on then
+		ListenerFrame.bar2.toggle_button:Show()
+	else
+		ListenerFrame.bar2.toggle_button:Hide()
+	end
 end
 
 -------------------------------------------------------------------------------
@@ -242,17 +268,19 @@ function Main:LoadFrameSettings()
 	
 	ListenerFrame:SetSize( Main.db.profile.frame.width, Main.db.profile.frame.height )
 	
-	ListenerFrame.bg:SetColorTexture( Main.db.profile.frame.bg.r,
-	                                  Main.db.profile.frame.bg.g,
-                                      Main.db.profile.frame.bg.b,
-	                                  Main.db.profile.frame.bg.a )
+	ListenerFrame.bg:SetColorTexture( unpack( Main.db.profile.frame.color_bg ) )
 		
 	for k,v in pairs( ListenerFrame.edges ) do
-		v:SetColorTexture( Main.db.profile.frame.edge.r,
-						   Main.db.profile.frame.edge.g,
-						   Main.db.profile.frame.edge.b,
-						   Main.db.profile.frame.edge.a )
+		v:SetColorTexture( unpack( Main.db.profile.frame.color_edge ) )
 	end
+	
+	if Main.db.char.showhidden then
+		ListenerFrame.bar2.hidden_button:SetOn( true )
+	else
+		ListenerFrame.bar2.hidden_button:SetOn( false )
+	end
+	
+	Main:LoadFrameBarSettings()
 	
 	Main:LoadChatFont()
 	
@@ -261,6 +289,14 @@ function Main:LoadFrameSettings()
 	else
 		ListenerFrame:Show()
 	end
+end
+
+function Main:LoadFrameBarSettings()
+
+	ListenerFrame.bar2.bg:SetColorTexture( unpack( Main.db.profile.frame.color_bar ) )
+	
+	local font = SharedMedia:Fetch( "font", Main.db.profile.frame.barfont.face )
+	ListenerBarFont:SetFont( font, Main.db.profile.frame.barfont.size )
 end
 
 -------------------------------------------------------------------------------
@@ -720,19 +756,13 @@ end
 
 -------------------------------------------------------------------------------
 function Main:Frame_SetBGColor( r, g, b, a )
-	self.db.profile.frame.bg.r = r
-	self.db.profile.frame.bg.g = g
-	self.db.profile.frame.bg.b = b
-	self.db.profile.frame.bg.a = a
+	self.db.profile.frame.bg = { r, g, b, a }
 	self:LoadFrameSettings()
 end
 
 -------------------------------------------------------------------------------
 function Main:Frame_SetEdgeColor( r, g, b, a )
-	self.db.profile.frame.edge.r = r
-	self.db.profile.frame.edge.g = g
-	self.db.profile.frame.edge.b = b
-	self.db.profile.frame.edge.a = a
+	self.db.profile.frame.edge = { r, g, b, a }
 	self:LoadFrameSettings()
 end
 
@@ -884,7 +914,7 @@ local function Tooltip_ShowParty( self )
 	else
 		GameTooltip:AddDoubleLine( L["Group Chat"], L["Hidden"], 1,1,1, 0.75,0.75,0.75 )
 		GameTooltip:AddLine( L["Click to show group/party chat."] )
-	end 
+	end
 end
 
 
@@ -898,6 +928,91 @@ local function Tooltip_Read( self )
 	else
 		GameTooltip:AddLine( L["No Unread Messages"], 0.75, 0.75, 0.75 )
 	end
+end
+
+local function FrameMenu_Include()
+	Main:SetListenAll( not Main.db.char.listen_all )
+end
+
+local function InitializeFrameMenu( self, level, menuList )
+	local info
+	
+	if level == 1 then
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = "Inclusion"
+		info.notCheckable     = false
+		info.isNotRadio       = true
+		info.checked          = Main.db.char.listen_all
+		info.func             = FrameMenu_Include
+		info.keepShownOnClick = true
+		info.tooltipTitle     = "Inclusion Mode"
+		info.tooltipText      = "Default to include players rather than exclude them."
+		info.tooltipOnButton = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = "Filter"
+		info.notCheckable     = true
+		info.hasArrow         = true
+		info.menuList         = "SHOW"
+		info.keepShownOnClick = true
+		UIDropDownMenu_AddButton( info, level )
+	elseif level == 2 then
+		if menuList == "SHOW" then
+			info = UIDropDownMenu_CreateInfo()
+			info.text             = "Party"
+			info.notCheckable     = false
+			info.isNotRadio       = true
+			info.checked          = Me.showparty
+			info.func             = FrameMenu_Show_Party
+			info.keepShownOnClick = true
+			UIDropDownMenu_AddButton( info, level )
+			
+			info = UIDropDownMenu_CreateInfo()
+			info.text             = "Raid"
+			info.notCheckable     = false
+			info.isNotRadio       = true
+			info.checked          = Me.showraid
+			info.func             = FrameMenu_Show_Raid
+			info.keepShownOnClick = true
+			UIDropDownMenu_AddButton( info, level )
+			
+			info = UIDropDownMenu_CreateInfo()
+			info.text             = "Guild"
+			info.notCheckable     = false
+			info.isNotRadio       = true
+			info.checked          = Me.showguild
+			info.func             = FrameMenu_Show_Guild
+			info.keepShownOnClick = true
+			UIDropDownMenu_AddButton( info, level )
+			
+			info = UIDropDownMenu_CreateInfo()
+			info.text             = "Officer"
+			info.notCheckable     = false
+			info.isNotRadio       = true
+			info.checked          = Me.showofficer
+			info.func             = FrameMenu_Show_Officer
+			info.keepShownOnClick = true
+			UIDropDownMenu_AddButton( info, level )
+		end
+	end
+end
+
+local function InitFrameMenu( menu )
+	if not Main.frame_menu then
+		Main.frame_menu = CreateFrame( "Button", "ListenerFrameMenu", UIParent, "UIDropDownMenuTemplate" )
+		Main.frame_menu.displayMode = "MENU"
+	end
+	
+	UIDropDownMenu_Initialize( ListenerFrameMenu, InitializeFrameMenu )
+	UIDropDownMenu_JustifyText( ListenerFrameMenu, "LEFT" )
+end
+
+function Main:ShowFrameMenu()
+	InitFrameMenu()
+	local x,y = GetCursorPosition()
+	local scale = UIParent:GetEffectiveScale()
+	ToggleDropDownMenu( 1, nil, Main.frame_menu, "UIParent", x / scale, y / scale )
 end
  
 -------------------------------------------------------------------------------

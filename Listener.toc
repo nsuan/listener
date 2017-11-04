@@ -26,6 +26,7 @@ help.lua
 
 ListenerTextButton.xml
 ListenerFrameButton.xml
+ListenerBarButton.xml
 HelpNote.xml
 listener.xml
 

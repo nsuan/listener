@@ -94,7 +94,7 @@ local DB_DEFAULTS = {
 			tab_mouseover    = Hexc "BF060F";
 			tab_highlight    = Hexc "D3DA37";
 			
-			readmark         = Hexc "BF060F";
+			readmark         = Hexc "BF060FC0";
 			
 			highlight           = { 0.15, 0.15, 0.15, 1 };
 			highlight_mouseover = Hexc "2e0007ff";
@@ -120,18 +120,13 @@ local DB_DEFAULTS = {
 				outline = 1;
 				shadow = false;
 			};
-			bg = {
-				r = 0.1;
-				g = 0.1;
-				b = 0.1;
-				a = 1;
+			barfont = {
+				size = 14;
+				face = "Accidental Presidency";
 			};
-			edge = {
-				r = 0.6;
-				g = 0.6;
-				b = 0.6;
-				a = 1.0;
-			};
+			color_bg   = Hexc "090f17ff";
+			color_edge = Hexc "4777b380";
+			color_bar  = Hexc "1F344Eff";
 		};
 		
 		snoop = {
@@ -233,7 +228,7 @@ Main.config_options = {
 					type = "color";
 					hasAlpha = true;
 					set = function( info, r, g, b, a ) Main:Frame_SetBGColor( r, g, b, a ) end;
-					get = function( info ) return Main.db.profile.frame.bg.r, Main.db.profile.frame.bg.g, Main.db.profile.frame.bg.b, Main.db.profile.frame.bg.a end;
+					get = function( info ) return unpack( Main.db.profile.frame.color_bg ) end;
 				};
 				
 				edgecolor = {
@@ -243,7 +238,7 @@ Main.config_options = {
 					type = "color";
 					hasAlpha = true;
 					set = function( info, r, g, b, a ) Main:Frame_SetEdgeColor( r, g, b, a ) end;
-					get = function( info ) return Main.db.profile.frame.edge.r, Main.db.profile.frame.edge.g, Main.db.profile.frame.edge.b, Main.db.profile.frame.edge.a end;
+					get = function( info ) return unpack( Main.db.profile.frame.color_edge ) end;
 				};
 				
 				playsound = {
@@ -282,7 +277,7 @@ Main.config_options = {
 				playsound2 = {
 					order = 63;
 					name = L["Play Sound On Poke"];
-					desc = L["Play a sound when a person directs a stock emote at you. (i.e. /poke)"];
+					desc = L["Play a sound when a person directs a stock emote at you. (e.g. /poke)"];
 					width = "full";
 					type = "toggle";
 					set = function( info, val ) Main.db.profile.sound.poke = val end;

@@ -185,19 +185,48 @@ end
 -------------------------------------------------------------------------------
 local g_probe_frame
 local g_probe_target
+local g_probe_target_time = 0
 local g_probe_mouse
 
-function Main:SetupProbe()
-	if g_probe_frame then error( "no" ) end
-	g_probe_frame = CreateFrame("Frame")
-	g_probe_frame:SetScript( "OnUpdate", function()
-		local target, mouseover = UnitName("target"), UnitName("mouseover")
-		if (target or mouseover) ~= g_probe_target then 
-			g_probe_target = (target or mouseover)
-			
-			Main:ProbePlayer( g_probe_target )
+local function UpdateProbeTarget()
+	Main:ProbePlayer()
+	--[[
+	local target, mouseover = UnitName("target"), UnitName("mouseover")
+	target = target or mouseover
+	
+	-- nil target if targeting self or nonplayer
+	if target then
+		if (UnitGUID(target) == UnitGUID("player")) or not UnitIsPlayer(target) then 
+			target = nil
+		end
+	end
+	
+	-- a 
+	if target then
+		
+		g_probe_target_time = GetTime()
+	end
+
+	if target ~= g_probe_target then 
+	
+		-- cancel probe if there is no target and we're still within
+		-- the time threshold
+		if (not target) and GetTime() < g_probe_target_time + 1.5 then
+			return
 		end
 		
+		g_probe_target = target
+		Main:ProbePlayer( g_probe_target )
+	end]]
+end
+
+function Main:SetupProbe()
+	if g_probe_frame then error( "Tried to recreate probe frame." ) end
+	g_probe_frame = CreateFrame("Frame")
+	g_probe_frame:SetScript( "OnUpdate", function()
+		UpdateProbeTarget()
+		
+		local mouseover = UnitName("mouseover")
 		if mouseover ~= g_probe_mouse then
 			g_probe_mouse = mouseover
 			Main:HighlightMouseover( g_probe_mouse )
@@ -277,9 +306,9 @@ function Main:OnModifierChanged( evt, key, state )
 		
 		-- allow/disable dragging
 		if IsShiftKeyDown() then
-			ListenerFrame:EnableMouse( true )
+			--ListenerFrame:EnableMouse( true )
 		else
-			ListenerFrame:EnableMouse( false )
+			--ListenerFrame:EnableMouse( false )
 			Main.Frame_StopDragging()
 		end
 	end
@@ -717,7 +746,14 @@ function Main:SetShowHidden( showhidden )
 	Main.db.char.showhidden = showhidden
 	
 	Main:RefreshChat() 
-	ListenerFrameBarToggle:RefreshTooltip()
+	
+	if showhidden then
+		ListenerFrame.bar2.hidden_button:SetOn( true )
+	else
+		ListenerFrame.bar2.hidden_button:SetOn( false )
+	end
+	
+	--ListenerFrameBarToggle:RefreshTooltip()
 end
 
 -------------------------------------------------------------------------------
@@ -808,7 +844,7 @@ function Main:AddOrRemovePlayer( name, mode, silent )
 	end
 	
 	Main:RefreshChat() 
-	Main:ProbePlayer()
+	Main:ProbePlayer( true )
 	ListenerFrameBarToggle:RefreshTooltip()
 end
 

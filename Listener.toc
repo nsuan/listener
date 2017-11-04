@@ -24,6 +24,7 @@ names_mrp.lua
 names_xrp.lua
 help.lua
 
+ListenerTextButton.xml
 ListenerFrameButton.xml
 HelpNote.xml
 listener.xml

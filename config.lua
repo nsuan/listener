@@ -90,21 +90,27 @@ local DB_DEFAULTS = {
 			P_YELL           = Hexc "ff0000";
 			P_ROLL           = Hexc "30f715";
 			
+			tab_self         = Hexc "94C7A9";
+			tab_mouseover    = Hexc "BF060F";
+			tab_highlight    = Hexc "D3DA37";
+			
+			readmark         = Hexc "BF060F";
+			
 			highlight           = { 0.15, 0.15, 0.15, 1 };
 			highlight_mouseover = Hexc "2e0007ff";
 			highlight_add = true;
 		};
 		
 		frame = {
-			point   = {};
-		--	x       = nil;
-		--	y       = nil;
-			width   = 350;
-			height  = 400;
-			hidden  = false;
-			timestamps = false;
-			playername = true; -- show player's name in window
+			point        = {};
+			width        = 350;
+			height       = 400;
+			hidden       = false;
+			timestamps   = false;
+			playername   = true; -- show player's name in window
 			time_visible = 9999;
+			zoom_icons   = true;
+			show_icons   = true;
 			
 			highlight_new = true;
 			
@@ -115,16 +121,16 @@ local DB_DEFAULTS = {
 				shadow = false;
 			};
 			bg = {
-				r = 0;
-				g = 0;
-				b = 0;
-				a = 0.75;
+				r = 0.1;
+				g = 0.1;
+				b = 0.1;
+				a = 1;
 			};
 			edge = {
-				r = 1;
-				g = 1;
-				b = 1;
-				a = 0.25;
+				r = 0.6;
+				g = 0.6;
+				b = 0.6;
+				a = 1.0;
 			};
 		};
 		
@@ -301,6 +307,8 @@ Main.config_options = {
 					set = function( info, val ) Main:Frame_SetTimestamps( val ) end;
 					get = function( info ) return Main.db.profile.frame.timestamps end;
 				};
+				
+				--[[
 				playername = {
 					order = 80;
 					width = "full";
@@ -309,7 +317,8 @@ Main.config_options = {
 					type = "toggle";
 					set = function( info, val ) Main:Frame_SetPlayerName( val ) end;
 					get = function( info ) return Main.db.profile.frame.playername end;
-				};
+				};]]
+				
 				hlmouseover ={
 					order = 90;
 					width = "full";

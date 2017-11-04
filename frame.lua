@@ -12,6 +12,7 @@ local g_chat_buffer_size = 300
 local g_old_time = 60*10 -- time until messages are old
 
 local g_has_unread_entries = false
+local g_top_unread_id      = nil
 local g_mouseover_highlight 
 
 -- when a new messages is added, this saves the time
@@ -24,7 +25,7 @@ local Me = {
 	-- the current chatid
 	chatid   = 0;
 	showsay = true;
-	showparty = true;
+	showparty    = true;
 }
 
 Main.Frame = Me
@@ -83,7 +84,7 @@ function Main:OnChatboxScroll( delta )
 		end
 	end
 	
-	Main:UpdateHighlight()
+	--Main:UpdateHighlight() -- this is called when the chat refreshes
 end
 
 function Main:OnChatboxHyperlinkClick( link, text, button )
@@ -333,10 +334,10 @@ local function GetEntryColor( e )
 	
 	local color = Main.db.profile.colors[e.e]
 	 
-	if e.p then
-		-- player message
-		color = Main.db.profile.colors[ "P_" .. e.e ]
-	end 
+--	if e.p then
+--		-- player message
+--		color = Main.db.profile.colors[ "P_" .. e.e ]
+--	end 
 	
 	return color
 end
@@ -374,11 +375,8 @@ function MulColorCode( code, factor )
 	return string.format( "ff%02x%02x%02x", split[1], split[2], split[3] )
 end
 
-function Main:FormatChatMessage( e, hidden )
+function Main:FormatChatMessage( e )
 	local msgtype = g_msgtypes[e.e]
-	
-	-- get icon and name
-	local name, icon, color --
 	
 	local stamp = ""
 	if Main.db.profile.frame.timestamps then
@@ -387,61 +385,48 @@ function Main:FormatChatMessage( e, hidden )
 		stamp = "|cff808080" .. stamp .. "|r" 
 	end
 	
-	if not e.p or Main.db.profile.frame.playername then 
-		name, icon, color = self:GetICName( e.s, e.g )
-		
-		if icon then
-			if hidden then
-				icon = "|TInterface\\Icons\\" .. icon .. ":0:0:0:0:1:1:0:1:0:1:128:128:128|t " -- wowwee... 
-			else
-				icon = "|TInterface\\Icons\\" .. icon .. ":0|t "
-			end
+	-- get icon and name 
+	local name, icon, color = self:GetICName( e.s, e.g )
+	
+	if icon and Main.db.profile.frame.show_icons then
+		if Main.db.profile.frame.zoom_icons then
+			icon = "|TInterface\\Icons\\" .. icon .. ":0:0:0:0:100:100:10:90:10:90:255:255:255|t "
 		else
-			icon = ""
+			icon = "|TInterface\\Icons\\" .. icon .. ":0|t "
 		end
-		
-		if color then 
-			name = "|c" .. color .. name .. "|r"
-		end
-		
-		name = "|Hplayer:" .. e.s .. "|h" .. name .. "|h" 
+	else
+		icon = ""
 	end
+	
+	if color then 
+		name = "|c" .. color .. name .. "|r"
+	end
+	
+	name = "|Hplayer:" .. e.s .. "|h" .. name .. "|h" 
 	
 	local text = ""
-	 
+	
 	if msgtype == 1 then
+	   -- say/party
 	   
 		local prefix = g_m1_prefix[e.e] or ""
-		prefix = stamp .. prefix
+		prefix = stamp .. icon .. prefix
 		
-		if e.p and not Main.db.profile.frame.playername then
-			text = string.format( "%s>> %s", prefix, e.m )
-		else
-			text = string.format( "%s%s%s: %s", prefix, icon, name, e.m )
-		end
+		text = string.format( "%s%s: %s", prefix, name, e.m )
+		
 	elseif msgtype == 2 then
-		if e.p and not Main.db.profile.frame.playername  then
-			text = string.format( "%s** %s", stamp, e.m )
-		else
-			text = string.format( "%s%s%s %s", stamp, icon, name, e.m )
-		end
+		-- emote message
+		text = string.format( "%s%s%s %s", stamp, icon, name, e.m )
+		
 	elseif msgtype == 3 then
+		-- text emote/roll
 	
-		if e.p and not Main.db.profile.frame.playername  then 
-			text = string.format( "%s** %s", stamp, e.m )
-		else
-			local msg = e.m:gsub( e.s, name )
-			text = string.format( "%s%s%s", stamp, icon, msg )
-		end
-	
+		-- replace sender name with IC name
+		local msg = e.m:gsub( e.s, name )
+		
+		text = string.format( "%s%s%s", stamp, icon, msg )
 	end
 	
-	if hidden then
-		-- kill those color codes
-		text = text:gsub( "|c([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])", function( c ) 
-			return "|c" .. MulColorCode( c, 0.5 )
-		end )
-	end
 	return text
 	
 end
@@ -471,6 +456,11 @@ function Main:AddMessage( e, beep )
 			end
 			Main:FlashClient() -- this has its own config check inside
 		end
+		
+		if g_top_unread_id == nil then
+			g_top_unread_id = e.id
+		end
+		
 		self:FlagUnreadEntries()
 	end
 	
@@ -500,12 +490,17 @@ end]]
 function Main:CheckUnread()
 	self:UnflagUnreadEntries()
 	g_has_unread_entries = false
+	g_top_unread_id = nil
 	for k,v in pairs( self.unread_entries ) do
 		if EntryFilter( v ) 
 		   and (self.player_list[ v.s ] == 1 
 		        or (self.player_list[v.s] ~= 0 and Main.listen_all) 
 				or guid == UnitGUID("player")) then
 				
+			if not g_top_unread_id or g_top_unread_id < v.id then
+				g_top_unread_id = v.id
+			end
+			
 			self:FlagUnreadEntries()
 		end
 	end
@@ -513,6 +508,8 @@ end
 
 -------------------------------------------------------------------------------
 function Main:UpdateHighlight()
+	if not Main.db then return end -- not initialized yet.
+	
 	local regions = {}
 
 	-- create a list of message regions
@@ -530,10 +527,14 @@ function Main:UpdateHighlight()
 	end)
 	
 	local offset = math.max( Me.chatid - g_chat_buffer_size, 0 )
-	local chat_index = Me.chatid - ListenerFrameChat:GetScrollOffset() - offset
+	local chat_index_start = Me.chatid - ListenerFrameChat:GetScrollOffset() - offset
+	local chat_index = chat_index_start
 	local count = 0
 	
 	local top_edge = ListenerFrameChat:GetTop() + 1 -- that one pixel
+	
+	local first_unread_region = nil
+	--local first_unread_id     = 0
 	
 	for k,v in ipairs( regions ) do
 		local e = Main.chat_buffer[chat_index]
@@ -541,46 +542,86 @@ function Main:UpdateHighlight()
 		if not e then break end
 		e = e.e
 		
+		if v:GetBottom() < top_edge then -- within the chatbox only
 		
-	
-		if not e.p and v:GetBottom() < top_edge then -- within the chatbox only
-		
+			local hidden = not e.p and (Main.player_list[e.s] == 0 or (Main.player_list[e.s] ~= 1 and not Main.db.char.listen_all))
+			if hidden then
+				v:SetAlpha( 0.5 )
+			else
+				v:SetAlpha( 1.0 )
+			end
+			
+			if e.id == g_top_unread_id then
+				first_unread_region = v
+			end
+			
 			local hidden = not (Main.player_list[e.s] == 1 or Main.player_list[e.s]~=0 and Main.db.char.listen_all)  
 			local mouseover = g_mouseover_highlight == e.s
 			
-			if mouseover or (not hidden and not e.r) then
-				-- unread message, highlight
+			local enabled = mouseover or e.p or e.h
+			
+			if enabled then
+				-- setup block
 				count = count + 1
 				if not Me.hl_texes[count] then
-					Me.hl_texes[count] = ListenerFrameChat:CreateTexture() 
+					Me.hl_texes[count] = ListenerFrame:CreateTexture() 
 				end 
 				local tex = Me.hl_texes[count]
 				
 				tex:ClearAllPoints()
-				tex:SetPoint( "LEFT", v, "LEFT", 0, 0 )
-				tex:SetPoint( "RIGHT", v, "RIGHT", 0, 0 )
+				tex:SetPoint( "LEFT", v, "LEFT", -3, 0 )
+				tex:SetPoint( "RIGHT", v, "LEFT", -1, 0 )
 				tex:SetPoint( "BOTTOM", v, "BOTTOM", 0, 0 )
 				
 				local clip = math.max( v:GetTop() - top_edge, 0 )
 				
 				tex:SetPoint( "TOP", v, "TOP", 0, -clip )
-				
-				if Main.db.profile.colors.highlight_add then
-					tex:SetBlendMode( "ADD" )
-				else
-					tex:SetBlendMode( "BLEND" )
+				tex:SetBlendMode( "BLEND" )
+				if e.h then
+					tex:SetColorTexture( unpack( Main.db.profile.colors.tab_highlight ) )
+				elseif e.p then
+					tex:SetColorTexture( unpack( Main.db.profile.colors.tab_self ) )
+				elseif mouseover then
+					tex:SetColorTexture( unpack( Main.db.profile.colors.tab_mouseover ) )
 				end
-				
-				if mouseover then
-					tex:SetColorTexture( unpack( Main.db.profile.colors.highlight_mouseover ) )
-				else
-					tex:SetColorTexture( unpack( Main.db.profile.colors.highlight ) )
-				end
-				tex:Show()
+				tex:Show()	
 			end
 		end
 
 		chat_index = chat_index - 1
+	end
+	ListenerFrame.readmark:SetColorTexture( unpack( Main.db.profile.colors.readmark ) )
+	if first_unread_region then
+		ListenerFrame.readmark:Show()
+		-- set the marker here
+		local top = ListenerFrame:GetTop() - (first_unread_region:GetTop() + 1)
+		if top < 2 then 
+			top = 2 
+			ListenerFrame.readmark:SetHeight( 2 )
+		else
+			ListenerFrame.readmark:SetHeight( 1 )
+		end
+		ListenerFrame.readmark:SetPoint( "TOP", 0, -top )
+		
+	elseif g_has_unread_entries then
+		ListenerFrame.readmark:SetHeight( 2 )
+		ListenerFrame.readmark:Show()
+		local e = Main.chat_buffer[chat_index_start]
+		if e then e = e.e end
+		if e then
+			if e.id < g_top_unread_id then
+				-- past the bottom
+				
+				ListenerFrame.readmark:SetPoint( "TOP", ListenerFrame, "BOTTOM", 0, 3 )
+			else
+				-- past the top
+				
+				ListenerFrame.readmark:SetPoint( "TOP", 0, -2 )
+				--ListenerFrameReadmark:SetPoint( "TOP", ListenerFrameChat, "TOP", 0, 0 )
+			end
+		end
+	else
+		ListenerFrame.readmark:Hide()
 	end
 	
 	for i = count+1, #Me.hl_texes do
@@ -622,43 +663,12 @@ function Main:RefreshChat()
 			break
 		end
 	end
-	
-	--[[
-	for playername,p in pairs(self.player_list) do
-		local history = self.chat_history[playername] or {}
-		for k2, v2 in pairs( history ) do
-			if EntryFilter( v2 ) then
-				table.insert( entries, v2 )
-			end
-		end
-	end
-	
-	-- our own text
-	local history = self.chat_history[UnitName("player")] or {}
-	for k2, v2 in pairs( history ) do
-		if EntryFilter( v2 ) then
-			table.insert( entries, v2 )
-		end
-	end
-	
-	-- sort by lineid
-	table.sort( entries, function( a, b )
-		return a.id < b.id
-	end)
-	
-	-- crop and populate
-	local start = #entries - g_chat_buffer_size
-	if start < 1 then start = 1 end
-	for i = start,#entries do
-		self:AddMessage( entries[i] )
-	end 
-	]]
-	
+
 	for i = #entries, 1, -1 do
 		self:AddMessage( entries[i] )
 	end
 	
-	Main:UpdateHighlight()
+--	Main:UpdateHighlight() -- this will be called when the chat refreshes
 end
 
 -------------------------------------------------------------------------------

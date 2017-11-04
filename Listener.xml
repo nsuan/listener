@@ -16,6 +16,16 @@
           <Color b="0.0" r="0.0" g="0.0" a="0.25"/>
         </Texture>
       </Layer>
+      <Layer level="ARTWORK">
+        <Texture parentKey="readmark">
+          <Size y="1"/>
+          <Anchors>
+            <Anchor point="LEFT" x="1" />
+            <Anchor point="RIGHT" x="-1" />
+          </Anchors>
+          <Color b="0.0" r="0.0" g="0.0" a="0.25"/>
+        </Texture>
+      </Layer>
     </Layers>
     
     <!--
@@ -48,6 +58,36 @@
     <Frames>
     
       <!-- Bar -->
+      <Frame name="$parentBar2" parentKey="bar2" enableMouse="false">
+        <Anchors>
+          <Anchor point="TOPLEFT" x="0" y="0" />
+          <Anchor point="BOTTOMRIGHT" relativePoint="TOPRIGHT"><Offset x="0" y="-15"/></Anchor>
+        </Anchors>
+        
+        <Layers>
+          <Layer level="BACKGROUND">
+            <Texture parentKey="bg" setallpoints="true">
+              <Color b="0.0" r="0.0" g="0.0" a="0.25"/>
+            </Texture>
+          </Layer>
+        </Layers>
+        
+        <Frames>
+          <ListenerTextButton parentKey="title">
+            <Size x="100"/>
+            <Anchors>
+              <Anchor point="TOP"/>
+              <Anchor point="BOTTOM"/>
+              <Anchor point="LEFT" x="4"/>
+            </Anchors>
+          <Scripts>
+            <OnLoad>
+              self:SetText( "Henlo" )
+            </OnLoad>
+          </Scripts>
+          </ListenerTextButton>
+        </Frames>
+      </Frame>
       
       <Frame name="$parentBar" enableMouse="false" frameStrata="LOW">
         <Anchors>
@@ -115,6 +155,22 @@
           </ListenerFrameButton>
         </Frames>
       </Frame>
+      <!--
+      <Frame name="$parentReadmark" hidden="false">
+        <Size y="1"/>
+        <Anchors>
+          <Anchor point="LEFT" relativePoint="LEFT"><Offset x="1"/></Anchor>
+          <Anchor point="RIGHT" relativePoint="RIGHT"><Offset x="-1"/></Anchor>
+        </Anchors>
+        <Layers>
+          <Layer setAllPoints="true">
+            <Texture parentKey="tex">
+              
+              <Color r="1.0" g="0.0" b="0.0" a="0.9" />
+            </Texture>
+          </Layer>
+        </Layers>
+      </Frame>-->
       
       <Frame name="$parentScrollmark" hidden="true">
         <Anchors>
@@ -131,14 +187,14 @@
         </Layers>
         <Scripts>
           <OnUpdate>
-                    
+            --[[
             if ListenerAddon:HasUnreadEntries() then
               -- flash red if we have new entries
               local a = math.sin(GetTime() * 3) * 0.4 + 0.6
               self.tex:SetColorTexture( 1, 0.21, 0.04, a )
             else
               self.tex:SetColorTexture( 1, 1, 1, 0.25 )
-            end
+            end]]
             
           </OnUpdate>
         </Scripts>
@@ -170,7 +226,7 @@
       
       <ScrollingMessageFrame name="$parentChat" parentKey="chatbox" maxlines="500" displayduration="300" nonspacewrap="true">
         <Anchors>
-          <Anchor point="TOPLEFT" x="2" y="-6"/>
+          <Anchor point="TOPLEFT" x="4" y="-6"/>
           <Anchor point="BOTTOMRIGHT" x="-2" y="3"/>
         </Anchors>
 				<Scripts>
@@ -180,7 +236,8 @@
             self:EnableMouseWheel( true )
             self:SetHyperlinksEnabled( true )
             self:SetIndentedWordWrap( true )
-             
+            self:SetPoint( "TOPLEFT", self:GetParent().bar2, "BOTTOMLEFT", 4, 0 )
+
             hooksecurefunc( self, "RefreshDisplay", function()
             
             --self:SetScript( "OnMessageScrollChanged", function( self ) 

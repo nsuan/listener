@@ -33,6 +33,12 @@ local function Hexc( hex )
 end
 
 -------------------------------------------------------------------------------
+-- A note about frame configuration:
+-- Some of the options are stored in the PROFILE while most are stored in CHAR.
+-- For the primary frame (index 1), the position settings are stored in the PROFILE.
+-- For other frames, they're character based, and are entirely stored in the CHAR.
+
+-------------------------------------------------------------------------------
 local DB_DEFAULTS = {
 	
 	global = {
@@ -46,27 +52,53 @@ local DB_DEFAULTS = {
 		listen_party = true; -- }
 		listen_say   = true; -- }
 		showhidden   = false; -- fade out filtered messages instead of hiding
+		frames       = {
+			
+			-------------------------------------------------------------------
+			-- frames[1] is the primary frame, frames[2..x] are subframes
+			-- contents:
+			--   players    = {}    player filter list
+			--	 listen_all = true  inclusion mode
+			--   filter     = {}    events that are included (should use default value table)
+			--    [event_type] = true/false
+			--    [#channel]   = true/false
+			--  showhidden = false  show hidden players
+			--  layout              position/size (uses profile entry for primary frame)
+			--    point  = {}       anchor point info
+			--    width  = x        size
+			--    height = y        size
+			--  hidden = false      frame is hidden
+			--  
+			--  color_bg   = {color} background color
+			--  color_edge = {color} edge color
+			--  color_bar  = {color} bar color
+		};
 	};
 	
 	profile = {
 	
+		-- for minimap lib
 		minimapicon = {
 			hide = false;
 		};
-		locked      = false; -- unused?
-		combathide  = true; -- hide in combat
-		addgrouped  = true; -- add player's party automatically (todo)
-		flashclient = true; -- flash taskbar on message
-		beeptime    = 3;    -- time needed between emotes to play another sound
-		highlight_mouseover = true; -- highlight mouseover's emotes in main window
 		
+		-- general settings
+		locked      = false; -- unused?
+		combathide  = true;  -- hide in combat
+		addgrouped  = true;  -- add player's party automatically (todo)
+		flashclient = true;  -- flash taskbar on message
+		beeptime    = 3;     -- time needed between emotes to play another sound
+		highlight_mouseover = true; -- highlight mouseover's emotes in main window
+		rpconnect   = true;  -- rpconnect support
+		
+		-- sound settings
 		sound = {
-			
 			msg    = true; -- play sound on filtered emote
 			target = true; -- play sound when target emotes
 			poke   = true; -- play sound when someone emotes at you
 		};
 		
+		-- mostly text color options
 		colors = {
 			SAY            = Hexc "f0f0f0";
 			EMOTE          = Hexc "ff9e12";
@@ -101,11 +133,15 @@ local DB_DEFAULTS = {
 			highlight_add = true;
 		};
 		
+		-- profile frame settings (see note above)
 		frame = {
-			point        = {};
-			width        = 350;
-			height       = 400;
-			hidden       = false;
+			layout = {
+				point        = {};  -- } only used for primary frame
+				width        = 350; -- } but subframes inherit this
+				height       = 400; -- } upon creation
+			};
+			
+			hidden       = false; -- this is being moved
 			timestamps   = false;
 			playername   = true; -- show player's name in window
 			time_visible = 9999;
@@ -114,25 +150,30 @@ local DB_DEFAULTS = {
 			
 			highlight_new = true;
 			
+			-- shared between all windows
 			font = {
 				size = 14;
 				face = "Arial Narrow";
 				outline = 1;
 				shadow = false;
 			};
+			
+			-- shared between all windows
 			barfont = {
 				size = 14;
 				face = "Accidental Presidency";
 			};
+			
+			-- these are default values when
+			-- new windows are created
 			color_bg   = Hexc "090f17ff";
 			color_edge = Hexc "4777b380";
 			color_bar  = Hexc "1F344Eff";
 		};
 		
+		-- snooper settings
 		snoop = {
 			point   = {};
-		--	x      = nil;
-		--	y      = nil;
 			width  = 400;
 			height = 500;
 			show   = true;
@@ -513,22 +554,22 @@ do
 end
   
 -------------------------------------------------------------------------------
-function Main:CreateDB() 
+function Main.CreateDB() 
 
 	local acedb = LibStub( "AceDB-3.0" )
  
   
-	self.db = acedb:New( "ListenerAddonSaved", DB_DEFAULTS, true )
+	Main.db = acedb:New( "ListenerAddonSaved", DB_DEFAULTS, true )
 	
-	self.db.RegisterCallback( self, "OnProfileChanged", "ApplyConfig" )
-	self.db.RegisterCallback( self, "OnProfileCopied",  "ApplyConfig" )
-	self.db.RegisterCallback( self, "OnProfileReset",   "ApplyConfig" )
+	Main.db.RegisterCallback( Main, "OnProfileChanged", "ApplyConfig" )
+	Main.db.RegisterCallback( Main, "OnProfileCopied",  "ApplyConfig" )
+	Main.db.RegisterCallback( Main, "OnProfileReset",   "ApplyConfig" )
 	
 	-- insert older database patches here: --
 	
 	-----------------------------------------
  
-	self.db.global.version = VERSION
+	Main.db.global.version = VERSION
 end
 
 -------------------------------------------------------------------------------
@@ -565,6 +606,8 @@ end
 --
 function Main:ApplyConfig( onload )
 	 
-	self:LoadFrameSettings()
+	for _, frame in pairs( Main.frames ) do
+		frame:ApplyOptions()
+	end
 end
  

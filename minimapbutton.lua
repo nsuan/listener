@@ -11,7 +11,7 @@ local LDB    = LibStub:GetLibrary( "LibDataBroker-1.1" )
 local DBIcon = LibStub:GetLibrary( "LibDBIcon-1.0"     )
 
 -------------------------------------------------------------------------------
-Main:AddSetup( function()
+Main.AddSetup( function()
 	local self = Main.MinimapButton
 	
 	self.data = LDB:NewDataObject( "Listener", {

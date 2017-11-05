@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- LISTENER by Tammya-MoonGuard (2016)
+-- LISTENER by Tammya-MoonGuard (2017)
 -------------------------------------------------------------------------------
 
 local VERSION = GetAddOnMetadata( "Listener", "Version" )
@@ -11,24 +11,24 @@ ListenerAddon = LibStub("AceAddon-3.0"):NewAddon( "Listener",
 local Main = ListenerAddon
 
 -------------------------------------------------------------------------------
-Main.version    = VERSION
-Main.unlocked   = false
+Main.version  = VERSION
+Main.unlocked = false
 
 local g_init_funcs = {}
 local g_load_funcs = {}
 
 -------------------------------------------------------------------------------
-function Main:AddSetup( func )
-	
+function Main.AddSetup( func )
 	table.insert( g_init_funcs, func )
 end
 
-function Main:AddLoadCall( func )
+-------------------------------------------------------------------------------
+function Main.AddLoadCall( func )
 	table.insert( g_load_funcs, func )
 end
- 
+
 -------------------------------------------------------------------------------
-function Main:Setup()
+function Main.Setup()
 	 
 	if not g_init_funcs then
 		error( "Setup has already been called." )
@@ -41,7 +41,8 @@ function Main:Setup()
 	g_init_funcs = nil
 end
 
-function Main:Init_OnEnabled()
+-------------------------------------------------------------------------------
+function Main.Init_OnEnabled()
 	for _,f in pairs( g_load_funcs ) do
 		f()
 	end

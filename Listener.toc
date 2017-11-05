@@ -5,7 +5,7 @@
 ## SavedVariables: ListenerAddonSaved
 ## SavedVariablesPerCharacter: ListenerChatHistory
 ## OptionalDeps: totalRP3 MyRolePlay XRP
-## Version: 1.5.8
+## Version: 1.6.0
 embeds.xml
 
 init.lua
@@ -24,9 +24,4 @@ names_mrp.lua
 names_xrp.lua
 help.lua
 
-ListenerTextButton.xml
-ListenerFrameButton.xml
-ListenerBarButton.xml
-HelpNote.xml
-listener.xml
-
+ui.xml

@@ -1,3 +1,9 @@
+## 1.6.0
+Major updates.
+Redid interface.
+Ability to create new instances. (Right click the upper left corner.)
+Better customization.
+
 ## 1.5.8
 Compatibility update.
 Minor fixes.

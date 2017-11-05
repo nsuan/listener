@@ -22,7 +22,7 @@
         </Texture>
       </Layer>
       <Layer level="OVERLAY">
-        <Texture parentKey="tex_hl" file="Interface/Addons/Listener/uibuttons">
+        <Texture parentKey="tex_hl" file="Interface/Addons/Listener/uibuttons" hidden="true">
           <Size x="16" y="16"/>
           <Anchors>
             <Anchor point="TOPLEFT" />

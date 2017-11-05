@@ -45,8 +45,12 @@ SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%(%(%%d%+%)%-%(%%d%+%)%)", "%%(
 ]]
 
 Main.unread_entries = {}
-Main.RPConnect      = true -- enable RP Connect support
 Main.next_lineid    = 1
+Main.frames         = {}
+Main.unused_frames	= {} -- garbage can
+Main.active_frame   = nil
+
+local g_frame_creation_id = 0
  
 -------------------------------------------------------------------------------		  
 function Main:OnInitialize() 
@@ -55,7 +59,7 @@ function Main:OnInitialize()
 end
 
 -------------------------------------------------------------------------------
-function Main:CleanChatHistory()
+local function CleanChatHistory()
 	ListenerChatHistory = ListenerChatHistory or {}
 	Main.chatlist = {}
 	
@@ -65,7 +69,7 @@ function Main:CleanChatHistory()
 			version = Main.version;
 			data    = {};
 		}
-		self.chat_history = ListenerChatHistory.data
+		Main.chat_history = ListenerChatHistory.data
 		return
 	end
 	
@@ -94,6 +98,9 @@ function Main:CleanChatHistory()
 					max_lineid = math.max( a.id, max_lineid )
 					writeto = writeto + 1
 					
+					-- todo: should squish chat ids somewhere 
+					-- because that could get pretty high and kill refresh performance
+					
 					Main.chatlist[ a.id ] = a
 				end
 			end
@@ -101,33 +108,37 @@ function Main:CleanChatHistory()
 		 
 		-- if the list is empty, delete the player from the history
 		if #chat_table == 0 then
-			self.chat_history[playername] = nil 
+			Main.chat_history[playername] = nil 
 		end
 	end
-	 
+	
 	Main.next_lineid = max_lineid + 1
 end
 
 -------------------------------------------------------------------------------
 -- Reset player filters with no chat history.
 --
-function Main:CleanPlayerList()
+-- This is to be called before the frames are created.
+--
+local function CleanPlayerList()
 
-	for k,v in pairs(self.player_list) do
-		if not self.chat_history[k] then
-			self.player_list[k] = nil
+	for _, frame in pairs( Main.db.char.frames ) do
+		for k,v in pairs( frame.players ) do
+			if not Main.chat_history[k] then
+				frame.players[k] = nil
+			end
 		end
-	end 
+	end
 end
 
 -------------------------------------------------------------------------------
 -- Scan friends list and add them to the filter.
 --
-function Main:AddFriendsList()
+local function AddFriendsList()
 	for i = 1, GetNumFriends() do
 		local name = GetFriendInfo( i )
 		if name and name ~= "Unknown" then
-			self.player_list[name] = 1
+			Main.frames[1].players[name] = 1
 		end
 	end
 end
@@ -155,7 +166,7 @@ end
 
 -------------------------------------------------------------------------------
 local function FrameTooltip_Start( self )
-	Main:StartTooltip( self )
+	Main.StartTooltip( self )
 	self.tooltip_func( self )
 	GameTooltip:Show()
 end
@@ -183,119 +194,10 @@ function Main:SetupTooltip( frame, func )
 end	
 
 -------------------------------------------------------------------------------
-local g_probe_frame
-local g_probe_target
-local g_probe_target_time = 0
-local g_probe_mouse
-
-local function UpdateProbeTarget()
-	Main:ProbePlayer()
-	--[[
-	local target, mouseover = UnitName("target"), UnitName("mouseover")
-	target = target or mouseover
-	
-	-- nil target if targeting self or nonplayer
-	if target then
-		if (UnitGUID(target) == UnitGUID("player")) or not UnitIsPlayer(target) then 
-			target = nil
-		end
-	end
-	
-	-- a 
-	if target then
-		
-		g_probe_target_time = GetTime()
-	end
-
-	if target ~= g_probe_target then 
-	
-		-- cancel probe if there is no target and we're still within
-		-- the time threshold
-		if (not target) and GetTime() < g_probe_target_time + 1.5 then
-			return
-		end
-		
-		g_probe_target = target
-		Main:ProbePlayer( g_probe_target )
-	end]]
-end
-
-function Main:SetupProbe()
-	if g_probe_frame then error( "Tried to recreate probe frame." ) end
-	g_probe_frame = CreateFrame("Frame")
-	g_probe_frame:SetScript( "OnUpdate", function()
-		UpdateProbeTarget()
-		
-		local mouseover = UnitName("mouseover")
-		if mouseover ~= g_probe_mouse then
-			g_probe_mouse = mouseover
-			Main:HighlightMouseover( g_probe_mouse )
-		end
-	end)
-	g_probe_frame:Show()
-end
-
--------------------------------------------------------------------------------
 function Main.SetupBindingText()
 	_G["BINDING_NAME_LISTENER_TOGGLEFILTER"] = L["Toggle Player Filter"]
 	_G["BINDING_NAME_LISTENER_MARKUNREAD"]   = L["Mark Messages as Read"]
 	_G["BINDING_HEADER_LISTENER"]            = L["Listener"]
-end
-
--------------------------------------------------------------------------------
-function Main:OnEnable()
-
-	Main.SetupBindingText()
-
-	self:CleanChatHistory() 
-	self:Setup()
-	self:CreateDB()
-
-	self.MinimapButton:OnLoad()
-	
-	self.player_list = self.db.char.player_list
-	
-	self:CleanPlayerList()
-	
-	self:AddFriendsList()
-	g_loadtime = GetTime()
-	self:RegisterEvent( "FRIENDLIST_UPDATE", "OnFriendlistUpdate" )
-
-	self:RegisterEvent( "CHAT_MSG_SAY", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_EMOTE", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_TEXT_EMOTE", "OnChatMsg" )
---	self:RegisterEvent( "CHAT_MSG_WHISPER", "OnChatMsg" )
---	self:RegisterEvent( "CHAT_MSG_WHISPER_INFORM", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_PARTY", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_PARTY_LEADER", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_RAID", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_RAID_LEADER", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_RAID_WARNING", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_YELL", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_SYSTEM", "OnSystemMsg" )
-	self:RegisterMessage( "DiceMaster4_Roll", "OnDiceMasterRoll" )
-	
-	-- just create a stupid frame for this
-	
-	--self:RegisterEvent( "UPDATE_MOUSEOVER_UNIT", "OnProbeUpdate" )
-	--self:RegisterEvent( "PLAYER_TARGET_CHANGED", "OnProbeUpdate" )
-	
-	self:RegisterEvent( "PLAYER_REGEN_DISABLED", "OnEnterCombat" )
-	self:RegisterEvent( "PLAYER_REGEN_ENABLED", "OnLeaveCombat" )
-	
-	self:RegisterEvent( "MODIFIER_STATE_CHANGED", "OnModifierChanged" )
-	  
-
-	self:Print( L["Version:"] .. " " .. self.version )
-	   
-	self:ApplyConfig()
-
-	
-	self:Snoop_Setup()
-	
-	self:Init_OnEnabled()
-	Main:SetupProbe()
-	self:RefreshChat()
 end
 
 -------------------------------------------------------------------------------
@@ -324,8 +226,12 @@ function Main:OnFriendlistUpdate()
 	-- if this event occurs 30 seconds within load time, then we
 	-- wanna update our initial friends list adding
 	if GetTime() - g_loadtime < 30 then
-		Main:AddFriendsList()
+		AddFriendsList()
+		if Main.frames[1] then
+			Main.frames[1]:RefreshChat()
+		end
 	end
+	
 end
 
 -------------------------------------------------------------------------------
@@ -446,7 +352,7 @@ function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a
 		end
 	end
 	
-	self:AddChatHistory( sender, event, message, language, guid )
+	self:AddChatHistory( sender, event, message, language, guid, a9 )
 	self:Snoop_DoUpdate( sender )
 end
 
@@ -519,7 +425,53 @@ local function SubRaidTargets( message )
 end
 
 -------------------------------------------------------------------------------
-function Main:AddChatHistory( sender, event, message, language, guid )
+-- Language Filter routine.
+--
+-- @param message  Message to process.
+-- @param sender   Name of sender.
+-- @param event    Chat event type, e.g. "SAY"
+-- @param language Language the message is in (for /say messages)
+--
+local function LanguageFilter( message, sender, event, language )
+	local langdef = language -- langdef is language or default language
+	if not langdef or langdef == "" then langdef = GetDefaultLanguage() end
+	
+	
+	if Main.LanguageFilter.known[langdef] then
+		-- mark this sender as understandable, they've spoken in our languages
+		Main.LanguageFilter.emotes[sender] = true
+	end
+	
+	if event == "SAY" and not Main.LanguageFilter.known[langdef] then
+		-- feature to block out unknown languages
+		 
+		local oocmarks = { "{{", "}}", "%[%[", "%]%]", "%(%(", "%)" }
+		local ooc = false
+		
+		for k,v in pairs(oocmarks) do
+			if message:find( v ) then ooc = true break end
+		end
+		
+		if not ooc then
+		
+			if message:sub(1,1) == '"' then
+				message = message:gsub( [[".-[-,.?~]"]], '"<' .. langdef .. '>"' )
+			else
+				message = "<" .. langdef .. ">"
+			end
+		end
+	end
+	
+	if event == "EMOTE" and not Main.LanguageFilter.emotes[sender] then
+		-- cut out speech from unknown emotes
+		message = message:gsub( [[".-[-,.?~]"]], '"<' .. langdef .. '>"' )
+	end
+	
+	return message
+end
+
+-------------------------------------------------------------------------------
+function Main:AddChatHistory( sender, event, message, language, guid, channel )
  
 	--local time = date("*t")
 	--time = string.format( "[%02d:%02d]", time.hour, time.min );
@@ -539,41 +491,9 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 	---------------------------------------------------------------------------
 	-- Language Filter
 	---------------------------------------------------------------------------
-	local langdef = language -- langdef is language or default language
-	if not langdef or langdef == "" then langdef = GetDefaultLanguage() end
-	
 	if Main.LanguageFilter and not isplayer then
 		-- language filter option enabled
-	
-		if Main.LanguageFilter.known[langdef] then
-			-- mark this sender as understandable, they've spoken in our languages
-			Main.LanguageFilter.emotes[sender] = true
-		end
-		
-		if event == "SAY" and not Main.LanguageFilter.known[langdef] then
-			-- feature to block out unknown languages
-			 
-			local oocmarks = { "{{", "}}", "%[%[", "%]%]", "%(%(", "%)" }
-			local ooc = false
-			
-			for k,v in pairs(oocmarks) do
-				if message:find( v ) then ooc = true break end
-			end
-			
-			if not ooc then
-			
-				if message:sub(1,1) == '"' then
-					message = message:gsub( [[".-[-,.?~]"]], '"<' .. langdef .. '>"' )
-				else
-					message = "<" .. langdef .. ">"
-				end
-			end
-		end
-		
-		if event == "EMOTE" and not Main.LanguageFilter.emotes[sender] then
-			-- cut out speech from unknown emotes
-			message = message:gsub( [[".-[-,.?~]"]], '"<' .. langdef .. '>"' )
-		end
+		message = LanguageFilter( message, sender, event, language )
 	end
 	
 	if language and language ~= GetDefaultLanguage() and language ~= "" then
@@ -584,7 +504,7 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 	---------------------------------------------------------------------------
 	-- RPConnect splitter
 	---------------------------------------------------------------------------
-	if Main.RPConnect and event == "PARTY" or event == "RAID" or event == "RAID_LEADER" then
+	if Main.db.profile.rpconnect and event == "PARTY" or event == "RAID" or event == "RAID_LEADER" then
 		local name = message:match( "^<%[(.+)%]" )
 		if name and not UnitName( name ) then
 			-- we found the RP Connect pattern for a relayed message
@@ -607,6 +527,10 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 		s  = sender;
 		g  = guid;
 	}
+	
+	if e == "CHANNEL" then
+		e.c = channel:lower()
+	end
 	
 	if isplayer then
 		entry.p = true -- is player
@@ -645,11 +569,8 @@ function Main:AddChatHistory( sender, event, message, language, guid )
 		Main:FlashClient()
 	end
  
-	if ((Main.db.char.showhidden or Main.player_list[sender] == 1 or (Main.db.char.listen_all and Main.player_list[sender] ~= 0)) or isplayer) then
-		 
-		Main:AddMessage( entry, true )
-	
-		Main:UpdateHighlight()
+	for _,frame in pairs( Main.frames ) do
+		frame:TryAddMessage( entry, true )
 	end
 end
 
@@ -662,16 +583,16 @@ function Main:ToggleCommand( arg, command )
 		arg = UnitName( "mouseover" )
 	end
 	if arg == nil then
-		Main:Print( L["Specify name or target someone."] )
+		Main.Print( L["Specify name or target someone."] )
 		return
 	end
 	
 	if command == "add" then
-		Main:AddPlayer( arg )
+		Main.active_frame:AddPlayer( arg )
 	elseif command == "remove" then
-		Main:RemovePlayer( arg )
+		Main.active_frame:RemovePlayer( arg )
 	elseif command == "toggle" then
-		Main:TogglePlayer( arg )
+		Main.active_frame:TogglePlayer( arg )
 	end
 end
 
@@ -706,11 +627,11 @@ function SlashCmdList.LISTENER( msg )
 		
 	elseif args[1] == "clear" or args[1] == L["clear"] then
 	
-		Main:ClearAllPlayers()
+		--Main:ClearAllPlayers()
 		
 	elseif args[1] == "list" or args[1] == L["list"] then
 	
-		Main:ListPlayers()
+		--Main:ListPlayers()
 	
 	elseif args[1] == "show" or args[1] == L["show"] then
 	
@@ -724,42 +645,9 @@ function SlashCmdList.LISTENER( msg )
 end
 
 -------------------------------------------------------------------------------
--- Set Listen All mode. (default filter mode)
---
-function Main:SetListenAll( listen_all )
-	listen_all = not not listen_all
-	if Main.db.char.listen_all == listen_all then return end
-	
-	Main.db.char.listen_all = listen_all
-	
-	Main:RefreshChat() 
-	Main:ProbePlayer()
-	ListenerFrameBarToggle:RefreshTooltip()
-end
-
--------------------------------------------------------------------------------
--- Enable/disable showing filtered out players.
---
-function Main:SetShowHidden( showhidden )
-	showhidden = not not showhidden
-	if Main.db.char.showhidden == showhidden then return end
-	Main.db.char.showhidden = showhidden
-	
-	Main:RefreshChat() 
-	
-	if showhidden then
-		ListenerFrame.bar2.hidden_button:SetOn( true )
-	else
-		ListenerFrame.bar2.hidden_button:SetOn( false )
-	end
-	
-	--ListenerFrameBarToggle:RefreshTooltip()
-end
-
--------------------------------------------------------------------------------
 -- Clean a name so that it starts with a capital letter.
 --
-local function FixupName( name )
+function Main:FixupName( name )
 	name = name:lower()
 	
 	-- strip realm
@@ -769,167 +657,122 @@ local function FixupName( name )
 	name = name:gsub("^[%z\1-\127\194-\244][\128-\191]*", string.upper)
 	return name
 end
- 
+
 -------------------------------------------------------------------------------
--- Add or remove player to listening filter
--- 
--- @param name   Name of player or GROUP for all players in group.
--- @param mode   1 = add player; 0 = remove player; nil = reset player.
--- @param silent Don't print chat messages.
+-- Returns a new frame or one of the unused frames.
 --
-function Main:AddOrRemovePlayer( name, mode, silent )
-	if mode ~= 1 and mode ~= 0 and mode ~= nil then error( "Invalid mode." ) end
-	name = FixupName( name )
-	if name == UnitName( "player" ) then return end -- do nothing if they try to toggle the player
-	
-	if name == "Group" then
-		if not IsInGroup( LE_PARTY_CATEGORY_HOME ) then
-			Main:Print( L["You aren't in a group."] )
-			return
-		end
-		
-		if not silent then 
-			if mode == 1 then
-				self:Print( L["Adding all in group."] )
-			elseif mode == 0 then
-				self:Print( L["Removing all in group."] )
-			else
-				self:Print( L["Resetting all in group."] )
-			end
-		end
-		
-		if IsInRaid() then
-			for i = 1,40 do
-				local name = UnitName( "raid" .. i )
-				if name and name ~= UnitName("player") then
-					self.player_list[name] = mode
-				end
-			end
-		else
-			for i = 1,5 do
-				local name = UnitName( "party" .. i )
-				if name and name ~= UnitName("player") then
-					self.player_list[name] = mode
-				end
-			end
-		end
-		
-	else
-		
-		if self.player_list[name] == mode then
-			if not silent then
-				if mode == 1 then
-					self:Print( string.format( L["Already listening to %s."], name ) ) 
-				elseif mode == 0 then
-					self:Print( string.format( L["%s is already filtered out."], name ) ) 
-				else
-					self:Print( string.format( L["%s wasn't found."], name ) ) 
-				end
-			end
-			
-			return
-		end
-		
-		self.player_list[name] = mode
-		if not silent then 
-			if mode == 1 then
-				self:Print( string.format( L["Added %s."], name ) ) 
-			elseif mode == 0 then
-				self:Print( string.format( L["Removed %s."], name ) ) 
-			else
-				self:Print( string.format( L["Reset %s."], name ) ) 
-			end
-		end
-			
+local function GetNewFrameObject()
+	if #Main.unused_frames > 0 then
+		local frame = Main.unused_frames[ #Main.unused_frames ]
+		Main.unused_frames[#Main.unused_frames] = nil
+		return frame
 	end
 	
-	Main:RefreshChat() 
-	Main:ProbePlayer( true )
-	ListenerFrameBarToggle:RefreshTooltip()
-end
-
-------------------------------------------------------------------------------- 
-function Main:AddPlayer( name, silent )
-	Main:AddOrRemovePlayer( name, 1, silent ) 
+	g_frame_creation_id = g_frame_creation_id + 1
+	local frame = CreateFrame( "ListenerFrame", "ListenerFrame" .. g_frame_creation_id, UIParent )
+	return frame
 end
 
 -------------------------------------------------------------------------------
-function Main:RemovePlayer( name, silent )
-	Main:AddOrRemovePlayer( name, 0, silent ) 
+local function SetupFrames()
+	
+	for i,_ in ipairs( Main.db.char.frames ) do
+		local frame = GetNewFrameObject()
+		frame:SetFrameIndex( i )
+		print( 'loading frame', i )
+		Main.frames[i] = frame
+	end
+	
+	if not Main.db.char.frames[1] then
+		Main.AddWindow()
+	end
+	
+	Main.active_frame = Main.frames[1]
 end
 
 -------------------------------------------------------------------------------
-function Main:TogglePlayer( name, silent )
-	if name:lower() == "group" then 
-		Main:Print( L["Cannot toggle group. Use add or remove."] ) 
-		return
+-- Create a new Listener window.
+--
+function Main.AddWindow()
+	local frame = GetNewFrameObject()
+	local index = #Main.db.char.frames+1
+	Main.Frame.InitOptions( index )
+	frame:SetFrameIndex( index )
+end
+
+-------------------------------------------------------------------------------
+-- Delete a Listener window.
+--
+-- Cannot be the primary window.
+--
+function Main.DestroyWindow( frame )
+	if frame.frame_index == 1 then return end
+	
+	frame:Hide()
+	if frame == Main.active_frame then
+		Main.active_frame = Main.frames[1]
 	end
 	
-	if Main.player_list[name] == 1 then
-		self:RemovePlayer( name, silent )
-	elseif Main.player_list[name] == 0 then
-		self:AddPlayer( name, silent )
-	else 
-		if Main.db.char.listen_all then
-			self:RemovePlayer( name, silent )
-		else
-			self:AddPlayer( name, silent )
-		end
-	end 
+	local index = frame.frame_index
+	table.remove( Main.frames, index )
+	table.remove( Main.db.char.frames, index )
+	
+	for i = index, #Main.frames do
+		Main.frames[i]:SetFrameIndex( i )
+	end
+	
+	table.insert( Main.unused_frames, frame )
 end
 
 -------------------------------------------------------------------------------
 -- Mark all new messages as "read".
 --
--- @param forcerefresh Force CheckUnread, UpdateUnreadHighlight (I DONT know what this is for.)
---
-function Main:MarkAllRead( forcerefresh )
- 
-	if #self.unread_entries == 0 and not forcerefresh then return end
-	
-	ListenerFrameBarRead:SetOn( false ) 
-	local new_list = {}
+function Main.MarkAllRead()
+	if #Main.unread_entries == 0 then return end
+	local newlist = {}
 	
 	local time = time()
-	for k,v in pairs( self.unread_entries ) do
-		if time < v.t + 4 then
-			-- we dont mark messages that arent 4 seconds old
+	for k,v in pairs( Main.unread_entries ) do
+		if time < v.t + 3 then
+			-- we dont mark messages that arent 3 seconds old
 			-- since theyre pretty fresh and probably not read yet!
 			table.insert( new_list, v )
-		else	
+		else
 			v.r = true 
 		end
 	end
-	self.unread_entries = new_list
-	Main:CheckUnread()
-	Main:UpdateHighlight()
 	
-	ListenerFrameBarRead:RefreshTooltip()
+	Main.unread_entries = new_list
+	
+	for k,v in pairs( Main.frames ) do
+		v:CheckUnread()
+		v:UpdateHighlight()
+	end
 end
 
 -------------------------------------------------------------------------------
 -- Reset the player filter.
---
+--[[
 function Main:ClearAllPlayers()
 	wipe( self.player_list )
-	self:Print( L["Reset filter."] )
+	Main.Print( L["Reset filter."] )
 	Main:RefreshChat()
 	Main:ProbePlayer()
 	ListenerFrameBarToggle:RefreshTooltip()
-end
-
+end]]
+--[[
 -------------------------------------------------------------------------------
 function Main:ListPlayers()
 	local list = ""
 	
-	Main:Print( L["::Player filter::"])
+	Main.Print( L["::Player filter::"])
 	
 	local count = 0
 	
 	for k,v in pairs( Main.player_list ) do
 		
 		if #list > 300 then
-			Main:Print( list, true )
+			Main.Print( list, true )
 			list = ""
 		end
 		if v == 1 then
@@ -939,13 +782,64 @@ function Main:ListPlayers()
 		end
 		
 	end
-	Main:Print( list, true )
+	Main.Print( list, true )
+end
+]]
+-------------------------------------------------------------------------------
+function Main.Print( text, hideprefix )
+--	text = tostring( text )
+--	
+--	local prefix = hideprefix and "" or "|cff9e5aea<Listener>|r "
+--	print( prefix .. text )
 end
 
 -------------------------------------------------------------------------------
-function Main:Print( text, hideprefix )
-	text = tostring( text )
+function Main:OnEnable()
+
+	Main.SetupBindingText()
+
+	CleanChatHistory() 
+	Main.Setup()
+	Main.CreateDB()
+	CleanPlayerList()
+	Main.MinimapButton:OnLoad()
 	
-	local prefix = hideprefix and "" or "|cff9e5aea<Listener>|r "
-	print( prefix .. text )
+	SetupFrames()
+	
+	AddFriendsList()
+	g_loadtime = GetTime()
+	self:RegisterEvent( "FRIENDLIST_UPDATE", "OnFriendlistUpdate" )
+
+	self:RegisterEvent( "CHAT_MSG_SAY", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_EMOTE", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_TEXT_EMOTE", "OnChatMsg" )
+--	self:RegisterEvent( "CHAT_MSG_WHISPER", "OnChatMsg" )
+--	self:RegisterEvent( "CHAT_MSG_WHISPER_INFORM", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_PARTY", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_PARTY_LEADER", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_RAID", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_RAID_LEADER", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_RAID_WARNING", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_YELL", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_SYSTEM", "OnSystemMsg" )
+	self:RegisterMessage( "DiceMaster4_Roll", "OnDiceMasterRoll" )
+	
+	self:RegisterEvent( "PLAYER_REGEN_DISABLED", "OnEnterCombat" )
+	self:RegisterEvent( "PLAYER_REGEN_ENABLED", "OnLeaveCombat" )
+	
+	self:RegisterEvent( "MODIFIER_STATE_CHANGED", "OnModifierChanged" )
+	
+	Main.Print( L["Version:"] .. " " .. self.version )
+	   
+	self:ApplyConfig()
+
+	
+	self:Snoop_Setup()
+	
+	Main.Init_OnEnabled()
+	Main.SetupProbe()
+	
+	for _, frame in pairs( Main.frames ) do
+		frame:RefreshChat()
+	end
 end

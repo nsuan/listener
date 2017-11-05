@@ -2,7 +2,7 @@
 -- The Probe is a module that tracks who is targeted or moused over.
 --
 
-local Main = Listener
+local Main = ListenerAddon
 
 local g_probe_target = nil
 local g_probe_time   = 0

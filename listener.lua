@@ -204,7 +204,10 @@ end
 function Main:OnModifierChanged( evt, key, state )
 
 	if key == "LSHIFT" or key == "RSHIFT" then
-		Main.Frame_UpdateResizeShow()
+	
+		for _, frame in pairs( Main.frames ) do
+			frame:UpdateResizeShow()
+		end
 		
 		-- allow/disable dragging
 		if IsShiftKeyDown() then
@@ -647,7 +650,7 @@ end
 -------------------------------------------------------------------------------
 -- Clean a name so that it starts with a capital letter.
 --
-function Main:FixupName( name )
+function Main.FixupName( name )
 	name = name:lower()
 	
 	-- strip realm
@@ -669,7 +672,7 @@ local function GetNewFrameObject()
 	end
 	
 	g_frame_creation_id = g_frame_creation_id + 1
-	local frame = CreateFrame( "ListenerFrame", "ListenerFrame" .. g_frame_creation_id, UIParent )
+	local frame = CreateFrame( "Frame", "ListenerFrame" .. g_frame_creation_id, UIParent, "ListenerFrameTemplate" )
 	return frame
 end
 

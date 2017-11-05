@@ -18,6 +18,7 @@ frame.lua
 config.lua
 minimapbutton.lua
 snoop.lua
+probe.lua
 names.lua
 names_trp3.lua
 names_mrp.lua

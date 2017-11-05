@@ -3,9 +3,9 @@
   <Script file="ListenerFrameMenu.lua"/>
   
   <!-- ListenerFrame definition. -->
-  <Frame name="ListenerFrame" parent="UIParent" enableMouse="true" movable="true" 
+  <Frame name="ListenerFrameTemplate" parent="UIParent" enableMouse="true" movable="true" 
                               resizable="true"  hidden="false"     frameStrata="BACKGROUND" 
-                              intrinsic="true">
+                              virtual="true">
                               
     <!-- Default size is overridden by lua. -->
     <Size x="200" y="300"/>
@@ -15,7 +15,7 @@
 			</minResize>
 		</ResizeBounds>
     <Anchors>
-      <Anchor point="CENTER"><Offset x="0" y="0"/></Anchor>
+      <Anchor point="CENTER" x="0" y="0" />
     </Anchors>
     
     <Layers>
@@ -82,7 +82,7 @@
                 self:RegisterForClicks( "LeftButtonUp", "RightButtonUp" )
               </OnLoad>
               <OnClick>
-                ListenerAddon:TogglePlayerClicked( button )
+                ListenerAddon.Frame.TogglePlayerClicked( self:GetParent():GetParent(), button )
               </OnClick>
             </Scripts>
           </ListenerTextButton>
@@ -175,7 +175,7 @@
 				<PushedTexture file="Interface\ChatFrame\UI-ChatIM-SizeGrabber-Down"/>
       </Button>
       
-      <!-- The main chatbox.
+      <!-- The main chatbox. -->
       <ScrollingMessageFrame name="$parentChat" parentKey="chatbox" maxlines="500" displayduration="300" nonspacewrap="true">
         <Anchors>
           <Anchor point="TOPLEFT" x="4" y="-6"/>
@@ -189,12 +189,6 @@
             self:SetHyperlinksEnabled( true )
             self:SetIndentedWordWrap( true )
             self:SetPoint( "TOPLEFT", self:GetParent().bar2, "BOTTOMLEFT", 4, 0 )
-            
-            hooksecurefunc( self, "RefreshDisplay", function()
-            
-              ListenerAddon.Frame.OnChatboxRefresh( self:GetParent() )
-              
-            end
             self:SetFading( false )
             
           </OnLoad>
@@ -207,7 +201,7 @@
           </OnHyperlinkClick>
         </Scripts>
       </ScrollingMessageFrame>
-       -->
+      
       
       
     </Frames>

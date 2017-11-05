@@ -64,6 +64,6 @@ function Main.Help_Reset()
 	Main.db.global.help = {}
 end
 
-Main:AddLoadCall( function()
+Main.AddLoadCall( function()
 	Main.Help_Init()
 end)

@@ -99,17 +99,6 @@ local function SetupMembers( self )
 end
 
 -------------------------------------------------------------------------------
--- Update the visibility of the resize thumb.
---
-local function UpdateResizeShow( self )
-	if (self:IsMouseOver() and IsShiftKeyDown()) or self.doingSizing then
-		self.resize_thumb:Show()
-	else
-		self.resize_thumb:Hide()
-	end
-end
-
--------------------------------------------------------------------------------
 -- Setup the frames that form the edge around the window.
 --
 local function SetupEdge( self )
@@ -194,7 +183,7 @@ end
 --
 local function AddOrRemovePlayer( self, name, mode, silent )
 	if mode ~= 1 and mode ~= 0 and mode ~= nil then error( "Invalid mode." ) end
-	name = FixupName( name )
+	name = Main.FixupName( name )
 	
 	if self.players[name] == mode then
 		if not silent then
@@ -221,8 +210,7 @@ local function AddOrRemovePlayer( self, name, mode, silent )
 	end
 	
 	self:RefreshChat()
-	self:CheckProbe()
-	self:ProbePlayer( true )
+	self:UpdateProbe()
 end
 
 -------------------------------------------------------------------------------
@@ -609,7 +597,7 @@ function Method:AddMessage( e, beep )
 	
 	local color = GetEntryColor( e )
 	
-	self.chatbox:AddMessage( self:FormatChatMessage( e, hidden ), color[1], color[2], color[3], self.chatid )
+	self.chatbox:AddMessage( FormatChatMessage( self, e ), color[1], color[2], color[3], self.chatid )
 end
 
 -------------------------------------------------------------------------------
@@ -855,6 +843,17 @@ function Method:ShowHidden( showhidden )
 end
 
 -------------------------------------------------------------------------------
+-- Update the visibility of the resize thumb.
+--
+function Method:UpdateResizeShow()
+	if (self:IsMouseOver() and IsShiftKeyDown()) or self.doingSizing then
+		self.resize_thumb:Show()
+	else
+		self.resize_thumb:Hide()
+	end
+end
+
+-------------------------------------------------------------------------------
 -- Handlers (And psuedo ones.)
 -------------------------------------------------------------------------------
 function Me.OnLoad( self )
@@ -869,16 +868,20 @@ function Me.OnLoad( self )
 	self:EnableMouse( true )
 	self:SetClampedToScreen( true )
 	SetupEdge( self )
+	
+	hooksecurefunc( self.chatbox, "RefreshDisplay", function()
+		Me.OnChatboxRefresh( self )
+	end)
 end
 
 -------------------------------------------------------------------------------
 function Me.OnEnter( self )
-	UpdateResizeShow( self )
+	self:UpdateResizeShow()
 end
 
 -------------------------------------------------------------------------------
 function Me.OnLeave( self )
-	UpdateResizeShow( self )
+	self:UpdateResizeShow()
 end
 
 -------------------------------------------------------------------------------
@@ -996,12 +999,12 @@ function Me.ResizeThumb_OnMouseUp( self, button )
 	parent:StopMovingOrSizing();
 	SaveFrameLayout( parent )
 	parent.doingSizing = false
-	UpdateResizeShow( parent )
+	parent:UpdateResizeShow()
 end
 
 -------------------------------------------------------------------------------
 function Me.ResizeThumb_OnLeave( self )
-	UpdateResizeShow( self:GetParent() )
+	self:GetParent():UpdateResizeShow()
 end
 
 -------------------------------------------------------------------------------

@@ -1,21 +1,40 @@
--- snooper
+-------------------------------------------------------------------------------
+-- Snooper module.
+-------------------------------------------------------------------------------
 
 local Main = ListenerAddon
-local L = Main.Locale
+local L    = Main.Locale
 local SharedMedia = LibStub("LibSharedMedia-3.0")
+Main.Snoop = {}
+local Me = Main.Snoop
 
 local g_current_name = nil
-local g_update_time = 0
+local g_update_time  = 0
 
-function Main:Snoop_Setup()
+-------------------------------------------------------------------------------
+local MESSAGE_PREFIXES = {
+	
+	PARTY           = "[P] ";
+	PARTY_LEADER    = "[P] ";
+	RAID            = "[R] ";
+	RAID_LEADER     = "[R] ";
+	INSTANCE        = "[I] ";
+	INSTANCE_LEADER = "[I] ";
+	RAID_WARNING    = "[RW] ";
+}
+
+-------------------------------------------------------------------------------
+function Me.Setup()
 	local frame = CreateFrame( "Frame", "ListenerSnoopFrame", UIParent )
+	Me.frame = frame
+	
 	frame:SetSize( 300, 500 )
 	frame:SetPoint( "CENTER", 0, 0 )
 	frame:Hide()
 	frame:EnableMouse( false )
 	frame:SetMinResize( 300, 100 )
 	
-	frame:SetScript( "OnUpdate", function() Main:Snoop_OnUpdate() end )
+	frame:SetScript( "OnUpdate", Me.OnUpdate )
 	
 	frame.text = frame:CreateFontString()
 	frame.text:SetPoint( "BOTTOMLEFT" )
@@ -23,11 +42,11 @@ function Main:Snoop_Setup()
 	frame.text:SetJustifyH( "LEFT" )
 	frame.text:SetNonSpaceWrap( true )
 	frame.text:SetWordWrap( true )
- --   frame.text:SetIndentedWordWrap( true )
+ -- frame.text:SetIndentedWordWrap( true )
  
     frame:SetClampedToScreen( true )
 	
-	self:Snoop_LoadSettings()
+	Me.LoadSettings()
 	
 end
 
@@ -35,8 +54,9 @@ end
 -- Force refresh of the snooper window if the current target matches.
 --
 -- @param sender Name to check current target against.
+--               nil will cause a forced refresh always.
 --
-function Main:Snoop_DoUpdate( sender )
+function Me.DoUpdate( sender )
 	if sender == nil then
 		g_update_time = 0
 		return
@@ -51,76 +71,61 @@ end
 -------------------------------------------------------------------------------
 -- Refresh the snooper display.
 --
-function Main:Snoop_OnUpdate()
+function Me.OnUpdate()
 
-	if Main.snoop_unlocked then return end
+	if Me.unlocked then return end
 	
-    local name = UnitName( "target" )
-    if name == nil then 
-        name = UnitName("mouseover") 
-    end
+	local name = Main.GetProbed()
 	
 	if g_current_name == name and GetTime() - g_update_time < 5 then
 		-- throttle updates when the name matches
 		return
 	end
-	g_update_time = GetTime()
+	
+	g_update_time  = GetTime()
 	g_current_name = name
 	
-	self:Snoop_SetText( g_current_name )
+	Me.SetText( g_current_name )
 end
 
+-------------------------------------------------------------------------------
 local function GetHexCode( color )
 	return string.format( "ff%2x%2x%2x", color[1]*255, color[2]*255, color[3]*255 )
 end
 
-
-local g_prefixes = {
+-------------------------------------------------------------------------------
+local function GetEntryColor( e )
 	
-	PARTY          = "[P] ";
-	PARTY_LEADER   = "[P] ";
-	RAID           = "[R] ";
-	RAID_LEADER    = "[R] ";
-	RAID_WARNING   = "[RW] ";
-}
+	if e.c then
+		-- channel (todo)
+		return { 1, 1, 1, 1 }
+	else
+		local info = ChatTypeInfo[ e.e ]
+		return { info.r, info.g, info.b, 1 }
+	end
+end
 
-
-function Main:Snoop_SetText( name )
+-------------------------------------------------------------------------------
+-- Set the text contents to name's chat history.
+--
+function Me.SetText( name )
  
-	if name == nil or not self.chat_history[name] or #self.chat_history[name] == 0 then
-		ListenerSnoopFrame.text:SetText( "" )
+	if name == nil or not Main.chat_history[name] or #Main.chat_history[name] == 0 then
+		Me.frame.text:SetText( "" )
 		return
 	end
 	
-	local text = ""
-	
-	local curtime = time()
-	
-	local g_snooped_types = {}
-	
-	if Main.Frame.showsay then
-		g_snooped_types["SAY"] = 1
-		g_snooped_types["YELL"] = 1
-		g_snooped_types["EMOTE"] = 1
-		g_snooped_types["TEXT_EMOTE"] = 1
-	end
-	
-	if Main.Frame.showparty then
-		g_snooped_types["PARTY"] = 1
-		g_snooped_types["PARTY_LEADER"] = 1
-		g_snooped_types["RAID"] = 1
-		g_snooped_types["RAID_LEADER"] = 1
-		g_snooped_types["RAID_WARNING"] = 1
-		g_snooped_types["ROLL"] = 1
-	end
+	local text          = ""
+	local curtime       = time()
+	local snooped_types = {}
 	
 	local count = 0
-	for i = #self.chat_history[name], 1, -1 do
-		local e = self.chat_history[name][i]
+	for i = #Main.chat_history[name], 1, -1 do
+		local e = Main.chat_history[name][i]
 		
-		local msgtype = g_snooped_types[e.e]
+		local msgtype = snooped_types[e.e]
 		
-		if msgtype then
+		if msgtype or true then -- debug bypass
 			local stamp = ""
 			local old = curtime - e.t
 			
@@ -153,13 +158,13 @@ function Main:Snoop_SetText( name )
 				text = "|n" .. text
 			end
 			
-			local color = "|c" .. GetHexCode( Main.db.profile.colors[e.e] )
+			local color = "|c" .. GetHexCode( GetEntryColor( e ) )
 			
 			-- replace |r in message with the text color code instead
 			local msgtext = e.m
 			msgtext = msgtext:gsub( "|r", color )
 			
-			local prefix = (Main.db.profile.snoop.partyprefix and g_prefixes[ e.e ]) or ""
+			local prefix = (Main.db.profile.snoop.partyprefix and MESSAGE_PREFIXES[ e.e ]) or ""
 			text = string.format( "%s %s%s%s", stamp, color, prefix, msgtext ) .. text
 			
 			count = count + 1
@@ -167,28 +172,29 @@ function Main:Snoop_SetText( name )
 		end
 	end
 	
-	ListenerSnoopFrame.text:SetText( text )
+	Me.frame.text:SetText( text )
 end
 
 -------------------------------------------------------------------------------
 -- Load settings from configuration database.
 --
-function Main:Snoop_LoadSettings()
+function Me.LoadSettings()
 	
-	ListenerSnoopFrame:ClearAllPoints()
+	Me.frame:ClearAllPoints()
 	local point = Main.db.profile.snoop.point
 	if #point == 0 then
-		ListenerSnoopFrame:SetPoint( "CENTER" )
+		Me.frame:SetPoint( "CENTER" )
 	else
-		ListenerSnoopFrame:SetPoint( point[1], UIParent, point[2], point[3], point[4] )
+		Me.frame:SetPoint( point[1], UIParent, point[2], point[3], point[4] )
 	end
-	ListenerSnoopFrame:SetSize( Main.db.profile.snoop.width, Main.db.profile.snoop.height )
-	Main:Snoop_LoadFont()
+	
+	Me.frame:SetSize( Main.db.profile.snoop.width, Main.db.profile.snoop.height )
+	Me.LoadFont()
 	
 	if Main.db.profile.snoop.show then
-		ListenerSnoopFrame:Show()
+		Me.frame:Show()
 	else
-		ListenerSnoopFrame:Hide()
+		Me.frame:Hide()
 	end
 end
 
@@ -197,12 +203,12 @@ end
 --
 -- @param show True to show. Saves setting in config DB.
 --
-function Main:Snoop_Show( show ) 
-	self.db.profile.snoop.show = show
+function Me.Show( show )
+	Main.db.profile.snoop.show = show
 	if show then
-		ListenerSnoopFrame:Show()
+		Me.frame:Show()
 	else
-		ListenerSnoopFrame:Hide()
+		Me.frame:Hide()
 	end
 end
 
@@ -211,9 +217,9 @@ end
 --
 -- @param font Font to use. This is a SharedMedia name, not a font path.
 --
-function Main:Snoop_SetFont( font )
-	self.db.profile.snoop.font.face = font
-	self:Snoop_LoadFont()
+function Me.SetFont( font )
+	Main.db.profile.snoop.font.face = font
+	Me.LoadFont()
 end
 
 -------------------------------------------------------------------------------
@@ -221,9 +227,9 @@ end
 --
 -- @param size Height of font.
 --
-function Main:Snoop_SetFontSize( size )
-	self.db.profile.snoop.font.size = size
-	self:Snoop_LoadFont()
+function Me.SetFontSize( size )
+	Main.db.profile.snoop.font.size = size
+	Me.LoadFont()
 end
 
 -------------------------------------------------------------------------------
@@ -231,9 +237,9 @@ end
 --
 -- @param val 2 = OUTLINE, 3 = THICKOUTLINE, 1/nil = no outline
 --
-function Main:Snoop_SetOutline( val )
+function Me.SetOutline( val )
 	self.db.profile.snoop.font.outline = val
-	self:Snoop_LoadFont()
+	Me.LoadFont()
 end
 
 -------------------------------------------------------------------------------
@@ -241,41 +247,41 @@ end
 --
 -- @param val true/false to apply text shadow.
 --
-function Main:Snoop_SetShadow( val )
-	self.db.profile.snoop.font.shadow = val
-	self:Snoop_LoadFont()
+function Me.SetShadow( val )
+	Main.db.profile.snoop.font.shadow = val
+	Me.LoadFont()
 end
 
 -------------------------------------------------------------------------------
 -- Refresh the font used in the snooper window according to the configuration.
 --
-function Main:Snoop_LoadFont()
+function Me.LoadFont()
 	local outline = nil
-	if self.db.profile.snoop.font.outline == 2 then
+	if Main.db.profile.snoop.font.outline == 2 then
 		outline = "OUTLINE"
-	elseif self.db.profile.snoop.font.outline == 3 then
+	elseif Main.db.profile.snoop.font.outline == 3 then
 		outline = "THICKOUTLINE"
 	end
-	local font = SharedMedia:Fetch( "font", self.db.profile.snoop.font.face )
-	ListenerSnoopFrame.text:SetFont( font, self.db.profile.snoop.font.size, outline )
+	local font = SharedMedia:Fetch( "font", Main.db.profile.snoop.font.face )
+	Me.frame.text:SetFont( font, Main.db.profile.snoop.font.size, outline )
 	
-	if self.db.profile.snoop.font.shadow then
+	if Main.db.profile.snoop.font.shadow then
 		
-		ListenerSnoopFrame.text:SetShadowColor( 0, 0, 0, 0.8 )
-		ListenerSnoopFrame.text:SetShadowOffset( 1,-1 )
+		Me.frame.text:SetShadowColor( 0, 0, 0, 0.8 )
+		Me.frame.text:SetShadowOffset( 1,-1 )
 	else
 		
-		ListenerSnoopFrame.text:SetShadowColor( 0, 0, 0, 0 )
+		Me.frame.text:SetShadowColor( 0, 0, 0, 0 )
 	end
 end
 
 -------------------------------------------------------------------------------
 -- Unlock the snooper frame and allow it to be dragged around.
 --
-function Main:Snoop_Unlock()
-	if not ListenerSnoopFrame.editor then
-		local frame = CreateFrame( "Frame", nil, ListenerSnoopFrame )
-		ListenerSnoopFrame.editor = frame
+function Me.Unlock()
+	if not Me.frame.editor then
+		local frame = CreateFrame( "Frame", nil, Me.frame )
+		Me.frame.editor = frame
 		frame:EnableMouse( true )
 		frame:SetAllPoints()
 		
@@ -300,58 +306,58 @@ function Main:Snoop_Unlock()
 		
 		frame:SetScript( "OnMouseDown", function( self, button )
 			if button == "LeftButton" then
-				ListenerSnoopFrame:SetMovable( true )
-				ListenerSnoopFrame:StartMoving()
+				Me.frame:SetMovable( true )
+				Me.frame:StartMoving()
 			elseif button == "RightButton" then
-				Main:Snoop_Lock()
+				Me.Lock()
 			end
 			
 			
 		end)
 		
 		frame:SetScript( "OnMouseUp", function()
-			ListenerSnoopFrame:StopMovingOrSizing()
-			ListenerSnoopFrame:SetMovable( false )
+			Me.frame:StopMovingOrSizing()
+			Me.frame:SetMovable( false )
 		end)
 		
 		sizer:SetScript( "OnMouseDown", function( self, button )
 			
 			if button == "LeftButton" then
-				ListenerSnoopFrame:SetResizable( true )
-				ListenerSnoopFrame:StartSizing( "BOTTOMRIGHT" )
+				Me.frame:SetResizable( true )
+				Me.frame:StartSizing( "BOTTOMRIGHT" )
 			end
 		end)
 		
 		sizer:SetScript( "OnMouseUp", function()
-			ListenerSnoopFrame:StopMovingOrSizing()
-			ListenerSnoopFrame:SetResizable( false )
+			Me.frame:StopMovingOrSizing()
+			Me.frame:SetResizable( false )
 		end)
 		
 	end
-	self.snoop_unlocked = true
-	ListenerSnoopFrame.text:SetText( 
+	Me.unlocked = true
+	Me.frame.text:SetText( 
 [[Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut auctor convallis lobortis. Pellentesque ultrices dui mi, facilisis efficitur ante vehicula in. Donec a nibh varius, interdum metus quis, feugiat nulla.
 Mauris viverra pretium convallis. Integer porta, orci ut scelerisque efficitur, felis est volutpat velit, sit amet ornare neque nulla id enim.
 Maecenas enim leo, finibus id lectus porttitor, lobortis consequat arcu. Integer sed nisi et metus sagittis condimentum. Praesent in erat vulputate, porttitor magna nec, varius libero. 
 Proin porta, erat id sagittis fermentum, elit lectus porttitor augue, eget rhoncus diam justo ut libero. Nunc non neque sapien.]] 
 )
-	ListenerSnoopFrame.editor:Show()
+	Me.frame.editor:Show()
 end
 
 -------------------------------------------------------------------------------
 -- Lock the snooper frame and save the position in the settings.
 --
-function Main:Snoop_Lock()
-	if ListenerSnoopFrame.editor then
-		self.snoop_unlocked = false
-		ListenerSnoopFrame.editor:Hide()
-		local point, _, point2, x, y = ListenerSnoopFrame:GetPoint(1)
-		self.db.profile.snoop.point = { point, point2, x, y }
-		 
-		self.db.profile.snoop.width  = ListenerSnoopFrame:GetWidth()
-		self.db.profile.snoop.height = ListenerSnoopFrame:GetHeight()
+function Me.Lock()
+	if Me.frame.editor then
+		Me.unlocked = false
+		Me.frame.editor:Hide()
 		
-		Main:Snoop_DoUpdate()
+		local point, _, point2, x, y = Me.frame:GetPoint(1)
+		Main.db.profile.snoop.point = { point, point2, x, y }
+		Main.db.profile.snoop.width  = Me.frame:GetWidth()
+		Main.db.profile.snoop.height = Me.frame:GetHeight()
+		
+		Me.DoUpdate()
 	end
 end
 

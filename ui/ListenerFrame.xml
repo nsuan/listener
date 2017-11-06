@@ -97,7 +97,7 @@
                 self:SetTexture( 0 )
               </OnLoad>
               <OnClick>
-                ListenerAddon:HideFrame()
+                ListenerAddon.Frame.CloseClicked( self:GetParent():GetParent(), button )
               </OnClick>
             </Scripts>
           </ListenerBarButton>
@@ -112,7 +112,7 @@
                 self:SetTexture( 2 )
               </OnLoad>
               <OnClick>
-                ListenerAddon:SetShowHidden( not ListenerAddon.db.char.showhidden )
+                ListenerAddon.Frame.ShowHiddenClicked( self:GetParent():GetParent(), button )
               </OnClick>
             </Scripts>
           </ListenerBarButton>
@@ -120,7 +120,7 @@
           <!-- Dummy button to show if player is filtered. -->
           <ListenerBarButton parentKey="toggle_button" hidden="true">
             <Anchors>
-              <Anchor point="TOPLEFT" x="-2" y="0"/>
+              <Anchor point="TOPLEFT" x="0" y="0"/>
             </Anchors>
             <Scripts>
               <OnLoad>
@@ -159,15 +159,15 @@
         </Anchors>
 				<Scripts>
 					<OnMouseDown>
-            ListenerAddon.FrameResizeButton_OnMouseDown( self, button )
+            ListenerAddon.Frame.ResizeThumb_OnMouseDown( self, button )
             
 					</OnMouseDown>
 					<OnMouseUp>
-            ListenerAddon.FrameResizeButton_OnMouseUp( self, button )
+            ListenerAddon.Frame.ResizeThumb_OnMouseUp( self, button )
             
 					</OnMouseUp>
           <OnLeave>
-            ListenerAddon.FrameResizeButton_OnLeave( self )
+            ListenerAddon.Frame.ResizeThumb_OnLeave( self )
           </OnLeave>
 				</Scripts>
 				<NormalTexture file="Interface\ChatFrame\UI-ChatIM-SizeGrabber-Up"/>
@@ -188,7 +188,7 @@
             self:EnableMouseWheel( true )
             self:SetHyperlinksEnabled( true )
             self:SetIndentedWordWrap( true )
-            self:SetPoint( "TOPLEFT", self:GetParent().bar2, "BOTTOMLEFT", 4, 0 )
+            self:SetPoint( "TOPLEFT", self:GetParent().bar2, "BOTTOMLEFT", 4, -1 )
             self:SetFading( false )
             
           </OnLoad>

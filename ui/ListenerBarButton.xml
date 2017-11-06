@@ -4,7 +4,7 @@
     <Size x="15" y="15"/>
     <Layers>
       <Layer level="BACKGROUND">
-        <Texture parentKey="tex_shadow" file="Interface/Addons/Listener/uibuttons">
+        <Texture parentKey="tex_shadow" file="Interface/Addons/Listener/texture/uibuttons">
           <Size x="16" y="16"/>
           <Anchors>
             <Anchor point="TOPLEFT" x="1" y="-1"/>
@@ -13,7 +13,7 @@
         </Texture>
       </Layer>
       <Layer level="ARTWORK">
-        <Texture parentKey="tex" file="Interface/Addons/Listener/uibuttons">
+        <Texture parentKey="tex" file="Interface/Addons/Listener/texture/uibuttons">
           <Size x="16" y="16"/>
           <Anchors>
             <Anchor point="TOPLEFT" />
@@ -22,7 +22,7 @@
         </Texture>
       </Layer>
       <Layer level="OVERLAY">
-        <Texture parentKey="tex_hl" file="Interface/Addons/Listener/uibuttons" hidden="true">
+        <Texture parentKey="tex_hl" file="Interface/Addons/Listener/texture/uibuttons" hidden="true">
           <Size x="16" y="16"/>
           <Anchors>
             <Anchor point="TOPLEFT" />

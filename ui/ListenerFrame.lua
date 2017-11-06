@@ -1,5 +1,6 @@
 
 local Main = ListenerAddon
+local L    = Main.Locale
 Main.Frame = {}
 
 local Me          = ListenerAddon.Frame
@@ -87,7 +88,7 @@ local function SetupMembers( self )
 	-- when a new messages is added, this saves the time
 	-- if the user clicks on the frame at the moment a message is added, 
 	-- its ignore to prevent error
-	self.clickblock = nil
+	self.clickblock = 0
 	
 	-- textures used for the tab strips on the left side of the window
 	self.tab_texes = {}
@@ -170,7 +171,7 @@ local function ShowOrHide( self, show, save )
 	end
 	
 	if save then
-		self.db.char.frames[self.frame_index].hidden = not show
+		Main.db.char.frames[self.frame_index].hidden = not show
 	end
 end
 
@@ -291,6 +292,9 @@ Me.methods = Method
 --
 function Method:SetFrameIndex( index )
 	self.frame_index = index
+	if not Main.db.char.frames[index] then
+		Me.InitOptions( index )
+	end
 	self.players       = Main.db.char.frames[index].players
 	self.listen_events = Main.db.char.frames[index].filter
 end
@@ -316,7 +320,7 @@ end
 -- Hide the frame.
 --
 function Method:Close( dontsave )
-	ShowOrHide( self, true, not dontsave )
+	ShowOrHide( self, false, not dontsave )
 end
 
 -------------------------------------------------------------------------------
@@ -348,6 +352,7 @@ end
 --
 function Method:ApplyOptions()
 	self:ApplyLayoutOptions()
+	self:ApplyChatOptions()
 	self:ApplyColorOptions()
 	self:ApplyBarOptions()
 	self:ApplyOtherOptions()
@@ -494,6 +499,15 @@ function Method:HasEvent( event )
 end
 
 -------------------------------------------------------------------------------
+-- Returns the listen_events table.
+-- This is a map of which events are being listened to.
+-- Do not modify the returned table.
+--
+function Method:GetListenEvents()
+	return self.listen_events
+end	
+
+-------------------------------------------------------------------------------
 -- Add player to filter.
 -- 
 -- @param name   Name of player.
@@ -511,7 +525,8 @@ end
 -- Returns true if the window is listening to someone.
 --
 function Method:ListeningTo( name )
-	return self.players[name] == 1 or (Main.db.char.frames[self.frame_index].listen_all and self.players[target] ~= 0)
+	local f = self.players[name]
+	return f == 1 or (Main.db.char.frames[self.frame_index].listen_all and f ~= 0)
 end
 
 -------------------------------------------------------------------------------
@@ -537,16 +552,16 @@ end
 -------------------------------------------------------------------------------
 -- Called when the window is active and the probe target changes.
 --
-function Method:UpdateProbe( target )
-
+function Method:UpdateProbe()
+	local target, guid = Main:GetProbed()
 	local on = false
-	local title = "—"
+	local title = "â€”"
 	
 	if target then
 		
 		on = self:ListeningTo( target )
 		
-		local name, icon, color = Main:GetICName( target, UnitGUID(unit) )
+		local name, icon, color = Main:GetICName( target, guid )
 		title = " " .. name
 		
 	end
@@ -584,10 +599,11 @@ function Method:AddMessage( e, beep )
 	
 	if not e.r and not e.p and not hidden then -- not read and not from the player and not hidden
 		if self:IsShown() then
-			if beep and Main.db.profile.sound.msg then
+			if beep and Main.db.char.frames[self.frame_index].sound then
 				Main:PlayMessageBeep() 
+				Main:FlashClient()
 			end
-			Main:FlashClient() -- this has its own config check inside
+			
 		end
 		
 		if self.top_unread_id == nil then
@@ -614,8 +630,8 @@ function Method:CheckUnread()
 	self.top_unread_id = nil
 	local id = nil
 	
-	for k,v in pairs( self.unread_entries ) do
-		if EntryFilter( self, v ) and self:ListeningTo( e.s ) then
+	for k,v in pairs( Main.unread_entries ) do
+		if EntryFilter( self, v ) and self:ListeningTo( v.s ) then
 			if not id or v.id < id then
 				id = v.id
 			end
@@ -649,7 +665,7 @@ local function UpdateReadmark( self, region, first_id )
 		else
 			self.readmark:SetHeight( 1 )
 		end
-		self.readmark:SetPoint( "TOP", 0, -top )
+		self.readmark:SetPoint( "TOP", self.chatbox, "TOP", 0, -top )
 		
 	elseif self.top_unread_id then
 		self.readmark:SetHeight( 2 )
@@ -660,7 +676,7 @@ local function UpdateReadmark( self, region, first_id )
 			self.readmark:SetPoint( "TOP", self, "BOTTOM", 0, 3 )
 		else
 			-- past the top
-			self.readmark:SetPoint( "TOP", self.bar2, 0, -2 )
+			self.readmark:SetPoint( "TOP", self.chatbox, "TOP", 0, -2 )
 		end
 	else
 		-- no unread messages
@@ -707,14 +723,14 @@ function Method:UpdateHighlight()
 		
 		if v:GetBottom() < top_edge then -- within the chatbox only
 		
-			local hidden = not self.ListeningTo( e.s )
-			v:SetAlpha( hidden and 0.5 or 1.0 )
+			local hidden = not self:ListeningTo( e.s )
+			v:SetAlpha( hidden and 0.35 or 1.0 )
 			
-			if e.id == g_top_unread_id then
+			if e.id == self.top_unread_id then
 				first_unread_region = v
 			end
 			
-			local targeted = (Main:GetProbe() == e.s) and Main.db.profile.highlight_mouseover
+			local targeted = (Main.GetProbed() == e.s) and Main.db.profile.highlight_mouseover
 
 			if targeted or e.p or e.h then
 				-- setup block
@@ -747,7 +763,13 @@ function Method:UpdateHighlight()
 		chat_index = chat_index - 1
 	end
 	
-	UpdateReadmark( self, first_unread_region, self.chat_buffer[chat_index_start].e.id )
+	local e = self.chat_buffer[chat_index_start]
+	if e then e = e.e end
+	if e then
+		UpdateReadmark( self, first_unread_region, e.id )
+	else
+		self.readmark:Hide()
+	end
 	
 	for i = count+1, #self.tab_texes do
 		self.tab_texes[i]:Hide()
@@ -759,6 +781,7 @@ function Method:RefreshChat()
 	self.chatbox:Clear()
 	self.chat_buffer = {}
 	self.chatid = 0
+	self:CheckUnread()
 	
 	local entries = {}
 	
@@ -852,6 +875,20 @@ function Method:UpdateResizeShow()
 		self.resize_thumb:Hide()
 	end
 end
+-------------------------------------------------------------------------------
+function Method:StartDragging()
+	self.dragging = true
+	self:StartMoving() 
+end
+
+-------------------------------------------------------------------------------
+function Method:StopDragging()
+	if self.dragging then
+		self.dragging = false
+		self:StopMovingOrSizing()
+		SaveFrameLayout( self )
+	end
+end
 
 -------------------------------------------------------------------------------
 -- Handlers (And psuedo ones.)
@@ -885,20 +922,15 @@ function Me.OnLeave( self )
 end
 
 -------------------------------------------------------------------------------
-function Me.OnMouseDown( self )
+function Me.OnMouseDown( self, button )
 	if button == "LeftButton" and IsShiftKeyDown() then
-		self.dragging = true
-		self:StartMoving() 
+		self:StartDragging()
 	end
 end
 
 -------------------------------------------------------------------------------
 function Me.OnMouseUp( self )
-	if self.dragging then
-		self.dragging = false
-		self:StopMovingOrSizing()
-		SaveFrameLayout( self )
-	end
+	self:StopDragging()
 end
 
 -------------------------------------------------------------------------------
@@ -970,13 +1002,26 @@ end
 -------------------------------------------------------------------------------
 function Me.TogglePlayerClicked( self, button )
 	if button == "LeftButton" then 
-		if UnitExists( "target" ) then 
-			if UnitIsPlayer( "target" ) then
-				self:TogglePlayer( UnitName( "target" ), true )
-			end
+		local name = Main.GetProbed()
+		if name then 
+			self:TogglePlayer( name, true )
 		end
 	elseif button == "RightButton" then
 		self:ShowMenu()
+	end
+end
+
+-------------------------------------------------------------------------------
+function Me.ShowHiddenClicked( self, button )
+	if button == "LeftButton" then
+		self:ShowHidden( not Main.db.char.frames[self.frame_index].showhidden )
+	end
+end
+
+-------------------------------------------------------------------------------
+function Me.CloseClicked( self, button )
+	if button == "LeftButton" then
+		self:Close()
 	end
 end
 
@@ -1025,12 +1070,13 @@ function Me.InitOptions( index )
 			height   = 300;
 		};
 		hidden       = false;
-		
 	}
 	
 	for k,v in pairs( DEFAULT_LISTEN_EVENTS ) do
 		data.filter[v] = true
 	end
+	
+	data.players[ UnitName("player") ] = 1
 	
 	Main.db.char.frames[index] = data
 end

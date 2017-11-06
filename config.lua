@@ -46,14 +46,8 @@ local DB_DEFAULTS = {
 		help    = {};
 	};
 	
-	char = { 
-		player_list  = {};
-		listen_all   = true; -- } reset these after a long longout
-		listen_party = true; -- }
-		listen_say   = true; -- }
-		showhidden   = false; -- fade out filtered messages instead of hiding
-		frames       = {
-			
+	char = {
+		frames = {
 			-------------------------------------------------------------------
 			-- frames[1] is the primary frame, frames[2..x] are subframes
 			-- contents:
@@ -68,11 +62,16 @@ local DB_DEFAULTS = {
 			--    width  = x        size
 			--    height = y        size
 			--  hidden = false      frame is hidden
+			--  sound = true        play a sound on new message
+			--  flash = true        flash the taskbar on new message
 			--  
 			--  color_bg   = {color} background color
 			--  color_edge = {color} edge color
 			--  color_bar  = {color} bar color
 		};
+		
+		-- events that the snooper is listening to
+		snoop_filter = {};
 	};
 	
 	profile = {
@@ -91,9 +90,9 @@ local DB_DEFAULTS = {
 		highlight_mouseover = true; -- highlight mouseover's emotes in main window
 		rpconnect   = true;  -- rpconnect support
 		
-		-- sound settings
+		-- notification settings
 		sound = {
-			msg    = true; -- play sound on filtered emote
+			msg    = true; -- play sound on filtered emote (this is moved inside of the frame settings)
 			target = true; -- play sound when target emotes
 			poke   = true; -- play sound when someone emotes at you
 		};
@@ -200,6 +199,13 @@ end
 local outline_values = { "None", "Thin Outline", "Thick Outline" }
 
 -------------------------------------------------------------------------------
+local function FrameSettingsChanged()
+	for _, frame in pairs( Main.frames ) do
+		frame:ApplyOptions()
+	end
+end
+
+-------------------------------------------------------------------------------
 Main.config_options = {
 	type = "group";
 	
@@ -227,10 +233,13 @@ Main.config_options = {
 			  
 				fontface = {
 					order = 10;
-					name  = L["Font"];
-					desc  = L["Chat font."];
+					name  = L["Chat Font"];
+					desc  = L["Font for the chatbox text."];
 					type  = "select"; 
-					set   = function( info, val ) Main:SetChatFont( g_font_list[val] ) end;
+					set   = function( info, val ) 
+						Main.db.profile.frame.font.face = g_font_list[val]
+						FrameSettingsChanged()
+					end;
 					get   = function( info ) return FindValueKey( g_font_list, Main.db.profile.frame.font.face ) end;
 					
 				};
@@ -240,7 +249,10 @@ Main.config_options = {
 					desc  = L["Chat text outline."];
 					type  = "select"; 
 					values = outline_values;
-					set   = function( info, val ) Main:SetChatOutline( val ) end;
+					set   = function( info, val ) 
+						Main.db.profile.frame.font.outline = val
+						FrameSettingsChanged()
+					end;
 					get   = function( info ) return Main.db.profile.frame.font.outline end;
 					
 				};
@@ -249,7 +261,10 @@ Main.config_options = {
 					name  = L["Shadow"];
 					desc  = L["Show text shadow."];
 					type  = "toggle"; 
-					set   = function( info, val ) Main:Frame_SetShadow( val ) end;
+					set   = function( info, val ) 
+						Main.db.profile.frame.font.shadow = val
+						FrameSettingsChanged()
+					end;
 					get   = function( info ) return Main.db.profile.frame.font.shadow end;
 				};
 				
@@ -281,7 +296,7 @@ Main.config_options = {
 					set = function( info, r, g, b, a ) Main:Frame_SetEdgeColor( r, g, b, a ) end;
 					get = function( info ) return unpack( Main.db.profile.frame.color_edge ) end;
 				};
-				
+				--[[
 				playsound = {
 					order = 60;
 					name = L["Play Sound On Message"];
@@ -290,12 +305,12 @@ Main.config_options = {
 					type = "toggle";
 					set = function( info, val ) Main.db.profile.sound.msg = val end;
 					get = function( info ) return Main.db.profile.sound.msg end;
-				};
+				};]]
 				
 				playsound_target = {
 					order = 61;
-					name = L["Play Sound On Target Emote"];
-					desc = L["Play a sound when your current target emotes."];
+					name = L["Target Emote Sound"];
+					desc = L["Play a sound when your targeted player emotes."];
 					width = "full";
 					type = "toggle";
 					set = function( info, val ) Main.db.profile.sound.target = val end;
@@ -317,14 +332,14 @@ Main.config_options = {
 				
 				playsound2 = {
 					order = 63;
-					name = L["Play Sound On Poke"];
+					name = L["Poke Sound"];
 					desc = L["Play a sound when a person directs a stock emote at you. (e.g. /poke)"];
 					width = "full";
 					type = "toggle";
-					set = function( info, val ) Main.db.profile.sound.poke = val end;
-					get = function( info ) return Main.db.profile.sound.poke end;
+					set = function( info, val ) Main.db.profile.notify_poke = val end;
+					get = function( info ) return Main.db.profile.notify_poke end;
 				};
-				  
+				
 				flash1 = {
 					order = 65;
 					name = L["Flash Taskbar Icon"];
@@ -396,7 +411,7 @@ Main.config_options = {
 					name = L["Unlock"];
 					desc = L["Unlock frame."];
 					type = "execute";
-					func = function() Main:Snoop_Unlock() end;
+					func = function() Main.Snoop.Unlock() end;
 				};
 				show = {
 					order= 3;
@@ -404,7 +419,7 @@ Main.config_options = {
 					name = L["Show"];
 					desc = L["Show the snooper window."];
 					type = "toggle";
-					set  = function( info, val ) Main:Snoop_Show( val ) end;
+					set  = function( info, val ) Main.Snoop.Show( val ) end;
 					get  = function( info ) return Main.db.profile.snoop.show end;
 				};
 				
@@ -413,7 +428,7 @@ Main.config_options = {
 					name  = L["Font"];
 					desc  = L["Chat font."];
 					type  = "select"; 
-					set   = function( info, val ) Main:Snoop_SetFont( g_font_list[val] ) end;
+					set   = function( info, val ) Main.Snoop.SetFont( g_font_list[val] ) end;
 					get   = function( info ) return FindValueKey( g_font_list, Main.db.profile.snoop.font.face ) end;
 				};
 				
@@ -425,7 +440,7 @@ Main.config_options = {
 					min = 4;
 					max = 20;
 					step = 1;
-					set = function( info, val ) Main:Snoop_SetFontSize( val ) end;
+					set = function( info, val ) Main.Snoop.SetFontSize( val ) end;
 					get = function( info ) return Main.db.profile.snoop.font.size end;
 				};
 				outline = {
@@ -435,7 +450,7 @@ Main.config_options = {
 					type  = "select"; 
 					values = outline_values;
 					
-					set   = function( info, val ) Main:Snoop_SetOutline( val ) end;
+					set   = function( info, val ) Main.Snoop.SetOutline( val ) end;
 					get   = function( info ) return Main.db.profile.snoop.font.outline end;
 				};
 				shadow = {
@@ -443,7 +458,7 @@ Main.config_options = {
 					name  = L["Shadow"];
 					desc  = L["Show text shadow."];
 					type  = "toggle"; 
-					set   = function( info, val ) Main:Snoop_SetShadow( val ) end;
+					set   = function( info, val ) Main.Snoop.SetShadow( val ) end;
 					get   = function( info ) return Main.db.profile.snoop.font.shadow end;
 				};
 				partyprefix = {
@@ -451,7 +466,7 @@ Main.config_options = {
 					name  = L["Party Prefix"];
 					desc  = L["Show channel prefixes for party chat."];
 					type  = "toggle";
-					set   = function( info, val ) Main.db.profile.snoop.partyprefix = val Main:Snoop_DoUpdate() end;
+					set   = function( info, val ) Main.db.profile.snoop.partyprefix = val Main.Snoop.DoUpdate() end;
 					get   = function( info ) return Main.db.profile.snoop.partyprefix end;
 				};
 			};

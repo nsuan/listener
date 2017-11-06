@@ -25,7 +25,7 @@ Main.AddSetup( function()
 end)
 
 -------------------------------------------------------------------------------
-function Main.MinimapButton:OnLoad() 
+function Main.MinimapButton:OnLoad()
 	DBIcon:Register( "Listener", self.data, Main.db.profile.minimapicon )
 end
 
@@ -43,7 +43,10 @@ end
 -------------------------------------------------------------------------------
 function Main.MinimapButton:OnClick( frame, button )
 	if button == "LeftButton" then
-		Main:ToggleFrame()
+		for _, frame in pairs( Main.frames ) do
+			frame:Open()
+		end
+		
 	elseif button == "RightButton" then
 		Main:OpenConfig()
 		

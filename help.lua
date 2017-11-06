@@ -53,7 +53,7 @@ function Main.Help_Init()
 	
 	AddHelp( ListenerFrame, "listenerframe" ) 
 	AddHelp( ListenerSnoopFrame, "snooper", function()
-		Main:Snoop_Unlock()
+		Main.Snoop.Unlock()
 	end)
 end
 

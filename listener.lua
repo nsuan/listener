@@ -2,13 +2,13 @@
 -- LISTENER by Tammya-MoonGuard (2017)
 -------------------------------------------------------------------------------
  
-local Main = ListenerAddon 
+local Main = ListenerAddon
 local L    = Main.Locale
 local SharedMedia = LibStub("LibSharedMedia-3.0")
 
-local g_history_size = 50
-
-local g_loadtime = 0
+local PLAYER_HISTORY_SIZE = 75
+local MAX_FRAMES          = 50 -- hell YEAH lool
+local g_loadtime          = 0
 
 -- english is "%s rolls %d (%d-%d)";
 local SYSTEM_ROLL_PATTERN = RANDOM_ROLL_RESULT 
@@ -47,7 +47,6 @@ SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%(%(%%d%+%)%-%(%%d%+%)%)", "%%(
 Main.unread_entries = {}
 Main.next_lineid    = 1
 Main.frames         = {}
-Main.unused_frames	= {} -- garbage can
 Main.active_frame   = nil
 
 local g_frame_creation_id = 0
@@ -122,11 +121,15 @@ end
 --
 local function CleanPlayerList()
 
-	for _, frame in pairs( Main.db.char.frames ) do
+	for index, frame in pairs( Main.db.char.frames ) do
 		for k,v in pairs( frame.players ) do
 			if not Main.chat_history[k] then
 				frame.players[k] = nil
 			end
+		end
+		
+		if index == 1 then
+			frame.players[UnitName("player")] = 1
 		end
 	end
 end
@@ -211,10 +214,11 @@ function Main:OnModifierChanged( evt, key, state )
 		
 		-- allow/disable dragging
 		if IsShiftKeyDown() then
-			--ListenerFrame:EnableMouse( true )
+		
 		else
-			--ListenerFrame:EnableMouse( false )
-			Main.Frame_StopDragging()
+			for _, frame in pairs( Main.frames ) do
+				frame:StopDragging()
+			end
 		end
 	end
 end
@@ -292,7 +296,7 @@ end
 --
 function Main:OnDiceMasterRoll( event, sender, message )
 	self:AddChatHistory( sender, "ROLL", message )
-	self:Snoop_DoUpdate( sender )
+	Main.Snoop.DoUpdate( sender )
 end
 
 -------------------------------------------------------------------------------
@@ -308,7 +312,7 @@ function Main:OnSystemMsg( event, message )
 	if sender then
 		-- this is a roll message
 		self:AddChatHistory( sender, "ROLL", message )
-		self:Snoop_DoUpdate( sender )
+		Main.Snoop.DoUpdate( sender )
 	end
 end
 
@@ -356,7 +360,7 @@ function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a
 	end
 	
 	self:AddChatHistory( sender, event, message, language, guid, a9 )
-	self:Snoop_DoUpdate( sender )
+	Main.Snoop.DoUpdate( sender )
 end
 
 -------------------------------------------------------------------------------
@@ -532,7 +536,7 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 	}
 	
 	if e == "CHANNEL" then
-		e.c = channel:lower()
+		e.c = channel:upper()
 	end
 	
 	if isplayer then
@@ -548,20 +552,19 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 	
 	table.insert( self.chat_history[sender], entry )
 	
-	while #self.chat_history[sender] > g_history_size do
-		table.remove( self.chat_history[sender], 1 )
-	end
+--	while #self.chat_history[sender] > PLAYER_HISTORY_SIZE do
+--		table.remove( self.chat_history[sender], 1 )
+--	end
 	
 	if not entry.r then
 		table.insert( self.unread_entries, entry )
 	end
-	 
 	
 	if entry.p then
 		-- player is posting...
 	--	if event == "SAY" or event == "EMOTE" or event == "TEXT_EMOTE" then
 			-- player is publicly emoting, clear read status
-			Main:MarkAllRead( true ) 
+			Main.MarkAllRead( true ) 
 	--	end
 	end
 	
@@ -577,15 +580,10 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 	end
 end
 
-function Main:ToggleCommand( arg, command )
+function Main.ToggleCommand( arg, command )
 	
-	if arg == nil and UnitIsPlayer( "target" ) then
-		arg = UnitName( "target" )
-	end
-	if arg == nil and UnitIsPlayer( "mouseover" ) then
-		arg = UnitName( "mouseover" )
-	end
-	if arg == nil then
+	arg = arg or Main.GetProbed()
+	if not arg then
 		Main.Print( L["Specify name or target someone."] )
 		return
 	end
@@ -618,15 +616,15 @@ function SlashCmdList.LISTENER( msg )
 		
 	elseif args[1] == "add" or args[1] == L["add"] then
 	
-		Main:ToggleCommand( args[2], "add" )
+		Main.ToggleCommand( args[2], "add" )
 		
 	elseif args[1] == "remove" or args[1] == L["remove"] then
 	
-		Main:ToggleCommand( args[2], "remove" )
+		Main.ToggleCommand( args[2], "remove" )
 		
 	elseif args[1] == "toggle" or args[1] == L["toggle"] then
 	
-		Main:ToggleCommand( args[2], "toggle" )
+		Main.ToggleCommand( args[2], "toggle" )
 		
 	elseif args[1] == "clear" or args[1] == L["clear"] then
 	
@@ -664,15 +662,14 @@ end
 -------------------------------------------------------------------------------
 -- Returns a new frame or one of the unused frames.
 --
-local function GetNewFrameObject()
-	if #Main.unused_frames > 0 then
-		local frame = Main.unused_frames[ #Main.unused_frames ]
-		Main.unused_frames[#Main.unused_frames] = nil
-		return frame
-	end
+-- @param index Index to create this frame for.
+--
+local function GetFrameObject( index )
 	
-	g_frame_creation_id = g_frame_creation_id + 1
-	local frame = CreateFrame( "Frame", "ListenerFrame" .. g_frame_creation_id, UIParent, "ListenerFrameTemplate" )
+	local frame = _G[ "ListenerFrame" .. index ]
+	if frame then return frame end
+	
+	local frame = CreateFrame( "Frame", "ListenerFrame" .. index, UIParent, "ListenerFrameTemplate" )
 	return frame
 end
 
@@ -680,12 +677,13 @@ end
 local function SetupFrames()
 	
 	for i,_ in ipairs( Main.db.char.frames ) do
-		local frame = GetNewFrameObject()
+		print( 'debug: loading frame', i )
+		local frame = GetFrameObject( i )
 		frame:SetFrameIndex( i )
-		print( 'loading frame', i )
 		Main.frames[i] = frame
 	end
 	
+	-- first time creation
 	if not Main.db.char.frames[1] then
 		Main.AddWindow()
 	end
@@ -697,9 +695,20 @@ end
 -- Create a new Listener window.
 --
 function Main.AddWindow()
-	local frame = GetNewFrameObject()
-	local index = #Main.db.char.frames+1
-	Main.Frame.InitOptions( index )
+	local index = nil
+	for i = 1, MAX_FRAMES do
+		if not Main.db.char.frames[i] then
+			index = i
+			break
+		end
+	end
+	
+	if not index then
+		Main.Print( "Denied! How did you reach this limit?" )
+		return
+	end
+	
+	local frame = GetFrameObject( index )
 	frame:SetFrameIndex( index )
 end
 
@@ -709,7 +718,7 @@ end
 -- Cannot be the primary window.
 --
 function Main.DestroyWindow( frame )
-	if frame.frame_index == 1 then return end
+	if frame.frame_index == 1 then return end -- cannot delete the primary frame
 	
 	frame:Hide()
 	if frame == Main.active_frame then
@@ -717,14 +726,8 @@ function Main.DestroyWindow( frame )
 	end
 	
 	local index = frame.frame_index
-	table.remove( Main.frames, index )
-	table.remove( Main.db.char.frames, index )
-	
-	for i = index, #Main.frames do
-		Main.frames[i]:SetFrameIndex( i )
-	end
-	
-	table.insert( Main.unused_frames, frame )
+	Main.frames[index]         = nil
+	Main.db.char.frames[index] = nil
 end
 
 -------------------------------------------------------------------------------
@@ -732,7 +735,7 @@ end
 --
 function Main.MarkAllRead()
 	if #Main.unread_entries == 0 then return end
-	local newlist = {}
+	local new_list = {}
 	
 	local time = time()
 	for k,v in pairs( Main.unread_entries ) do
@@ -790,10 +793,10 @@ end
 ]]
 -------------------------------------------------------------------------------
 function Main.Print( text, hideprefix )
---	text = tostring( text )
---	
---	local prefix = hideprefix and "" or "|cff9e5aea<Listener>|r "
---	print( prefix .. text )
+	text = tostring( text )
+	
+	local prefix = hideprefix and "" or "|cff9e5aea<Listener>|r "
+	print( prefix .. text )
 end
 
 -------------------------------------------------------------------------------
@@ -836,8 +839,7 @@ function Main:OnEnable()
 	   
 	self:ApplyConfig()
 
-	
-	self:Snoop_Setup()
+	Main.Snoop.Setup()
 	
 	Main.Init_OnEnabled()
 	Main.SetupProbe()

@@ -16,6 +16,7 @@ locale\index.xml
 listener.lua
 config_frame.lua
 config.lua
+filter_menu.lua
 minimapbutton.lua
 snoop.lua
 probe.lua

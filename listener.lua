@@ -49,7 +49,13 @@ SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%(%(%%d%+%)%-%(%%d%+%)%)", "%%(
   }
 ]]
 
+-- new in 1.6.0
+-- this table is indexed by entries
 Main.unread_entries = {}
+function Main.HasUnreadEntries()
+	for _,_ in pairs( Main.unread_entries ) do return true end
+end
+
 Main.next_lineid    = 1
 Main.frames         = {}
 Main.active_frame   = nil
@@ -91,7 +97,7 @@ local function CleanChatHistory()
 		
 		for i = 1, #chat_table do
 			if chat_table[i] then
-				chat_table[i].r = true
+				chat_table[i].r = nil
 				
 				if time > chat_table[i].t + expiry then
 					chat_table[i] = nil
@@ -543,6 +549,7 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 		m  = message;
 		s  = sender;
 		g  = guid;
+		r  = true;
 	}
 	
 	if event == "CHANNEL" then
@@ -551,10 +558,10 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 	
 	if isplayer then
 		entry.p = true -- is player
-		entry.r = true -- read
+		entry.r = nil -- read
 	end
 	if event == "YELL" then
-		entry.r = true -- yells dont cause unread messages
+		entry.r = nil -- yells dont cause unread messages
 	end
 	
 	Main.chatlist[entry.id] = entry
@@ -566,8 +573,8 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 --		table.remove( self.chat_history[sender], 1 )
 --	end
 	
-	if not entry.r then
-		table.insert( self.unread_entries, entry )
+	if entry.r then
+		self.unread_entries[entry] = true
 	end
 	
 	if entry.p then
@@ -799,20 +806,13 @@ function Main.MarkMessagesRead( e )
 			-- unread messages that this frame is listening to.
 			
 			for k,v in pairs( Main.unread_entries ) do
-				if time >= v.t + NEW_MESSAGE_HOLD and frame:ShowsEntry( v ) then
-					v.r = true
+				if time >= k.t + NEW_MESSAGE_HOLD and frame:ShowsEntry( k ) then
+					k.r = nil
 					Main.unread_entries[k] = nil
 				end
 			end
 		end
 	end
-	
-	-- condense result
-	local newlist = {}
-	for k,v in pairs( Main.unread_entries ) do
-		table.insert( newlist, v )
-	end
-	Main.unread_entries = newlist
 	
 	-- and update the frames
 	for _, frame in pairs( Main.frames ) do
@@ -827,21 +827,18 @@ end
 -- Mark all new messages as "read".
 --
 function Main.MarkAllRead()
-	if #Main.unread_entries == 0 then return end
-	local new_list = {}
+	if not Main.HasUnreadEntries() then return end 
 	
 	local time = time()
 	for k,v in pairs( Main.unread_entries ) do
-		if time < v.t + 3 then
+		if time < k.t + 3 then
 			-- we dont mark messages that arent 3 seconds old
 			-- since theyre pretty fresh and probably not read yet!
-			table.insert( new_list, v )
 		else
-			v.r = true 
+			k.r = nil
+			Main.unread_entries[k] = nil
 		end
 	end
-	
-	Main.unread_entries = new_list
 	
 	for k,v in pairs( Main.frames ) do
 		v:CheckUnread()
@@ -850,9 +847,11 @@ function Main.MarkAllRead()
 end
 
 function Main.HighlightEntry( entry, highlight )
-	local unread = not entry.r
+	local unread = entry.r
 	entry.h = highlight
-	entry.r = true
+	entry.r = nil
+	
+	Main.unread_entries[entry] = nil
 	
 	for k,v in pairs( Main.frames ) do
 		if v:ShowsEntry( entry ) then
@@ -924,8 +923,8 @@ function Main:OnEnable()
 	self:RegisterEvent( "CHAT_MSG_SAY", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_EMOTE", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_TEXT_EMOTE", "OnChatMsg" )
---	self:RegisterEvent( "CHAT_MSG_WHISPER", "OnChatMsg" )
---	self:RegisterEvent( "CHAT_MSG_WHISPER_INFORM", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_WHISPER", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_WHISPER_INFORM", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_PARTY", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_PARTY_LEADER", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_RAID", "OnChatMsg" )
@@ -935,6 +934,8 @@ function Main:OnEnable()
 	self:RegisterEvent( "CHAT_MSG_GUILD", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_OFFICER", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_CHANNEL", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_INSTANCE_CHAT", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_INSTANCE_CHAT_LEADER", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_SYSTEM", "OnSystemMsg" )
 	self:RegisterMessage( "DiceMaster4_Roll", "OnDiceMasterRoll" )
 	

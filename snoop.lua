@@ -20,6 +20,8 @@ local MESSAGE_PREFIXES = {
 	RAID_LEADER     = "[R] ";
 	INSTANCE        = "[I] ";
 	INSTANCE_LEADER = "[I] ";
+	OFFICER         = "[O] ";
+	GUILD           = "[G] ";
 	RAID_WARNING    = "[RW] ";
 }
 
@@ -120,7 +122,7 @@ function Me.SetText( name )
 	
 	local text          = ""
 	local curtime       = time()
-	local snooped_types = {}
+	local snooped_types = Main.db.char.snoop_filter -- todo: maybe reset this on long logout?
 	
 	local count = 0
 	for i = #Main.chat_history[name], 1, -1 do
@@ -128,7 +130,7 @@ function Me.SetText( name )
 		
 		local msgtype = snooped_types[e.e]
 		
-		if msgtype or true then -- debug bypass
+		if msgtype then -- debug bypass
 			local stamp = ""
 			local old = curtime - e.t
 			
@@ -364,4 +366,16 @@ function Me.Lock()
 	end
 end
 
-
+-------------------------------------------------------------------------------
+function Me.PopulateFilterMenu( level )
+	Main.PopulateFilterMenu( level, { "Public", "Party", "Raid", "Instance", "Guild", "Officer", "Whisper", "Channel" },
+		function( filter )
+			return Main.db.char.snoop_filter[filter]
+		end,
+		function( filters, checked )
+			for _,v in pairs(filters) do
+				Main.db.char.snoop_filter[v] = checked
+			end
+			Me.DoUpdate()
+		end)
+end

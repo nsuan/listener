@@ -26,7 +26,7 @@ local MSG_FORMAT_TYPES = {
 
 	-- "<name>: <msg>"
 	SAY=1, PARTY=1, PARTY_LEADER=1, RAID=1, RAID_LEADER=1, RAID_WARNING=1, YELL=1;
-	INSTANCE=1, INSTANCE_LEADER=1, GUILD=1, OFFICER=1, CHANNEL=1;
+	INSTANCE_CHAT=1, INSTANCE_CHAT_LEADER=1, GUILD=1, OFFICER=1, CHANNEL=1;
 	
 	-- "<name> <msg>"
 	EMOTE=2;
@@ -39,16 +39,16 @@ local MSG_FORMAT_TYPES = {
 -- Prefix behind name for these types of messages.
 --
 local MSG_FORMAT_PREFIX = {
-	PARTY            = "[P] ";
-	PARTY_LEADER     = "[P] ";
-	RAID             = "[R] ";
-	RAID_LEADER      = "[R] ";
-	INSTANCE         = "[I] ";
-	INSTANCE_LEADER  = "[I] ";
-	GUILD            = "[G] ";
-	OFFICER          = "[O] ";
-	RAID_WARNING     = "[RW] ";
-	CHANNEL          = "[C] "
+	PARTY                 = "[P] ";
+	PARTY_LEADER          = "[P] ";
+	RAID                  = "[R] ";
+	RAID_LEADER           = "[R] ";
+	INSTANCE_CHAT         = "[I] ";
+	INSTANCE_CHAT_LEADER  = "[I] ";
+	GUILD                 = "[G] ";
+	OFFICER               = "[O] ";
+	RAID_WARNING          = "[RW] ";
+	CHANNEL               = "[C] "
 }
 
 -------------------------------------------------------------------------------
@@ -160,28 +160,17 @@ end
 --
 local function SaveFrameLayout( self )
 	if not self.frame_index then return end
-	local point, _, point2, x, y = self:GetPoint(1)
-	x = math.floor( x + 0.5 )
-	y = math.floor( y + 0.5 )
-	local width  = math.floor(self:GetWidth() + 0.5);
-	local height = math.floor(self:GetHeight() + 0.5);
-	
-	if point == "LEFT" or point == "RIGHT" or point == "CENTER" and (y % 2) == 1 then
-		y = y - 0.5
-	end
-	
-	if point == "TOP" or point == "BOTTOM" or point == "CENTER" and (x % 2) == 1 then
-		x = x - 0.5
-	end
+	local point, region, point2, x, y = self:GetPoint(1)
+	local width, height = self:GetSize()
+	width  = math.floor( width + 0.5 )
+	height = math.floor( height + 0.5 )
+	if region then region = region:GetName() end
 	
 	local layout = {
-		point  = { point, point2, x, y };
+		anchor = { point, region, point2, x, y };
 		width  = width;
 		height = height;
 	}
-	
-	self:SetPoint( point, UIParent, point2, x, y )
-	self:SetSize( layout.width, layout.height )
 	
 	if self.frame_index == 1 then
 		-- primary frame
@@ -190,6 +179,8 @@ local function SaveFrameLayout( self )
 		-- other frame
 		Main.db.char.frames[self.frame_index].layout = layout
 	end
+	
+	LibStub("AceConfigRegistry-3.0"):NotifyChange( "Listener Frame Settings" )
 end
 
 -------------------------------------------------------------------------------
@@ -439,6 +430,9 @@ function Method:ApplyColorOptions()
 	for k,v in pairs( self.edges ) do
 		v:SetColorTexture( unpack( edgecolor )) 
 	end
+	
+	local bar_color = Main.db.char.frames[self.frame_index].color.bar or Main.db.profile.frame.color.bar
+	self.bar2.bg:SetColorTexture( unpack( bar_color ) )
 end
 
 -------------------------------------------------------------------------------
@@ -453,17 +447,23 @@ function Method:ApplyLayoutOptions()
 	end
 	
 	self:ClearAllPoints()
-	local point = layout.point
-	if not point or #point == 0 then
+	local anchor = layout.anchor
+	if not anchor or #anchor == 0 then
 		if self.frame_index == 1 then
 			-- primary
 			self:SetPoint( "LEFT", 50, 0 )
 		else
 			-- secondary
-			self:SetPoint( "CENTER", (self.frame_index-2) * 50, (self.frame_index-2) * -50 )
+			self:SetPoint( "CENTER", 0, 0 )
 		end
 	else
-		self:SetPoint( point[1], UIParent, point[2], math.floor(point[3]+0.5), math.floor(point[4]+0.5) )
+		local region = anchor[2]
+		if not region then
+			region = UIParent
+		else
+			region = _G[region]
+		end
+		self:SetPoint( anchor[1], region, anchor[3], anchor[4], anchor[5] )
 	end
 	
 	self:SetSize( math.max( layout.width, 50 ), 
@@ -551,8 +551,7 @@ end
 -- Options for the title bar.
 --
 function Method:ApplyBarOptions()
-	local bar_color = Main.db.char.frames[self.frame_index].color.bar or Main.db.profile.frame.color.bar
-	self.bar2.bg:SetColorTexture( unpack( bar_color ) )
+
 end
 
 -------------------------------------------------------------------------------
@@ -712,7 +711,7 @@ function Method:AddMessage( e, beep )
 	
 	local hidden = not self:ListeningTo( e.s )
 	
-	if not e.r and not e.p and not hidden then -- not read and not from the player and not hidden
+	if e.r and not e.p and not hidden then -- not read and not from the player and not hidden
 		if self:IsShown() then
 			if beep and Main.db.char.frames[self.frame_index].sound then
 				Main:PlayMessageBeep() 
@@ -746,9 +745,9 @@ function Method:CheckUnread()
 	local id = nil
 	
 	for k,v in pairs( Main.unread_entries ) do
-		if EntryFilter( self, v ) and self:ListeningTo( v.s ) then
-			if not id or v.id < id then
-				id = v.id
+		if EntryFilter( self, k ) and self:ListeningTo( k.s ) then
+			if not id or k.id < id then
+				id = k.id
 			end
 		end
 	end
@@ -1056,12 +1055,13 @@ end
 
 -------------------------------------------------------------------------------
 function Me.OnEnter( self )
+	self.show_highlight = true
 	self:UpdateResizeShow()
 end
 
 -------------------------------------------------------------------------------
 function Me.OnLeave( self )
-
+	self.show_highlight = false
 	self:UpdateResizeShow()
 end
 
@@ -1071,7 +1071,7 @@ function Me.OnUpdate( self )
 	
 	local picked = nil
 	
-	if Main.active_frame == self and self.chatbox:IsMouseOver() and not IsShiftKeyDown() then
+	if Main.active_frame == self and self.show_highlight and not IsShiftKeyDown() then
 		-- do some picking
 		picked = PickTextRegion( self, true )
 	else
@@ -1241,18 +1241,23 @@ end
 -- Initialize a section in the database for a new frame
 --
 function Me.InitOptions( index )
+	-- only initialize things that are per-character options
+	-- don't initialize things that you don't want in the
+	-- primary frame's options
+	
 	local data = {
 		players    = {};
 		listen_all = true;
 		filter     = {}; -- filled in below
 		showhidden = false;
 		layout     = {
+			anchor   = {};
 			width    = 200;
 			height   = 300;
 		};
 		hidden       = false;
 		color        = {};
-		hidecombat   = true;
+		combathide   = true;
 	}
 	
 	for k,v in pairs( DEFAULT_LISTEN_EVENTS ) do

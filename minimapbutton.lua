@@ -141,15 +141,16 @@ local function InitializeOptionsMenu( self, level, menuList )
 	if level == 1 then
 		local info
 		info = UIDropDownMenu_CreateInfo()
-		info.text    = "Listener"
-		info.isTitle = true
+		info.text         = "Listener"
+		info.isTitle      = true
 		info.notCheckable = true
 		UIDropDownMenu_AddButton( info, level )
 		
 		info = UIDropDownMenu_CreateInfo()
-		info.text = "Snooper Filter"
-		info.notCheckable = true
-		info.hasArrow = true
+		info.text             = "Snooper Filter"
+		info.notCheckable     = true
+		info.hasArrow         = true
+		info.menuList         = "SNOOPER"
 		info.keepShownOnClick = true
 		UIDropDownMenu_AddButton( info, level )
 		
@@ -161,7 +162,7 @@ local function InitializeOptionsMenu( self, level, menuList )
 		info.notCheckable = true
 		UIDropDownMenu_AddButton( info, level )
 	elseif level == 2 and menuList == "SNOOPER" then
-		
+		Main.Snoop.PopulateFilterMenu( level )
 	end
 end
 

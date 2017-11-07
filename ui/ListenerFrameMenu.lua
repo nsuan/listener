@@ -6,12 +6,6 @@ local Method = Me.methods
 Me.menu        = nil
 Me.menu_parent = nil
 
--------------------------------------------------------------------------------
--- Chat channel names that are ignored.
---
-local IGNORED_CHANNELS = {
-	xtensionxtooltip2 = true -- Common addon channel.
-}
 
 -------------------------------------------------------------------------------
 local function InclusionClicked( self, arg1, arg2, checked )
@@ -22,54 +16,6 @@ end
 local function SoundClicked( self, arg1, arg2, checked )
 	local index = Me.menu_parent.frame_index
 	Main.db.char.frames[index].sound = checked
-end
-
--------------------------------------------------------------------------------
--- Add an option to the SHOW menu.
---
--- @param caption Text that will be displayed for the option.
--- @param filters Events that this option will control. e.g. {"RAID","RAID_LEADER"}
---
-local function AddFilterOption( level, caption, filters )
-	info = UIDropDownMenu_CreateInfo()
-	info.text             = caption
-	info.notCheckable     = false
-	info.isNotRadio       = true
-	info.checked          = Me.menu_parent:HasEvent( filters[1] )
-	info.func             = function( self, a1, a2, checked )
-		if checked then
-			Me.menu_parent:AddEvents( unpack( filters ) )
-		else
-			Me.menu_parent:RemoveEvents( unpack( filters ) )
-		end
-	end
-	
-	info.keepShownOnClick = true
-	UIDropDownMenu_AddButton( info, level )
-end
-
--------------------------------------------------------------------------------
-local function PopulateFilterMenu( level )
-	AddFilterOption( level, "Public", { "SAY", "EMOTE", "TEXT_EMOTE", "YELL" } )
-	AddFilterOption( level, "Party", { "PARTY", "PARTY_LEADER" } )
-	AddFilterOption( level, "Raid", { "RAID", "RAID_LEADER", "RAID_WARNING" } )
-	AddFilterOption( level, "Instance", { "INSTANCE", "INSTANCE_LEADER" } )
-	AddFilterOption( level, "Guild", { "GUILD" } )
-	AddFilterOption( level, "Officer", { "OFFICER" } )
-	--AddFilterOption( level, "Achieve", { "ACHIEVE" } )
-	
-	local channels = { GetChannelList() }
-	for i = 1, #channels, 2 do
-		local index = channels[i]
-		local name = channels[i+1]
-		name = name:lower()
-		if not IGNORED_CHANNELS[name] then
-			local event = "#" .. name:upper()
-			AddFilterOption( level, "#" .. name, { event } )
-		end
-	end
-	
-	-- todo: automatically clean up channels that the player has left
 end
 
 local g_delete_frame_index
@@ -170,7 +116,19 @@ local function InitializeMenu( self, level, menuList )
 		end
 	
 	elseif menuList == "SHOW" then
-		PopulateFilterMenu( level )
+		
+		Main.PopulateFilterMenu( level, 
+			{ "Public", "Party", "Raid", "Instance", "Guild", "Officer", "Channel" }, 
+			function( filter )
+				return Me.menu_parent:HasEvent( filter )
+			end,
+			function( filters, checked )
+				if checked then
+					Me.menu_parent:AddEvents( unpack( filters ))
+				else
+					Me.menu_parent:RemoveEvents( unpack( filters ))
+				end
+			end)
 	end
 end
 

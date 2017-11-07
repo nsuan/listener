@@ -72,7 +72,11 @@ local DB_DEFAULTS = {
 		};
 		
 		-- events that the snooper is listening to
-		snoop_filter = {};
+		snoop_filter = { 
+			SAY  = true, EMOTE       = true, TEXT_EMOTE   = true, 
+			YELL = true, PARTY       = true, PARTY_LEADER = true, 
+			RAID = true, RAID_LEADER = true, RAID_WARNING = true 
+		};
 	};
 	
 	profile = {
@@ -102,7 +106,7 @@ local DB_DEFAULTS = {
 			-- anchor and size
 			-- subframes inherit this or can define it themselves
 			layout = {
-				point  = {};
+				anchor = {};
 				width  = 350;
 				height = 400;
 			};

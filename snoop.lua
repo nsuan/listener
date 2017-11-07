@@ -95,14 +95,17 @@ end
 
 -------------------------------------------------------------------------------
 local function GetEntryColor( e )
-	
+	local info
 	if e.c then
-		-- channel (todo)
-		return { 1, 1, 1, 1 }
+		local index = GetChannelName( e.c )
+		info = ChatTypeInfo[ "CHANNEL" .. index ]
+		if not info then info = ChatTypeInfo.CHANNEL end
+		
 	else
-		local info = ChatTypeInfo[ e.e ]
-		return { info.r, info.g, info.b, 1 }
+		info = ChatTypeInfo[ e.e ]
+		if not info then info = ChatTypeInfo.SAY end
 	end
+	return { info.r, info.g, info.b, 1 }
 end
 
 -------------------------------------------------------------------------------

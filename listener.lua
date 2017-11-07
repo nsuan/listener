@@ -617,7 +617,7 @@ function SlashCmdList.LISTENER( msg )
 	end
 	
 	if args[1] == nil then
-		Main:OpenConfig()
+		Main.OpenConfig()
 		return
 	end
 	

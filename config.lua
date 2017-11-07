@@ -552,17 +552,17 @@ function Main.CreateDB()
 end
 
 -------------------------------------------------------------------------------
-function Main:InitConfigPanel()
+local function InitConfigPanel()
 	if g_init then return end
 	g_init = true
 	
-	local options = self.config_options
+	local options = Main.config_options
 	
 	g_font_list = SharedMedia:List( "font" ) 
 	options.args.frame.args.fontface.values = g_font_list 
 	options.args.frame.args.bar_fontface.values = g_font_list 
 	options.args.snoop.args.fontface.values = g_font_list 
-	options.args.profile = LibStub("AceDBOptions-3.0"):GetOptionsTable( self.db )
+	options.args.profile = LibStub("AceDBOptions-3.0"):GetOptionsTable( Main.db )
 	options.args.profile.order = 500
 	 
 	AceConfig:RegisterOptionsTable( "Listener", options )
@@ -571,8 +571,8 @@ end
 -------------------------------------------------------------------------------
 -- Open the configuration panel.
 --
-function Main:OpenConfig()
-	self:InitConfigPanel()	
+function Main.OpenConfig()
+	InitConfigPanel()	
 	AceConfigDialog:Open( "Listener" )
 	
 	-- hack to fix the scrollbar missing on the first page when you

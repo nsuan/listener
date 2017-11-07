@@ -56,7 +56,7 @@ local function PopulateFilterMenu( level )
 	AddFilterOption( level, "Instance", { "INSTANCE", "INSTANCE_LEADER" } )
 	AddFilterOption( level, "Guild", { "GUILD" } )
 	AddFilterOption( level, "Officer", { "OFFICER" } )
-	AddFilterOption( level, "Achieve", { "ACHIEVE" } )
+	--AddFilterOption( level, "Achieve", { "ACHIEVE" } )
 	
 	local channels = { GetChannelList() }
 	for i = 1, #channels, 2 do

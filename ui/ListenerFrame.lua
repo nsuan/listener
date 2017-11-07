@@ -56,7 +56,6 @@ local MSG_FORMAT_PREFIX = {
 -------------------------------------------------------------------------------
 
 local function GetEntryColor( e )
-	
 	local info
 	if e.c then
 		local index = GetChannelName( e.c )
@@ -65,6 +64,7 @@ local function GetEntryColor( e )
 		
 	else
 		info = ChatTypeInfo[ e.e ]
+		if not info then info = ChatTypeInfo.SAY end
 	end
 	return { info.r, info.g, info.b, 1 }
 end
@@ -163,11 +163,25 @@ local function SaveFrameLayout( self )
 	local point, _, point2, x, y = self:GetPoint(1)
 	x = math.floor( x + 0.5 )
 	y = math.floor( y + 0.5 )
+	local width  = math.floor(self:GetWidth() + 0.5);
+	local height = math.floor(self:GetHeight() + 0.5);
+	
+	if point == "LEFT" or point == "RIGHT" or point == "CENTER" and (y % 2) == 1 then
+		y = y - 0.5
+	end
+	
+	if point == "TOP" or point == "BOTTOM" or point == "CENTER" and (x % 2) == 1 then
+		x = x - 0.5
+	end
+	
 	local layout = {
 		point  = { point, point2, x, y };
-		width  = self:GetWidth();
-		height = self:GetHeight();
+		width  = width;
+		height = height;
 	}
+	
+	self:SetPoint( point, UIParent, point2, x, y )
+	self:SetSize( layout.width, layout.height )
 	
 	if self.frame_index == 1 then
 		-- primary frame

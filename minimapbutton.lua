@@ -84,7 +84,7 @@ local function InitializeFramesMenu( self, level, menuList )
 		info.isTitle = true
 		info.notCheckable = true
 		UIDropDownMenu_AddButton( info, level )
-		
+		--[[
 		info = UIDropDownMenu_CreateInfo()
 		info.text = "Open All"
 		info.func = FramesMenuAction_OpenAll
@@ -98,11 +98,10 @@ local function InitializeFramesMenu( self, level, menuList )
 		UIDropDownMenu_AddButton( info, level )
 		
 		info = UIDropDownMenu_CreateInfo()
-		info.notCheckable = true
 		info.notClickable = true
-		info.isTitle=true
+		info.disabled = true
 		UIDropDownMenu_AddButton( info, level )
-		
+		]]
 		local frames = {}
 		
 		-- populate with everything but first frame
@@ -128,7 +127,10 @@ local function InitializeFramesMenu( self, level, menuList )
 			info.func = function()
 				f:Toggle()
 			end
-			info.notCheckable = true
+			info.notCheckable = false
+			info.isNotRadio   = true
+			info.checked = f:IsShown()
+			info.keepShownOnClick = true
 			UIDropDownMenu_AddButton( info, level )
 		end
 	end
@@ -141,6 +143,21 @@ local function InitializeOptionsMenu( self, level, menuList )
 		info = UIDropDownMenu_CreateInfo()
 		info.text    = "Listener"
 		info.isTitle = true
+		info.notCheckable = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text = "Snooper Filter"
+		info.notCheckable = true
+		info.hasArrow = true
+		info.keepShownOnClick = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text = "Open Configuraton"
+		info.func = function()
+			Main.OpenConfig()
+		end
 		info.notCheckable = true
 		UIDropDownMenu_AddButton( info, level )
 	elseif level == 2 and menuList == "SNOOPER" then

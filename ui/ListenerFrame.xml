@@ -3,7 +3,7 @@
   <Script file="ListenerFrameMenu.lua"/>
   
   <!-- ListenerFrame definition. -->
-  <Frame name="ListenerFrameTemplate" parent="UIParent" enableMouse="true" movable="true" 
+  <Frame name="ListenerFrameTemplate" parent="UIParent" toplevel="true" enableMouse="true" movable="true" 
                               resizable="true"  hidden="false"     frameStrata="BACKGROUND" 
                               virtual="true">
                               
@@ -47,11 +47,12 @@
       <OnLeave>     ListenerAddon.Frame.OnLeave(self) </OnLeave>
       <OnMouseDown> ListenerAddon.Frame.OnMouseDown( self, button ) </OnMouseDown>
       <OnMouseUp>   ListenerAddon.Frame.OnMouseUp( self, button ) </OnMouseUp>
+      <OnUpdate>    ListenerAddon.Frame.OnUpdate(self) </OnUpdate>
     </Scripts>
     
     <Frames>
       <!-- Titlebar -->
-      <Frame name="$parentBar2" parentKey="bar2" enableMouse="false">
+      <Frame name="$parentBar2" parentKey="bar2" enableMouse="false" hidden="true">
         <Anchors>
           <Anchor point="TOPLEFT" x="0" y="0" />
           <Anchor point="BOTTOMRIGHT" relativePoint="TOPRIGHT"><Offset x="0" y="-15"/></Anchor>
@@ -178,9 +179,26 @@
       <!-- The main chatbox. -->
       <ScrollingMessageFrame name="$parentChat" parentKey="chatbox" maxlines="500" displayduration="300" nonspacewrap="true">
         <Anchors>
-          <Anchor point="TOPLEFT" x="4" y="-6"/>
-          <Anchor point="BOTTOMRIGHT" x="-2" y="3"/>
+          <Anchor point="LEFT"   x="2" y="-6"/>
+          <Anchor point="RIGHT"  x="-2" y="-6"/>
+          <Anchor point="TOP"    x="0" y="-3"/>
+          <Anchor point="BOTTOM" x="0" y="3"/>
         </Anchors>
+       
+        <Layers>
+          <Layer level="OVERLAY">
+            <!-- The line that separates new messages. -->
+            <Texture parentKey="highlight" hidden="true">
+              <Size y="1"/>
+              <Anchors>
+                <Anchor point="LEFT" x="0" />
+                <Anchor point="RIGHT" x="0" />
+              </Anchors>
+              <Color b="0.1" r="0.1" g="0.1" a="1.0"/>
+            </Texture>
+          </Layer>
+        </Layers>
+        
 				<Scripts>
           <OnLoad>
             self:SetClipsChildren( true )
@@ -188,11 +206,11 @@
             self:EnableMouseWheel( true )
             self:SetHyperlinksEnabled( true )
             self:SetIndentedWordWrap( true )
-            self:SetPoint( "TOPLEFT", self:GetParent().bar2, "BOTTOMLEFT", 4, -1 )
             self:SetFading( false )
             
+            self.highlight:SetBlendMode( "ADD" )
+            
           </OnLoad>
-          
           <OnMouseWheel>
             ListenerAddon.Frame.OnChatboxScroll( self:GetParent(), delta )
           </OnMouseWheel>

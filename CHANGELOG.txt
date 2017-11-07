@@ -3,6 +3,11 @@ Major updates.
 Redid interface.
 Ability to create new instances. (Right click the upper left corner.)
 Better customization.
+Custom channel support to better facilitate RP in channels.
+Removed hiding player name feature. (Sorry!)
+Removed message highlighting in favor of a single red line.
+Removed player coloring in favor of tab markers (left hand side).
+Lightened old timestamps in snooper.
 
 ## 1.5.8
 Compatibility update.

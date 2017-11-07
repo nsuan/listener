@@ -14,7 +14,7 @@ sharedmedia.lua
 locale\index.xml
 
 listener.lua
-frame.lua
+config_frame.lua
 config.lua
 minimapbutton.lua
 snoop.lua

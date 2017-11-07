@@ -143,16 +143,16 @@ function Me.SetText( name )
 			
 			local timecolor
 			if old >= 600 then
-				timecolor = "|cff222222"
+				timecolor = "|cff777777"
 			elseif old >= 300 then
-				timecolor = "|cff444444"
+				timecolor = "|cff888888"
 			elseif old >= 60 then
-				timecolor = "|cff666666"
+				timecolor = "|cffbbbbbb"
 			else
-				timecolor = "|cff9999ff"
+				timecolor = "|cff05ACF8"
 			end
 			
-			stamp = timecolor .. stamp .. "|r"
+			stamp = timecolor .. stamp
 			
 			if text ~= "" then
 				text = "|n" .. text
@@ -238,7 +238,7 @@ end
 -- @param val 2 = OUTLINE, 3 = THICKOUTLINE, 1/nil = no outline
 --
 function Me.SetOutline( val )
-	self.db.profile.snoop.font.outline = val
+	Main.db.profile.snoop.font.outline = val
 	Me.LoadFont()
 end
 

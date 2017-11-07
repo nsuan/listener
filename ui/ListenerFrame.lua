@@ -7,6 +7,7 @@ local Me          = ListenerAddon.Frame
 local SharedMedia = LibStub("LibSharedMedia-3.0")
 
 local CHAT_BUFFER_SIZE = 300
+local CLICKBLOCK_TIME  = 0.4
 
 local DEFAULT_LISTEN_EVENTS = {
 	"SAY", "EMOTE", "TEXT_EMOTE", "YELL", 
@@ -25,7 +26,7 @@ local MSG_FORMAT_TYPES = {
 
 	-- "<name>: <msg>"
 	SAY=1, PARTY=1, PARTY_LEADER=1, RAID=1, RAID_LEADER=1, RAID_WARNING=1, YELL=1;
-	INSTANCE=1, INSTANCE_LEADER=1;
+	INSTANCE=1, INSTANCE_LEADER=1, GUILD=1, OFFICER=1, CHANNEL=1;
 	
 	-- "<name> <msg>"
 	EMOTE=2;
@@ -47,6 +48,7 @@ local MSG_FORMAT_PREFIX = {
 	GUILD            = "[G] ";
 	OFFICER          = "[O] ";
 	RAID_WARNING     = "[RW] ";
+	CHANNEL          = "[C] "
 }
 
 -------------------------------------------------------------------------------
@@ -55,13 +57,16 @@ local MSG_FORMAT_PREFIX = {
 
 local function GetEntryColor( e )
 	
+	local info
 	if e.c then
-		-- channel (todo)
-		return { 1, 1, 1, 1 }
+		local index = GetChannelName( e.c )
+		info = ChatTypeInfo[ "CHANNEL" .. index ]
+		if not info then info = ChatTypeInfo.CHANNEL end
+		
 	else
-		local info = ChatTypeInfo[ e.e ]
-		return { info.r, info.g, info.b, 1 }
+		info = ChatTypeInfo[ e.e ]
 	end
+	return { info.r, info.g, info.b, 1 }
 end
 
 -------------------------------------------------------------------------------
@@ -80,10 +85,7 @@ local function SetupMembers( self )
 	
 	-- the uppermost unread message ID
 	-- nil if the window has no "unread" messages
-	self.top_unread_id       = nil
-	
-	-- the name of the player being targeted by the mouseover highlight feature
-	self.mouseover_highlight = nil
+	self.top_unread_id = nil
 	
 	-- when a new messages is added, this saves the time
 	-- if the user clicks on the frame at the moment a message is added, 
@@ -97,31 +99,44 @@ local function SetupMembers( self )
 	-- (new id = chatid+1)
 	self.chatid    = 0
 	
+	-- this is a list of things that we can pick from with the mouse
+	self.pick_regions = {
+		-- table of:
+		-- { region = region, entry = entry }
+	}
+	
+	-- this dictates that the mouse is being held over a region
+	--self.picked = nil (too complex)
+end
+
+-------------------------------------------------------------------------------
+local function PickTextRegion( self, setup_highlight )
+	for _,v in pairs( self.pick_regions ) do
+		if v.region:IsMouseOver() then
+			if setup_highlight then
+				self.chatbox.highlight:SetPoint( "TOP", v.region, "TOP" )
+				self.chatbox.highlight:SetPoint( "BOTTOM", v.region, "BOTTOM" )
+				self.chatbox.highlight:Show()
+			end
+			return v
+		end
+	end
+	
+	if setup_highlight and self.chatbox.highlight:IsShown() then
+		self.chatbox.highlight:Hide()
+	end
 end
 
 -------------------------------------------------------------------------------
 -- Setup the frames that form the edge around the window.
 --
-local function SetupEdge( self )
+local function CreateEdges( self )
 	if self.edges then return end
-	
 	self.edges = {}
-	local e = self:CreateTexture( "BORDER" ) -- top
-	e:SetPoint( "TOPLEFT",     self, "TOPLEFT",  -2, 2 )
-	e:SetPoint( "BOTTOMRIGHT", self, "TOPRIGHT",  2, 0 )
-	table.insert( self.edges, e )
-	local e = self:CreateTexture( "BORDER" ) -- bottom
-	e:SetPoint( "TOPLEFT",     self, "BOTTOMLEFT",  -2, 0 )
-	e:SetPoint( "BOTTOMRIGHT", self, "BOTTOMRIGHT",  2, -2 )
-	table.insert( self.edges, e )
-	local e = self:CreateTexture( "BORDER" ) -- left
-	e:SetPoint( "TOPLEFT",     self, "TOPLEFT",    -2, 0 )
-	e:SetPoint( "BOTTOMRIGHT", self, "BOTTOMLEFT", -0, 0 )
-	table.insert( self.edges, e )
-	local e = self:CreateTexture( "BORDER" ) -- right
-	e:SetPoint( "TOPLEFT",     self, "TOPRIGHT",     0, 0 )
-	e:SetPoint( "BOTTOMRIGHT", self, "BOTTOMRIGHT",  2, 0 )
-	table.insert( self.edges, e )
+	for i = 1,4 do
+		table.insert( self.edges, self:CreateTexture( "BORDER" ))
+	end
+	
 end
 
 -------------------------------------------------------------------------------
@@ -146,7 +161,8 @@ end
 local function SaveFrameLayout( self )
 	if not self.frame_index then return end
 	local point, _, point2, x, y = self:GetPoint(1)
-	
+	x = math.floor( x + 0.5 )
+	y = math.floor( y + 0.5 )
 	local layout = {
 		point  = { point, point2, x, y };
 		width  = self:GetWidth();
@@ -219,20 +235,37 @@ end
 --
 local function EntryFilter( self, entry )
 	if entry.c then
-		return self.listen_events( "#" .. entry.c )
+		return self.listen_events[ "#" .. entry.c ]
 	end
 	return self.listen_events[entry.e]
 end
+
+local TIMESTAMP = {
+	
+	-- HH:MM:SS
+	[1] = function( t ) return date( "%H:%M:%S ", t ) end;
+	
+	-- HH:MM
+	[2] = function( t ) return date( "%H:%M ", t ) end;
+	
+	-- HH:MM (12-hour)
+	[3] = function( t ) return date( "%I:%M ", t ):gsub( "^0", "" ) end;
+	
+	-- MM:SS
+	[4] = function( t ) return date( "%M:%S ", t ) end;
+	
+	-- MM
+	[5] = function( t ) return date( "%M ", t ) end;
+}
 
 -------------------------------------------------------------------------------
 local function FormatChatMessage( self, e )
 	local msgtype = MSG_FORMAT_TYPES[e.e]
 	
 	local stamp = ""
-	if Main.db.profile.frame.timestamps then
-		-- todo: additional stamp formats
-		stamp = date( "%H:%M ", e.t )
-		stamp = "|cff808080" .. stamp .. "|r" 
+	local ts = Main.db.profile.frame.timestamps
+	if TIMESTAMP[ts] then
+		stamp = "|cff808080" .. TIMESTAMP[ts](e.t) .. "|r" 
 	end
 	
 	-- get icon and name 
@@ -260,7 +293,11 @@ local function FormatChatMessage( self, e )
 	   -- say/party
 	   
 		local prefix = MSG_FORMAT_PREFIX[e.e] or ""
+		if e.e == "CHANNEL" then
+			prefix = prefix:gsub( "C", (GetChannelName( e.c )) )
+		end
 		prefix = stamp .. icon .. prefix
+		
 		
 		text = string.format( "%s%s: %s", prefix, name, e.m )
 		
@@ -331,6 +368,22 @@ function Method:Open( dontsave )
 end
 
 -------------------------------------------------------------------------------
+function Method:UpdateBarVisibility()
+	self:ShowBar( self:IsMouseOver(8,-8,-8,8) or Main.active_frame == self )
+end
+
+-------------------------------------------------------------------------------
+function Method:ShowBar( show )
+	if show and not self.bar2:IsShown() then
+		self.bar2:Show()
+		self.chatbox:SetPoint( "TOP", self.bar2, "BOTTOM", 0, -1 )
+	elseif not show and self.bar2:IsShown() then
+		self.bar2:Hide()
+		self.chatbox:SetPoint( "TOP", self, 0, -2 )
+	end
+end
+
+-------------------------------------------------------------------------------
 -- Set the chat font size.
 --
 function Method:SetFontSize( size )
@@ -365,10 +418,10 @@ end
 
 -------------------------------------------------------------------------------
 function Method:ApplyColorOptions()
-	local bgcolor = Main.db.char.frames[self.frame_index].color_bg or Main.db.profile.frame.color_bg
+	local bgcolor = Main.db.char.frames[self.frame_index].color.bg or Main.db.profile.frame.color.bg
 	self.bg:SetColorTexture( unpack( bgcolor ))
 	
-	local edgecolor = Main.db.char.frames[self.frame_index].color_edge or Main.db.profile.frame.color_edge
+	local edgecolor = Main.db.char.frames[self.frame_index].color.edge or Main.db.profile.frame.color.edge
 	for k,v in pairs( self.edges ) do
 		v:SetColorTexture( unpack( edgecolor )) 
 	end
@@ -396,11 +449,37 @@ function Method:ApplyLayoutOptions()
 			self:SetPoint( "CENTER", (self.frame_index-2) * 50, (self.frame_index-2) * -50 )
 		end
 	else
-		self:SetPoint( point[1], UIParent, point[2], point[3], point[4] )
+		self:SetPoint( point[1], UIParent, point[2], math.floor(point[3]+0.5), math.floor(point[4]+0.5) )
 	end
 	
 	self:SetSize( math.max( layout.width, 50 ), 
 	              math.max( layout.height, 50 ) )
+				  
+	
+	-- setup edges
+	local es = Main.db.profile.frame.edge_size
+	if es == 0 then
+		for _, edge in pairs( self.edges ) do
+			edge:Hide()
+		end
+	else
+		-- top
+		self.edges[1]:SetPoint( "TOPLEFT",     self, "TOPLEFT",  -es, es )
+		self.edges[1]:SetPoint( "BOTTOMRIGHT", self, "TOPRIGHT",  es, 0 )
+		-- bottom
+		self.edges[2]:SetPoint( "TOPLEFT",     self, "BOTTOMLEFT",  -es, 0 )
+		self.edges[2]:SetPoint( "BOTTOMRIGHT", self, "BOTTOMRIGHT",  es, -es )
+		-- left
+		self.edges[3]:SetPoint( "TOPLEFT",     self, "TOPLEFT",    -es, 0 )
+		self.edges[3]:SetPoint( "BOTTOMRIGHT", self, "BOTTOMLEFT", -0, 0 )
+		-- right
+		self.edges[4]:SetPoint( "TOPLEFT",     self, "TOPRIGHT",     0, 0 )
+		self.edges[4]:SetPoint( "BOTTOMRIGHT", self, "BOTTOMRIGHT",  es, 0 )
+		
+		for _, edge in pairs( self.edges ) do
+			edge:Show()
+		end
+	end
 	
 	if Main.db.char.frames[self.frame_index].hidden then
 		self:Hide()
@@ -437,18 +516,29 @@ function Method:ApplyChatOptions()
 	else
 		self.chatbox:SetShadowColor( 0, 0, 0, 0 )
 	end
+	
+	local tabsize = Main.db.char.frames[self.frame_index].tab_size
+	                or Main.db.profile.frame.tab_size
+	
+	self.chatbox:SetPoint( "LEFT", self, "LEFT", 2 + tabsize, 0 )
+	
+	local time_visible = Main.db.char.frames[self.frame_index].time_visible 
+	                     or Main.db.profile.frame.time_visible
+	if time_visible == 0 then
+		self.chatbox:SetFading( false )
+	else
+		self.chatbox:SetFading( true )
+		self.chatbox:SetFadeDuration( 3.0 )
+		self.chatbox:SetTimeVisible( time_visible )
+	end
 end
 
 -------------------------------------------------------------------------------
 -- Options for the title bar.
 --
 function Method:ApplyBarOptions()
-	local bar_color = Main.db.char.frames[self.frame_index].color_bar or Main.db.profile.frame.color_bar
+	local bar_color = Main.db.char.frames[self.frame_index].color.bar or Main.db.profile.frame.color.bar
 	self.bar2.bg:SetColorTexture( unpack( bar_color ) )
-	
-	-- move this to a static function
-	local font = SharedMedia:Fetch( "font", Main.db.profile.frame.barfont.face )
-	ListenerBarFont:SetFont( font, Main.db.profile.frame.barfont.size )
 end
 
 -------------------------------------------------------------------------------
@@ -496,6 +586,13 @@ end
 function Method:HasEvent( event )
 	if self.listen_events[event:upper()] then return true end
 	return nil
+end
+
+-------------------------------------------------------------------------------
+-- Returns true if this entry is displayed.
+--
+function Method:ShowsEntry( entry )
+	return EntryFilter( self, entry )
 end
 
 -------------------------------------------------------------------------------
@@ -553,17 +650,21 @@ end
 -- Called when the window is active and the probe target changes.
 --
 function Method:UpdateProbe()
-	local target, guid = Main:GetProbed()
-	local on = false
+
 	local title = "—"
+	local on = false
 	
-	if target then
+	if Main.active_frame == self then
+		local target, guid = Main:GetProbed()
 		
-		on = self:ListeningTo( target )
-		
-		local name, icon, color = Main:GetICName( target, guid )
-		title = " " .. name
-		
+		if target then
+			
+			on = self:ListeningTo( target )
+			
+			local name, icon, color = Main:GetICName( target, guid )
+			title = " " .. name
+			
+		end
 	end
 	
 	self.bar2.title:SetText( title )
@@ -574,7 +675,7 @@ function Method:UpdateProbe()
 		self.bar2.toggle_button:Hide()
 	end
 	
-	if Main.db.profile.highlight_mouseover then
+	if Main.db.profile.frame.color.tab_target[4] > 0 then
 		self:UpdateHighlight()
 	end
 end
@@ -653,19 +754,19 @@ local function UpdateReadmark( self, region, first_id )
 
 	-- todo: option for hiding readmark here.
 	
-	self.readmark:SetColorTexture( unpack( Main.db.profile.colors.readmark ) )
+	self.readmark:SetColorTexture( unpack( Main.db.profile.frame.color.readmark ) )
 	if region then
 		self.readmark:Show()
 		
 		-- set the marker here
-		local top = self.chatbox:GetTop() - (region:GetTop() + 1)
-		if top < 2 then 
-			top = 2 
+		local point = region:GetTop() - self.chatbox:GetBottom()
+		if point > self.chatbox:GetHeight() - 1 then 
+			point = self.chatbox:GetHeight() - 1 
 			self.readmark:SetHeight( 2 )
 		else
 			self.readmark:SetHeight( 1 )
 		end
-		self.readmark:SetPoint( "TOP", self.chatbox, "TOP", 0, -top )
+		self.readmark:SetPoint( "TOP", self.chatbox, "BOTTOM", 0, point )
 		
 	elseif self.top_unread_id then
 		self.readmark:SetHeight( 2 )
@@ -676,7 +777,7 @@ local function UpdateReadmark( self, region, first_id )
 			self.readmark:SetPoint( "TOP", self, "BOTTOM", 0, 3 )
 		else
 			-- past the top
-			self.readmark:SetPoint( "TOP", self.chatbox, "TOP", 0, -2 )
+			self.readmark:SetPoint( "TOP", self.chatbox, "BOTTOM", 0, self.chatbox:GetHeight() - 1 )
 		end
 	else
 		-- no unread messages
@@ -715,6 +816,12 @@ function Method:UpdateHighlight()
 	local first_unread_region = nil
 	--local first_unread_id     = 0
 	
+	local tabsize = Main.db.char.frames[self.frame_index].tab_size
+	                or Main.db.profile.frame.tab_size
+					
+	-- we'll build the pick_regions table in here too!
+	local pick_regions = {}
+	
 	for k,v in ipairs( regions ) do
 		local e = self.chat_buffer[chat_index]
 		
@@ -723,6 +830,8 @@ function Method:UpdateHighlight()
 		
 		if v:GetBottom() < top_edge then -- within the chatbox only
 		
+			table.insert( pick_regions, { region = v, entry = e } )
+		
 			local hidden = not self:ListeningTo( e.s )
 			v:SetAlpha( hidden and 0.35 or 1.0 )
 			
@@ -730,9 +839,9 @@ function Method:UpdateHighlight()
 				first_unread_region = v
 			end
 			
-			local targeted = (Main.GetProbed() == e.s) and Main.db.profile.highlight_mouseover
+			local targeted = (Main.GetProbed() == e.s) and (Main.db.profile.frame.color.tab_target[4] > 0)
 
-			if targeted or e.p or e.h then
+			if tabsize > 0 and targeted or e.p or e.h then
 				-- setup block
 				count = count + 1
 				if not self.tab_texes[count] then
@@ -741,7 +850,7 @@ function Method:UpdateHighlight()
 				local tex = self.tab_texes[count]
 				
 				tex:ClearAllPoints()
-				tex:SetPoint( "LEFT", v, "LEFT", -3, 0 )
+				tex:SetPoint( "LEFT", v, "LEFT", -1 - tabsize, 0 )
 				tex:SetPoint( "RIGHT", v, "LEFT", -1, 0 )
 				tex:SetPoint( "BOTTOM", v, "BOTTOM", 0, 0 )
 				
@@ -750,11 +859,11 @@ function Method:UpdateHighlight()
 				tex:SetPoint( "TOP", v, "TOP", 0, -clip )
 				tex:SetBlendMode( "BLEND" )
 				if e.h then
-					tex:SetColorTexture( unpack( Main.db.profile.colors.tab_highlight ) )
+					tex:SetColorTexture( unpack( Main.db.profile.frame.color.tab_marked ) )
 				elseif e.p then
-					tex:SetColorTexture( unpack( Main.db.profile.colors.tab_self ) )
+					tex:SetColorTexture( unpack( Main.db.profile.frame.color.tab_self ) )
 				elseif targeted then
-					tex:SetColorTexture( unpack( Main.db.profile.colors.tab_mouseover ) )
+					tex:SetColorTexture( unpack( Main.db.profile.frame.color.tab_target ) )
 				end
 				tex:Show()	
 			end
@@ -763,9 +872,11 @@ function Method:UpdateHighlight()
 		chat_index = chat_index - 1
 	end
 	
+	self.pick_regions = pick_regions
+	
 	local e = self.chat_buffer[chat_index_start]
 	if e then e = e.e end
-	if e then
+	if e and (Main.db.profile.frame.color.readmark[4] > 0) then
 		UpdateReadmark( self, first_unread_region, e.id )
 	else
 		self.readmark:Hide()
@@ -822,13 +933,13 @@ end
 --
 function Method:SetColors( bg, edge, bar )
 	if self.frame_index == 1 then
-		if bg then self.db.profile.frame.color_bg = bg end
-		if edge then self.db.profile.frame.color_edge = edge end
-		if bar then self.db.profile.frame.color_bar = bar end
+		if bg then self.db.profile.frame.color.bg = bg end
+		if edge then self.db.profile.frame.color.edge = edge end
+		if bar then self.db.profile.frame.color.bar = bar end
 	else
-		if bg then self.db.char.frames[self.frame_index].color_bg = bg end
-		if edge then self.db.char.frames[self.frame_index].color_edge = edge end
-		if bar then self.db.char.frames[self.frame_index].color_bar = bar end
+		if bg then self.db.char.frames[self.frame_index].color.bg = bg end
+		if edge then self.db.char.frames[self.frame_index].color.edge = edge end
+		if bar then self.db.char.frames[self.frame_index].color.bar = bar end
 	end
 	
 	self:ApplyColorOptions()
@@ -891,6 +1002,24 @@ function Method:StopDragging()
 end
 
 -------------------------------------------------------------------------------
+function Method:CombatHide( combat )
+	if combat then
+		if Main.db.char.frames[self.frame_index].combathide then
+			self:Close( true )
+		end
+	else
+		if not Main.db.char.frames[self.frame_index].hidden then
+			self:Open( true )
+		end
+	end
+end
+
+-------------------------------------------------------------------------------
+function Method:OpenConfig()
+	Main.OpenFrameConfig( self )
+end
+
+-------------------------------------------------------------------------------
 -- Handlers (And psuedo ones.)
 -------------------------------------------------------------------------------
 function Me.OnLoad( self )
@@ -904,7 +1033,7 @@ function Me.OnLoad( self )
 	-- initial settings
 	self:EnableMouse( true )
 	self:SetClampedToScreen( true )
-	SetupEdge( self )
+	CreateEdges( self )
 	
 	hooksecurefunc( self.chatbox, "RefreshDisplay", function()
 		Me.OnChatboxRefresh( self )
@@ -918,11 +1047,44 @@ end
 
 -------------------------------------------------------------------------------
 function Me.OnLeave( self )
+
 	self:UpdateResizeShow()
 end
 
 -------------------------------------------------------------------------------
+function Me.OnUpdate( self )
+	self:UpdateBarVisibility()
+	
+	local picked = nil
+	
+	if Main.active_frame == self and self.chatbox:IsMouseOver() and not IsShiftKeyDown() then
+		-- do some picking
+		picked = PickTextRegion( self, true )
+	else
+		if self.chatbox.highlight:IsShown() then
+			self.chatbox.highlight:Hide()
+		end
+	end
+end
+
+-------------------------------------------------------------------------------
 function Me.OnMouseDown( self, button )
+	local active = Main.active_frame == self
+	
+	if not active then
+		Main.SetActiveFrame( self )
+	end
+	
+	if active and GetTime() > self.clickblock + CLICKBLOCK_TIME then
+		if not IsShiftKeyDown() then
+			local p = PickTextRegion( self, false )
+			if p then
+				Main.HighlightEntry( p.entry, not p.entry.h )
+			end
+			
+		end
+	end
+	
 	if button == "LeftButton" and IsShiftKeyDown() then
 		self:StartDragging()
 	end
@@ -930,6 +1092,11 @@ end
 
 -------------------------------------------------------------------------------
 function Me.OnMouseUp( self )
+	if self.picked then
+		if self.picked.region:IsMouseOver() then
+			
+		end
+	end
 	self:StopDragging()
 end
 
@@ -960,7 +1127,7 @@ end
 
 -------------------------------------------------------------------------------
 function Me.OnChatboxHyperlinkClick( self, link, text, button )
-	if GetTime() - self.clickblock < 0.4 then
+	if GetTime() < self.clickblock + CLICKBLOCK_TIME then
 		-- block clicks when scroll changes
 		return
 	end	
@@ -1070,6 +1237,8 @@ function Me.InitOptions( index )
 			height   = 300;
 		};
 		hidden       = false;
+		color        = {};
+		hidecombat   = true;
 	}
 	
 	for k,v in pairs( DEFAULT_LISTEN_EVENTS ) do
@@ -1079,4 +1248,16 @@ function Me.InitOptions( index )
 	data.players[ UnitName("player") ] = 1
 	
 	Main.db.char.frames[index] = data
+end
+
+-------------------------------------------------------------------------------
+-- Apply the globally set options (ones that affect all frames, like the
+-- titlebar font).
+--
+function Me.ApplyGlobalOptions()
+	
+	-- bar font
+	local font = SharedMedia:Fetch( "font", Main.db.profile.frame.barfont.face )
+	ListenerBarFont:SetFont( font, Main.db.profile.frame.barfont.size )
+	
 end

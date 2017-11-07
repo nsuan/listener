@@ -18,9 +18,12 @@ setmetatable( L, {
 	-- When treating the L table like a function, it can accept arguments
 	-- that will replace {1}, {2}, etc in the text.
 	__call = function( table, key, ... )
-		for i = 1, select( "#", ... ) do
+		key = table[key] -- first we get the translation
+		
+		local args = {...}
+		for i = 1, #args do
 			local text = select( i, ... )
-			key = string.gsub( key, "{" .. i .. "}", text )
+			key = key:gsub( key, "{" .. i .. "}", args[i] )
 		end
 		return key
 	end;

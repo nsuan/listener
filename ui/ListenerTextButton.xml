@@ -34,7 +34,7 @@
           
         elseif state == "PUSHED" then
           self.hl:SetColorTexture( 0.2, 0.2, 0.2 )
-        end        
+        end
       </OnEnter>
       <OnLeave>
         self.hl:Hide()

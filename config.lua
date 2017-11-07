@@ -63,7 +63,8 @@ local DB_DEFAULTS = {
 			--    height = y        size
 			--  hidden = false      frame is hidden
 			--  sound = true        play a sound on new message
-			--  flash = true        flash the taskbar on new message
+			--  tab_size (inherit)
+			--  combathide          hide during combat
 			--  
 			--  color_bg   = {color} background color
 			--  color_edge = {color} edge color
@@ -82,13 +83,11 @@ local DB_DEFAULTS = {
 		};
 		
 		-- general settings
-		locked      = false; -- unused?
-		combathide  = true;  -- hide in combat
-		addgrouped  = true;  -- add player's party automatically (todo)
-		flashclient = true;  -- flash taskbar on message
-		beeptime    = 3;     -- time needed between emotes to play another sound
-		highlight_mouseover = true; -- highlight mouseover's emotes in main window
-		rpconnect   = true;  -- rpconnect support
+		locked           = false; -- unused?
+		addgrouped       = true;  -- add player's party automatically (todo)
+		flashclient      = true;  -- flash taskbar on message
+		beeptime         = 3;     -- time needed between emotes to play another sound
+		rpconnect        = true;  -- rpconnect support
 		
 		-- notification settings
 		sound = {
@@ -97,61 +96,36 @@ local DB_DEFAULTS = {
 			poke   = true; -- play sound when someone emotes at you
 		};
 		
-		-- mostly text color options
-		colors = {
-			SAY            = Hexc "f0f0f0";
-			EMOTE          = Hexc "ff9e12";
-			TEXT_EMOTE     = Hexc "ff9e12";
-			PARTY          = Hexc "58c9ff";
-			PARTY_LEADER   = Hexc "58c9ff";
-			RAID           = Hexc "58c9ff";
-			RAID_LEADER    = Hexc "58c9ff";
-			RAID_WARNING   = Hexc "d961ff";
-			YELL           = Hexc "ff0000";
-			ROLL           = Hexc "ffff00";
-			
-			P_SAY            = Hexc "30f715";
-			P_EMOTE          = Hexc "30f715";
-			P_TEXT_EMOTE     = Hexc "30f715";
-			P_PARTY          = Hexc "30f715";
-			P_PARTY_LEADER   = Hexc "30f715";
-			P_RAID           = Hexc "30f715";
-			P_RAID_LEADER    = Hexc "30f715";
-			P_RAID_WARNING   = Hexc "30f715";
-			P_YELL           = Hexc "ff0000";
-			P_ROLL           = Hexc "30f715";
-			
-			tab_self         = Hexc "94C7A9";
-			tab_mouseover    = Hexc "BF060F";
-			tab_highlight    = Hexc "D3DA37";
-			
-			readmark         = Hexc "BF060FC0";
-			
-			highlight           = { 0.15, 0.15, 0.15, 1 };
-			highlight_mouseover = Hexc "2e0007ff";
-			highlight_add = true;
-		};
-		
 		-- profile frame settings (see note above)
 		frame = {
+		
+			-- anchor and size
+			-- subframes inherit this or can define it themselves
 			layout = {
-				point        = {};  -- } only used for primary frame
-				width        = 350; -- } but subframes inherit this
-				height       = 400; -- } upon creation
+				point  = {};
+				width  = 350;
+				height = 400;
 			};
 			
-			hidden       = false; -- this is being moved
-			timestamps   = false;
-			playername   = true; -- show player's name in window
-			time_visible = 9999;
-			zoom_icons   = true;
-			show_icons   = true;
+			-- enable timestamps
+			timestamps = 0;
 			
-			highlight_new = true;
+			-- time that text is kept visible
+			time_visible = 0;
+			
+			-- show trp icons; zoom is for removing border
+			show_icons = true;
+			zoom_icons = true;
+			
+			-- pixel size of edges around frames
+			edge_size = 2;
+			
+			-- pixel width of the tabs next to messages
+			tab_size = 2;
 			
 			-- shared between all windows
 			font = {
-				size = 14;
+				size = 14; -- except for this - this is custom per window
 				face = "Arial Narrow";
 				outline = 1;
 				shadow = false;
@@ -163,11 +137,21 @@ local DB_DEFAULTS = {
 				face = "Accidental Presidency";
 			};
 			
-			-- these are default values when
-			-- new windows are created
-			color_bg   = Hexc "090f17ff";
-			color_edge = Hexc "4777b380";
-			color_bar  = Hexc "1F344Eff";
+			color = {
+				-- these are default values when
+				-- new windows are created
+				bg       = Hexc "090f17ff";
+				edge     = Hexc "1F344E80";
+				bar      = Hexc "1F344Eff";
+			
+				-- the following are used globally 
+				-- and aren't configured per-frame
+				readmark = Hexc "BF060FC0";
+				
+				tab_self   = Hexc "29D24EFF";
+				tab_target = Hexc "BF060FFF";
+				tab_marked = Hexc "D3DA37FF";
+			};
 		};
 		
 		-- snooper settings
@@ -200,9 +184,34 @@ local outline_values = { "None", "Thin Outline", "Thick Outline" }
 
 -------------------------------------------------------------------------------
 local function FrameSettingsChanged()
+	Main.Frame.ApplyGlobalOptions()
 	for _, frame in pairs( Main.frames ) do
 		frame:ApplyOptions()
 	end
+end
+
+-------------------------------------------------------------------------------
+local function RefreshAllChat()
+	for _, frame in pairs( Main.frames ) do
+		frame:RefreshChat()
+	end
+end
+
+local function FrameColorOption( order, name, desc, color )
+	return {
+		order = order;
+		name  = name;
+		desc  = desc;
+		type  = "color";
+		hasAlpha = true;
+		get   = function( info )
+			return unpack( Main.db.profile.frame.color[color] )
+		end;
+		set   = function( info, r, g, b, a )
+			Main.db.profile.frame.color[color] = { r, g, b, a }
+			FrameSettingsChanged()
+		end;
+	}
 end
 
 -------------------------------------------------------------------------------
@@ -215,98 +224,16 @@ Main.config_options = {
 			name = L["Minimap Icon"];
 			desc = L["Hide/Show the minimap icon."];
 			type = "toggle";
-			set = function( info, val ) Main.MinimapButton:Show( val ) end;
+			set = function( info, val ) Main.MinimapButton.Show( val ) end;
 			get = function( info ) return not Main.db.profile.minimapicon.hide end;
 		};
 		 
 		general = {
-			name = L["General"];
-			type = "group";
-			order=1;
-			args = {
+			name  = L["General"];
+			type  = "group";
+			order = 1;
+			args  = {
 			
-				desc1 = {
-					name  = L["The main window can be moved and resized by holding Shift. The font size can be changed by holding Ctrl and scrolling."];
-					type  = "description"; 
-					order = 9;
-				};
-			  
-				fontface = {
-					order = 10;
-					name  = L["Chat Font"];
-					desc  = L["Font for the chatbox text."];
-					type  = "select"; 
-					set   = function( info, val ) 
-						Main.db.profile.frame.font.face = g_font_list[val]
-						FrameSettingsChanged()
-					end;
-					get   = function( info ) return FindValueKey( g_font_list, Main.db.profile.frame.font.face ) end;
-					
-				};
-				outline = {
-					order = 20;
-					name  = L["Outline"];
-					desc  = L["Chat text outline."];
-					type  = "select"; 
-					values = outline_values;
-					set   = function( info, val ) 
-						Main.db.profile.frame.font.outline = val
-						FrameSettingsChanged()
-					end;
-					get   = function( info ) return Main.db.profile.frame.font.outline end;
-					
-				};
-				shadow = {
-					order = 30;
-					name  = L["Shadow"];
-					desc  = L["Show text shadow."];
-					type  = "toggle"; 
-					set   = function( info, val ) 
-						Main.db.profile.frame.font.shadow = val
-						FrameSettingsChanged()
-					end;
-					get   = function( info ) return Main.db.profile.frame.font.shadow end;
-				};
-				
-				hidecombat = {
-					order = 40;
-					name = L["Hide During Combat"];
-					desc = L["Hide the Listener windows during combat."];
-					type = "toggle";
-					set = function( info, val ) Main.db.profile.combathide = val end;
-					get = function( info ) return Main.db.profile.combathide end;
-				};
-				
-				bgcolor = {
-					order = 50;
-					name = L["Background Color"];
-					desc = L["Color of frame background."];
-					type = "color";
-					hasAlpha = true;
-					set = function( info, r, g, b, a ) Main:Frame_SetBGColor( r, g, b, a ) end;
-					get = function( info ) return unpack( Main.db.profile.frame.color_bg ) end;
-				};
-				
-				edgecolor = {
-					order = 51;
-					name = L["Edge Color"];
-					desc = L["Color of frame edge."];
-					type = "color";
-					hasAlpha = true;
-					set = function( info, r, g, b, a ) Main:Frame_SetEdgeColor( r, g, b, a ) end;
-					get = function( info ) return unpack( Main.db.profile.frame.color_edge ) end;
-				};
-				--[[
-				playsound = {
-					order = 60;
-					name = L["Play Sound On Message"];
-					desc = L["Play a sound when a new message is received."];
-					width = "full";
-					type = "toggle";
-					set = function( info, val ) Main.db.profile.sound.msg = val end;
-					get = function( info ) return Main.db.profile.sound.msg end;
-				};]]
-				
 				playsound_target = {
 					order = 61;
 					name = L["Target Emote Sound"];
@@ -350,40 +277,6 @@ Main.config_options = {
 					get = function( info ) return Main.db.profile.flashclient end;
 				};
 				
-				timestamp = {
-					order = 70;
-					width = "full";
-					name = L["Show Timestamps"];
-					type = "toggle";
-					set = function( info, val ) Main:Frame_SetTimestamps( val ) end;
-					get = function( info ) return Main.db.profile.frame.timestamps end;
-				};
-				
-				--[[
-				playername = {
-					order = 80;
-					width = "full";
-					name = L["Show Player Name"];
-					desc = L["Show player's name in Listener window."];
-					type = "toggle";
-					set = function( info, val ) Main:Frame_SetPlayerName( val ) end;
-					get = function( info ) return Main.db.profile.frame.playername end;
-				};]]
-				
-				hlmouseover ={
-					order = 90;
-					width = "full";
-					name = L["Highlight Mouseover Text"];
-					desc = L["Highlight emotes in the main window when you mouseover someone."];
-					type = "toggle";
-					set = function( info, val ) 
-						Main.db.profile.highlight_mouseover = val
-						if not val then
-							Main:ResetHighlightMouseover()
-						end
-					end;
-					get = function( info ) return Main.db.profile.highlight_mouseover end;
-				};
 				resethelp = {
 					order = 150;
 					type= "execute";
@@ -393,12 +286,176 @@ Main.config_options = {
 				};
 			};
 			
-		}; 
+		};
+		
+		frame = {
+			name  = L["Frame"];
+			type  = "group";
+			order = 2;
+			args  = {
+				desc1 = {
+					name  = L["Listener frames can be moved and resized holding shift. The font size can be adjusted by holding Ctrl and scrolling! Additional options can be found per-frame, which is accessed from the context menu (right click the top left corner of the frame)."];
+					type  = "description"; 
+					order = 9;
+				};
+				fontface = {
+					order = 10;
+					name  = L["Chat Font"];
+					desc  = L["Font face for chatbox text."];
+					type  = "select";
+					set   = function( info, val ) 
+						Main.db.profile.frame.font.face = g_font_list[val]
+						FrameSettingsChanged()
+					end;
+					get   = function( info ) 
+						return FindValueKey( g_font_list, Main.db.profile.frame.font.face ) 
+					end;
+				};
+				outline = {
+					order  = 11;
+					name   = L["Outline"];
+					desc   = L["Font outline for chatbox text."];
+					type   = "select"; 
+					values = outline_values;
+					set    = function( info, val ) 
+						Main.db.profile.frame.font.outline = val
+						FrameSettingsChanged()
+					end;
+					get    = function( info ) 
+						return Main.db.profile.frame.font.outline 
+					end;
+				};
+				shadow = {
+					order = 12;
+					name  = L["Text Shadow"];
+					desc  = L["Enable text shadow for chatbox text."];
+					type  = "toggle"; 
+					set   = function( info, val ) 
+						Main.db.profile.frame.font.shadow = val
+						FrameSettingsChanged()
+					end;
+					get   = function( info ) 
+						return Main.db.profile.frame.font.shadow 
+					end;
+				};
+				edge_size = {
+					order = 20;
+					name  = L["Edge Size"];
+					desc  = L["Thickness of the border around frames."];
+					type  = "range";
+					min   = 0;
+					max   = 16;
+					step  = 1;
+					set   = function( info, val )
+						Main.db.profile.frame.edge_size = val
+						FrameSettingsChanged()
+					end;
+					get   = function( info )
+						return Main.db.profile.frame.edge_size
+					end;
+				};
+				bar_fontface = {
+					order = 30;
+					name  = L["Header Font"];
+					desc  = L["Font face for header above the chatbox."];
+					type  = "select";
+					set   = function( info, val ) 
+						Main.db.profile.frame.barfont.face = g_font_list[val]
+						FrameSettingsChanged()
+					end;
+					get   = function( info ) 
+						return FindValueKey( g_font_list, Main.db.profile.frame.barfont.face ) 
+					end;
+				};
+				bar_font_size = {
+					order = 31;
+					name  = L["Header Font Size"];
+					desc  = L["Font size for header above the chatbox."];
+					type  = "range";
+					min   = 6;
+					max   = 24;
+					step  = 1;
+					set   = function( info, val )
+						Main.db.profile.frame.barfont.size = val
+						FrameSettingsChanged()
+					end;
+					get   = function( info )
+						return Main.db.profile.frame.barfont.size
+					end;
+				};
+				timestamp = {
+					order = 32;
+					name = L["Timestamps"];
+					type = "select";
+					values = { 
+						[0] = "None";
+						[1] = "HH:MM:SS";
+						[2] = "HH:MM";
+						[3] = "HH:MM (12-hour)";
+						[4] = "MM:SS";
+						[5] = "MM";
+					};
+					set = function( info, val )
+						Main.db.profile.frame.timestamps = val
+						RefreshAllChat()
+					end;
+					get = function( info ) 
+						return Main.db.profile.frame.timestamps 
+					end;
+				};
+				readmark_color = FrameColorOption( 40, L["Readmark Color"], L['Color for the line that separates "new" messages. (Set to transparent to disable.)'], "readmark" );
+				
+				show_icons = {
+					order = 60;
+					name  = L["Show Icons"];
+					desc  = L["If using Total RP 3, show character icons next to names."];
+					type  = "toggle";
+					get   = function( info )
+						return Main.db.profile.frame.show_icons
+					end;
+					set   = function( info, val )
+						Main.db.profile.frame.show_icons = val
+						RefreshAllChat()
+					end;
+				};
+				zoom_icons = {
+					order = 61;
+					name  = L["Zoom Icons"];
+					desc  = L["Zoom icons to cut off ugly borders."];
+					type  = "toggle";
+					get   = function( info )
+						return Main.db.profile.frame.zoom_icons
+					end;
+					set   = function( info, val )
+						Main.db.profile.frame.zoom_icons = val
+						RefreshAllChat()
+					end;
+				};
+				
+				-- tab colors
+				group_tab_colors = {
+					order  = 70;
+					type   = "group";
+					name   = L["Tab Colors"];
+					inline = true;
+					args   = {
+						desc1 = {
+							order = 1;
+							type  = "description";
+							name  = L["Colors for the tabs next to messages. To disable anything, just set them to transparent."];
+						};
+						tab_self   = FrameColorOption( 10, L["Self"], L["The tab that marks your messages."], "tab_self" );
+						tab_target = FrameColorOption( 11, L["Target"],	L["The tab that marks your target's messages."], "tab_target" );
+						tab_marked = FrameColorOption( 12, L["Marked"],	L["The tab that marks messages that you click!"], "tab_marked" );
+					};
+				};
+			};
+		};
 		
 		snoop = {
 			name = L["Snooper"];
 			type = "group";
-			order=2;
+			order=3;
 			args = {
 				desc = {
 					order = 1;
@@ -463,8 +520,8 @@ Main.config_options = {
 				};
 				partyprefix = {
 					order = 8;
-					name  = L["Party Prefix"];
-					desc  = L["Show channel prefixes for party chat."];
+					name  = L["Channel Prefix"];
+					desc  = L["Show channel prefixes."];
 					type  = "toggle";
 					set   = function( info, val ) Main.db.profile.snoop.partyprefix = val Main.Snoop.DoUpdate() end;
 					get   = function( info ) return Main.db.profile.snoop.partyprefix end;
@@ -472,101 +529,8 @@ Main.config_options = {
 			};
 		};
 		
-		colors = {
-			name = L['Colors'];
-			type = "group";
-			order=3;
-			args = {
-				refresh = {
-					order = 1;
-					type= "execute";
-					name = L["Refresh"];
-					desc = L["Click to refresh the chat box to see changes."];
-					func = function() Main:RefreshChat() end;
-				};
-				message_highlight = {
-					order = 11;
-					name  = L["Message Highlight"];
-					desc  = L["Color for new message highlighter."];
-					type  = "color";
-					width = "full";
-					hasAlpha = true;
-					get = function( info ) return unpack( Main.db.profile.colors.highlight ) end;
-					set = function( info, r, g, b, a ) Main.db.profile.colors.highlight = {r, g, b, a} end;
-				};
-				message_mouse_highlight = {
-					order = 11;
-					name  = L["Mouseover Highlight"];
-					desc  = L["Color for highlighting messages from whom you're mousing over."];
-					type  = "color";
-					width = "full";
-					hasAlpha = true;
-					get = function( info ) return unpack( Main.db.profile.colors.highlight_mouseover ) end;
-					set = function( info, r, g, b, a ) Main.db.profile.colors.highlight_mouseover = {r, g, b, a} end;
-				};
-				message_highlight_add = {
-					order = 22;
-					name = L["Additive Blending"];
-					desc = L["Use additive blending for the message highlighter."];
-					type = "toggle";
-					get = function( info ) return Main.db.profile.colors.highlight_add end;
-					set = function( info, val ) Main.db.profile.colors.highlight_add = val end;
-				};
-				group_others = {
-					order = 33;
-					type = "group";
-					inline = true;
-					name = L["Others' Messages"];
-					args = {};
-				};
-				group_self = {
-					order = 44;
-					type = "group";
-					inline = true;
-					name = L["Your Messages"];
-					args = {};
-				};
-			};
-		};
 	};
 }
-
-do
-	local order = 1
-	local function add_color_option( tag, name, desc ) 
-	
-		Main.config_options.args.colors.args.group_others.args[tag] = {
-			order = order;
-			name = L[name];
-			desc = L[desc];
-			type = "color";
-			get = function( info ) return unpack( Main.db.profile.colors[tag] ) end;
-			set = function( info, r, g, b ) Main.db.profile.colors[tag] = {r, g, b} end;
-		}
-		
-		Main.config_options.args.colors.args.group_self.args[tag] = {
-			order = order;
-			name = L[name];
-			desc = L[desc];
-			type = "color";
-			get = function( info ) return unpack( Main.db.profile.colors["P_"..tag] ) end;
-			set = function( info, r, g, b ) Main.db.profile.colors["P_"..tag] = { r, g, b } end;
-		}
-		order = order + 1
-	end
-
-	add_color_option( "SAY",          "Say",          "Color for /say messages." )
-	add_color_option( "EMOTE",        "Emote",        "Color for /e messages." )
-	add_color_option( "TEXT_EMOTE",   "Text Emote",   "Color for character emotes. (/wave)" )
-	add_color_option( "PARTY",        "Party",        "Color for party messages." )
-	add_color_option( "PARTY_LEADER", "Party Leader", "Color for party leader messages." )
-	add_color_option( "RAID",         "Raid",         "Color for raid messages." )
-	add_color_option( "RAID_LEADER",  "Raid Leader",  "Color for raid leader messages." )
-	add_color_option( "RAID_WARNING", "Raid Warning", "Color for raid warning messages." )
-	add_color_option( "YELL",         "Yell",         "Color for /yell messages." )
-	add_color_option( "ROLL",         "Rolls",        "Color for /roll messages." )
-	
-end
   
 -------------------------------------------------------------------------------
 function Main.CreateDB() 
@@ -595,7 +559,8 @@ function Main:InitConfigPanel()
 	local options = self.config_options
 	
 	g_font_list = SharedMedia:List( "font" ) 
-	options.args.general.args.fontface.values = g_font_list 
+	options.args.frame.args.fontface.values = g_font_list 
+	options.args.frame.args.bar_fontface.values = g_font_list 
 	options.args.snoop.args.fontface.values = g_font_list 
 	options.args.profile = LibStub("AceDBOptions-3.0"):GetOptionsTable( self.db )
 	options.args.profile.order = 500
@@ -620,9 +585,6 @@ end
 -- Apply the configuration settings.
 --
 function Main:ApplyConfig( onload )
-	 
-	for _, frame in pairs( Main.frames ) do
-		frame:ApplyOptions()
-	end
+	FrameSettingsChanged()
 end
  

@@ -1,4 +1,5 @@
 local Main   = ListenerAddon
+local L      = Main.Locale
 local Me     = Main.Frame
 local Method = Me.methods
 
@@ -21,11 +22,6 @@ end
 local function SoundClicked( self, arg1, arg2, checked )
 	local index = Me.menu_parent.frame_index
 	Main.db.char.frames[index].sound = checked
-end
-
-local function FlashClicked( self, arg1, arg2, checked )
-	local index = Me.menu_parent.frame_index
-	Main.db.char.frames[index].flash = checked
 end
 
 -------------------------------------------------------------------------------
@@ -58,6 +54,9 @@ local function PopulateFilterMenu( level )
 	AddFilterOption( level, "Party", { "PARTY", "PARTY_LEADER" } )
 	AddFilterOption( level, "Raid", { "RAID", "RAID_LEADER", "RAID_WARNING" } )
 	AddFilterOption( level, "Instance", { "INSTANCE", "INSTANCE_LEADER" } )
+	AddFilterOption( level, "Guild", { "GUILD" } )
+	AddFilterOption( level, "Officer", { "OFFICER" } )
+	AddFilterOption( level, "Achieve", { "ACHIEVE" } )
 	
 	local channels = { GetChannelList() }
 	for i = 1, #channels, 2 do
@@ -72,6 +71,19 @@ local function PopulateFilterMenu( level )
 	
 	-- todo: automatically clean up channels that the player has left
 end
+
+local g_delete_frame_index
+StaticPopupDialogs["LISTENER_DELETE_WINDOW"] = {
+	text    = L["Are you sure you wanna do that?"];
+	button1 = L["Yeah"];
+	button2 = L["No..."];
+	OnAccept = function( self )
+	
+		if Main.frames[g_delete_frame_index] then
+			Main.DestroyWindow( Main.frames[g_delete_frame_index] )
+		end
+	end;
+}
 
 -------------------------------------------------------------------------------
 local function InitializeMenu( self, level, menuList )
@@ -103,6 +115,7 @@ local function InitializeMenu( self, level, menuList )
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
 		
+		info = UIDropDownMenu_CreateInfo()
 		info.text             = "Notify"
 		info.notCheckable     = false
 		info.isNotRadio       = true
@@ -124,6 +137,38 @@ local function InitializeMenu( self, level, menuList )
 		info.tooltipOnButton  = true
 		info.keepShownOnClick = true
 		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = "Settings"
+		info.notCheckable     = true
+		info.func             = function()
+			Me.menu_parent:OpenConfig()
+		end
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = "New Window"
+		info.notCheckable     = true
+		info.tooltipTitle     = "New window."
+		info.tooltipText      = "Creates a new Listener window."
+		info.func             = function()
+			Main.UserCreateWindow()
+		end
+		UIDropDownMenu_AddButton( info, level )
+		
+		if Me.menu_parent.frame_index ~= 1 then
+			info = UIDropDownMenu_CreateInfo()
+			info.text             = "Delete Window"
+			info.notCheckable     = true
+			info.tooltipTitle     = "Delete window."
+			info.tooltipText      = "Closes and deletes this menu."
+			info.func             = function()
+				g_delete_frame_index = Me.menu_parent.frame_index
+				StaticPopup_Show("LISTENER_DELETE_WINDOW")
+			end
+			UIDropDownMenu_AddButton( info, level )
+		end
+	
 	elseif menuList == "SHOW" then
 		PopulateFilterMenu( level )
 	end

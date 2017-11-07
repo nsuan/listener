@@ -6,31 +6,31 @@ local Main = ListenerAddon
 local L = Main.Locale
 
 Main.MinimapButton = {}
+local Me = Main.MinimapButton
 
 local LDB    = LibStub:GetLibrary( "LibDataBroker-1.1" )
 local DBIcon = LibStub:GetLibrary( "LibDBIcon-1.0"     )
 
 -------------------------------------------------------------------------------
 Main.AddSetup( function()
-	local self = Main.MinimapButton
 	
-	self.data = LDB:NewDataObject( "Listener", {
+	Me.data = LDB:NewDataObject( "Listener", {
 		type = "data source";
 		text = "Listener";
 		icon = "Interface\\Icons\\SPELL_HOLY_SILENCE";
-		OnClick = function(...) Main.MinimapButton:OnClick(...) end;
-		OnEnter = function(...) Main.MinimapButton:OnEnter(...) end;
-		OnLeave = function(...) Main.MinimapButton:OnLeave(...) end;
+		OnClick = Me.OnClick;
+		OnEnter = Me.OnEnter;
+		OnLeave = Me.OnLeave;
 	})
 end)
 
 -------------------------------------------------------------------------------
-function Main.MinimapButton:OnLoad()
-	DBIcon:Register( "Listener", self.data, Main.db.profile.minimapicon )
+function Me.OnLoad()
+	DBIcon:Register( "Listener", Me.data, Main.db.profile.minimapicon )
 end
 
 -------------------------------------------------------------------------------
-function Main.MinimapButton:Show( show )
+function Me.Show( show )
 	if show then
 		DBIcon:Show( "Listener" )
 		Main.db.profile.minimapicon.hide = false
@@ -41,71 +41,135 @@ function Main.MinimapButton:Show( show )
 end
 
 -------------------------------------------------------------------------------
-function Main.MinimapButton:OnClick( frame, button )
+function Me.OnClick( frame, button )
 	if button == "LeftButton" then
-		for _, frame in pairs( Main.frames ) do
-			frame:Open()
+	
+		local wc = 0
+		for _,_ in pairs( Main.frames ) do
+			wc = wc + 1
+		end
+		
+		if wc == 1 or IsShiftKeyDown() then
+			Main.frames[1]:Toggle()
+		else
+			Me.ShowMenu( "FRAMES" )
 		end
 		
 	elseif button == "RightButton" then
-		Main:OpenConfig()
+		Me.ShowMenu( "OPTIONS" )
+	end
+end
+
+-------------------------------------------------------------------------------
+local function FramesMenuAction_OpenAll()
+	for _,f in pairs( Main.frames ) do
+		f:Open()
+	end
+end
+
+-------------------------------------------------------------------------------
+local function FramesMenuAction_CloseAll()
+	for _,f in pairs( Main.frames ) do
+		f:Close()
+	end
+end
+
+-------------------------------------------------------------------------------
+local function InitializeFramesMenu( self, level, menuList )
+	
+	if level == 1 then
+		local info
+		info = UIDropDownMenu_CreateInfo()
+		info.text    = "Windows"
+		info.isTitle = true
+		info.notCheckable = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text = "Open All"
+		info.func = FramesMenuAction_OpenAll
+		info.notCheckable = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text = "Close All"
+		info.func = FramesMenuAction_CloseAll
+		info.notCheckable = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.notCheckable = true
+		info.notClickable = true
+		info.isTitle=true
+		UIDropDownMenu_AddButton( info, level )
+		
+		local frames = {}
+		
+		-- populate with everything but first frame
+		for _, f in pairs( Main.frames ) do
+			if f ~= Main.frames[1] then
+				table.insert( frames, f )
+			end
+		end
+		
+		table.sort( frames, function( a, b )
+			local an, bn = Main.db.char.frames[a.frame_index].name or "", Main.db.char.frames[b.frame_index].name or ""
+			return an < bn
+		end)
+		
+		table.insert( frames, 1, Main.frames[1] )
+		
+		for _, f in ipairs( frames ) do
+			local name = Main.db.char.frames[f.frame_index].name
+			if f.frame_index == 1 then name = "Main" end
+			
+			info = UIDropDownMenu_CreateInfo()
+			info.text = name
+			info.func = function()
+				f:Toggle()
+			end
+			info.notCheckable = true
+			UIDropDownMenu_AddButton( info, level )
+		end
+	end
+end
+
+-------------------------------------------------------------------------------
+local function InitializeOptionsMenu( self, level, menuList )
+	if level == 1 then
+		local info
+		info = UIDropDownMenu_CreateInfo()
+		info.text    = "Listener"
+		info.isTitle = true
+		info.notCheckable = true
+		UIDropDownMenu_AddButton( info, level )
+	elseif level == 2 and menuList == "SNOOPER" then
 		
 	end
 end
- 
--------------------------------------------------------------------------------
-local function InitializeMenu( self, level )
-	local info
-	
-	local function AddMenuButton( text, func )
-		info = UIDropDownMenu_CreateInfo()
-		info.text = text
-		info.func = func
-		info.notCheckable = true
-		UIDropDownMenu_AddButton( info, level )
-	end
-	
-	local function AddSeparator()
-		info = UIDropDownMenu_CreateInfo()
-		info.notClickable = true
-		info.disabled = true
-		UIDropDownMenu_AddButton( info, level )
-	end
-
-	info = UIDropDownMenu_CreateInfo()
-	info.text    = "Listener"
-	info.isTitle = true
-	info.notCheckable = true
-	UIDropDownMenu_AddButton( info, level )
-
-	AddMenuButton( L["Test"], function() end )
-	
-	AddSeparator()
-	
-	AddSeparator()
-	
-	AddMenuButton( L["Close"], function() end )
-end
 
 -------------------------------------------------------------------------------
-function Main.MinimapButton:ShowMenu()
-	if not self.menu then
-		self.menu = CreateFrame( "Button", "ListenerMinimapMenu", UIParent, "UIDropDownMenuTemplate" )
-		self.menu.displayMode = "MENU"
+function Me.ShowMenu( menu )
+	if not Me.menu then
+		Me.menu = CreateFrame( "Button", "ListenerMinimapMenu", UIParent, "UIDropDownMenuTemplate" )
+		Me.menu.displayMode = "MENU"
 	end
+	
+	local menus = {
+		FRAMES  = InitializeFramesMenu;
+		OPTIONS = InitializeOptionsMenu;
+	}
 	 
-	UIDropDownMenu_Initialize( ListenerMinimapMenu, InitializeMenu )
-	UIDropDownMenu_SetWidth( ListenerMinimapMenu, 100 )
-	UIDropDownMenu_SetButtonWidth( ListenerMinimapMenu, 124 ) 
+	UIDropDownMenu_Initialize( ListenerMinimapMenu, menus[menu] )
 	UIDropDownMenu_JustifyText( ListenerMinimapMenu, "LEFT" )
 	
 	local x,y = GetCursorPosition()
 	local scale = UIParent:GetEffectiveScale()
-	ToggleDropDownMenu( 1, nil, self.menu, "UIParent", x / scale, y / scale )
+	ToggleDropDownMenu( 1, nil, Me.menu, "UIParent", x / scale, y / scale )
 end
 
 -------------------------------------------------------------------------------
-function Main.MinimapButton:OnEnter( frame ) 
+function Me.OnEnter( frame ) 
 	-- Section the screen into 6 sextants and define the tooltip 
 	-- anchor position based on which sextant the cursor is in.
 	-- Code taken from WeakAuras.
@@ -123,8 +187,19 @@ function Main.MinimapButton:OnEnter( frame )
 	GameTooltip:ClearLines()
 	GameTooltip:AddDoubleLine("Listener", Main.version, 0, 0.7, 1, 1, 1, 1)
 	GameTooltip:AddLine( " " )
-	GameTooltip:AddLine( L["|cff00ff00Left-click|r to toggle window."], 1, 1, 1 )
-	GameTooltip:AddLine( L["|cff00ff00Right-click|r to open configuration."], 1, 1, 1 )
+	
+	local window_count = 0
+	for _,_ in pairs( Main.frames ) do
+		window_count = window_count + 1
+	end
+	
+	if window_count == 1 then
+		GameTooltip:AddLine( L["|cff00ff00Left-click|r to toggle window."], 1, 1, 1 )
+	else
+		GameTooltip:AddLine( L["|cff00ff00Left-click|r to toggle windows."], 1, 1, 1 )
+	end
+	
+	GameTooltip:AddLine( L["|cff00ff00Right-click|r to open menu."], 1, 1, 1 )
 	GameTooltip:Show()
 end
 

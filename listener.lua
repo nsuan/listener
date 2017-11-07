@@ -9,6 +9,11 @@ local SharedMedia = LibStub("LibSharedMedia-3.0")
 local PLAYER_HISTORY_SIZE = 75
 local MAX_FRAMES          = 50 -- hell YEAH lool
 local g_loadtime          = 0
+local NEW_MESSAGE_HOLD    = 3 -- grace period for messages to stay unread when
+                              -- removing them
+local IGNORED_CHANNELS = {
+	xtensionxtooltip2 = true
+}
 
 -- english is "%s rolls %d (%d-%d)";
 local SYSTEM_ROLL_PATTERN = RANDOM_ROLL_RESULT 
@@ -326,6 +331,11 @@ function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a
 		end
 	end
 	
+	if event == "CHANNEL" and IGNORED_CHANNELS[a9:lower()] then
+		-- this channel is ignored and not logged.
+		return
+	end	
+	
 	if filters then 
 		local skipfilters = false
 
@@ -392,15 +402,15 @@ end
 
 -------------------------------------------------------------------------------
 function Main:OnEnterCombat()
-	if self.db.profile.combathide then
-		self:HideFrame( true )
+	for _, frame in pairs(Main.frames) do
+		frame:CombatHide( true )
 	end
 end
 
 -------------------------------------------------------------------------------
 function Main:OnLeaveCombat()
-	if self.db.profile.combathide and not self.db.profile.frame.hidden then
-		self:ShowFrame( true )
+	for _, frame in pairs( Main.frames ) do
+		frame:CombatHide( false )
 	end
 end
 
@@ -535,8 +545,8 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 		g  = guid;
 	}
 	
-	if e == "CHANNEL" then
-		e.c = channel:upper()
+	if event == "CHANNEL" then
+		entry.c = channel:upper()
 	end
 	
 	if isplayer then
@@ -564,8 +574,9 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 		-- player is posting...
 	--	if event == "SAY" or event == "EMOTE" or event == "TEXT_EMOTE" then
 			-- player is publicly emoting, clear read status
-			Main.MarkAllRead( true ) 
+			--Main.MarkAllRead( true ) 
 	--	end
+		Main.MarkMessagesRead( entry )
 	end
 	
 	-- if the player's target emotes, then beep+flash
@@ -660,6 +671,20 @@ function Main.FixupName( name )
 end
 
 -------------------------------------------------------------------------------
+function Main.SetActiveFrame( frame )
+	if frame == Main.active_frame then return end
+	local old_frame = Main.active_frame
+	Main.active_frame = frame
+	
+	if old_frame then
+		old_frame:UpdateBarVisibility() 
+		old_frame:UpdateProbe()
+	end
+	frame:UpdateBarVisibility()
+	frame:UpdateProbe()
+end
+
+-------------------------------------------------------------------------------
 -- Returns a new frame or one of the unused frames.
 --
 -- @param index Index to create this frame for.
@@ -676,7 +701,7 @@ end
 -------------------------------------------------------------------------------
 local function SetupFrames()
 	
-	for i,_ in ipairs( Main.db.char.frames ) do
+	for i,_ in pairs( Main.db.char.frames ) do
 		print( 'debug: loading frame', i )
 		local frame = GetFrameObject( i )
 		frame:SetFrameIndex( i )
@@ -688,7 +713,7 @@ local function SetupFrames()
 		Main.AddWindow()
 	end
 	
-	Main.active_frame = Main.frames[1]
+	Main.SetActiveFrame( Main.frames[1] )
 end
 
 -------------------------------------------------------------------------------
@@ -710,6 +735,10 @@ function Main.AddWindow()
 	
 	local frame = GetFrameObject( index )
 	frame:SetFrameIndex( index )
+	Main.frames[index] = frame
+	frame:ApplyOptions()
+	frame:RefreshChat()
+	return frame
 end
 
 -------------------------------------------------------------------------------
@@ -720,14 +749,78 @@ end
 function Main.DestroyWindow( frame )
 	if frame.frame_index == 1 then return end -- cannot delete the primary frame
 	
+	Main.CloseFrameConfig( frame )
 	frame:Hide()
+	
 	if frame == Main.active_frame then
-		Main.active_frame = Main.frames[1]
+		Main.SetActiveFrame( Main.frames[1] )
 	end
 	
 	local index = frame.frame_index
 	Main.frames[index]         = nil
 	Main.db.char.frames[index] = nil
+end
+
+StaticPopupDialogs["LISTENER_NEWFRAME"] = {
+	text    = L["Enter name of new window."];
+	button1 = L["Create"];
+	button2 = L["Cancel"];
+	hasEditBox = true;
+	OnAccept = function( self )
+		local name = self.editBox:GetText()
+		if name == "" then return end
+		
+		local frame = Main.AddWindow()
+		if not frame then return end
+		
+		Main.db.char.frames[frame.frame_index].name = name
+		
+	end;
+}
+
+-------------------------------------------------------------------------------
+-- User friendly window creation.
+--
+function Main.UserCreateWindow()
+	-- user-friendly create window.
+	StaticPopup_Show("LISTENER_NEWFRAME")
+end
+
+-------------------------------------------------------------------------------
+-- Mark messages read when the player posts something.
+--
+-- @param e The player chat entry.
+--
+function Main.MarkMessagesRead( e )
+	local time = time()
+	for _, frame in pairs( Main.frames ) do
+		if frame:ShowsEntry( e ) then
+			-- this frame is listening to this event, so we clear all
+			-- unread messages that this frame is listening to.
+			
+			for k,v in pairs( Main.unread_entries ) do
+				if time >= v.t + NEW_MESSAGE_HOLD and frame:ShowsEntry( v ) then
+					v.r = true
+					Main.unread_entries[k] = nil
+				end
+			end
+		end
+	end
+	
+	-- condense result
+	local newlist = {}
+	for k,v in pairs( Main.unread_entries ) do
+		table.insert( newlist, v )
+	end
+	Main.unread_entries = newlist
+	
+	-- and update the frames
+	for _, frame in pairs( Main.frames ) do
+		if frame:ShowsEntry( e ) then
+			frame:CheckUnread()
+			frame:UpdateHighlight()
+		end
+	end
 end
 
 -------------------------------------------------------------------------------
@@ -756,6 +849,18 @@ function Main.MarkAllRead()
 	end
 end
 
+function Main.HighlightEntry( entry, highlight )
+	local unread = not entry.r
+	entry.h = highlight
+	entry.r = true
+	
+	for k,v in pairs( Main.frames ) do
+		if v:ShowsEntry( entry ) then
+			if unread then v:CheckUnread() end
+			v:UpdateHighlight()
+		end
+	end
+end
 -------------------------------------------------------------------------------
 -- Reset the player filter.
 --[[
@@ -808,7 +913,7 @@ function Main:OnEnable()
 	Main.Setup()
 	Main.CreateDB()
 	CleanPlayerList()
-	Main.MinimapButton:OnLoad()
+	Main.MinimapButton.OnLoad()
 	
 	SetupFrames()
 	
@@ -827,6 +932,9 @@ function Main:OnEnable()
 	self:RegisterEvent( "CHAT_MSG_RAID_LEADER", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_RAID_WARNING", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_YELL", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_GUILD", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_OFFICER", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_CHANNEL", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_SYSTEM", "OnSystemMsg" )
 	self:RegisterMessage( "DiceMaster4_Roll", "OnDiceMasterRoll" )
 	

@@ -8,10 +8,12 @@ local SharedMedia = LibStub("LibSharedMedia-3.0")
 
 local CHAT_BUFFER_SIZE = 300
 local CLICKBLOCK_TIME  = 0.4
+local FADEOUT_DURATION = 1
 
 local DEFAULT_LISTEN_EVENTS = {
 	"SAY", "EMOTE", "TEXT_EMOTE", "YELL", 
-	"PARTY", "PARTY_LEADER", "RAID", "RAID_LEADER", "RAID_WARNING"
+	"PARTY", "PARTY_LEADER", "RAID", "RAID_LEADER", "RAID_WARNING",
+	"ROLL"
 }
 
 -------------------------------------------------------------------------------
@@ -54,7 +56,7 @@ local MSG_FORMAT_PREFIX = {
 -------------------------------------------------------------------------------
 -- Static methods
 -------------------------------------------------------------------------------
-
+local ENTRY_CHAT_REMAP = { ROLL = "SYSTEM" }
 local function GetEntryColor( e )
 	local info
 	if e.c then
@@ -63,7 +65,8 @@ local function GetEntryColor( e )
 		if not info then info = ChatTypeInfo.CHANNEL end
 		
 	else
-		info = ChatTypeInfo[ e.e ]
+		local t = ENTRY_CHAT_REMAP[e.e] or e.e
+		info = ChatTypeInfo[t]
 		if not info then info = ChatTypeInfo.SAY end
 	end
 	return { info.r, info.g, info.b, 1 }
@@ -105,8 +108,20 @@ local function SetupMembers( self )
 		-- { region = region, entry = entry }
 	}
 	
+	-- cached auto_fade value
+	self.auto_fade = 0
+	self.auto_fade_opacity = 0
+	
+	-- time since last activity
+	self.fade_time = 0
+	
 	-- this dictates that the mouse is being held over a region
 	--self.picked = nil (too complex)
+end
+
+local function SplitOptions( self )
+	if self.frame_index == 1 then return Main.db.profile.frame end
+	return Main.db.char.frames[self.frame_index]
 end
 
 -------------------------------------------------------------------------------
@@ -185,9 +200,10 @@ end
 
 -------------------------------------------------------------------------------
 local function ShowOrHide( self, show, save )
-	if show then
+	if show and not self:IsShown() then
+		self.fade_time = GetTime()
 		self:Show()
-	else
+	elseif not show and self:IsShown() then
 		self:Hide()
 	end
 	
@@ -274,7 +290,7 @@ local function FormatChatMessage( self, e )
 	end
 	
 	-- get icon and name 
-	local name, icon, color = Main:GetICName( e.s, e.g )
+	local name, icon, color = Main.GetICName( e.s, e.g )
 	
 	if icon and Main.db.profile.frame.show_icons then
 		if Main.db.profile.frame.zoom_icons then
@@ -339,6 +355,7 @@ function Method:SetFrameIndex( index )
 	end
 	self.players       = Main.db.char.frames[index].players
 	self.listen_events = Main.db.char.frames[index].filter
+	self.groups        = Main.db.char.frames[index].groups
 end
 
 -------------------------------------------------------------------------------
@@ -373,8 +390,44 @@ function Method:Open( dontsave )
 end
 
 -------------------------------------------------------------------------------
-function Method:UpdateBarVisibility()
-	self:ShowBar( self:IsMouseOver(8,-8,-8,8) or Main.active_frame == self )
+function Method:UpdateVisibility()
+	local hover = self:IsMouseOver( 8, -8, -8, 8 )
+	
+	local faded = self.auto_fade > 0 and GetTime() > self.fade_time + self.auto_fade
+	
+	self:ShowBar( hover or (Main.active_frame == self and not faded) )
+	
+	if self.auto_fade > 0 then
+		local alpha = self:GetAlpha()
+		local newalpha
+		local time = GetTime()
+		
+		if hover then
+			newalpha = 1
+		else
+			local fadeout_start = self.fade_time + self.auto_fade
+			if time >= fadeout_start then
+				if time - fadeout_start < FADEOUT_DURATION then
+					local d = (time - fadeout_start) / FADEOUT_DURATION
+					newalpha = 1 + (self.auto_fade_opacity - 1) * d
+					
+					
+				else
+					newalpha = self.auto_fade_opacity
+					if Main.active_frame == self and self.frame_index ~= 1 then
+						Main.SetActiveFrame( Main.frames[1] )
+					end
+				end
+			else
+				newalpha = 1
+				
+			end
+		end
+		
+		if alpha ~= newalpha then
+			self:SetAlpha( newalpha )
+		end
+	end
 end
 
 -------------------------------------------------------------------------------
@@ -419,10 +472,13 @@ end
 -------------------------------------------------------------------------------
 function Method:ApplyOtherOptions()
 	self.bar2.hidden_button:SetOn( Main.db.char.frames[self.frame_index].showhidden )
+	self.auto_fade = Main.db.char.frames[self.frame_index].auto_fade or Main.db.profile.frame.auto_fade
+	self.auto_fade_opacity = Main.db.profile.frame.auto_fade_opacity / 100
 end
 
 -------------------------------------------------------------------------------
 function Method:ApplyColorOptions()
+	if not Main.db.char.frames[self.frame_index].color then Main.db.char.frames[self.frame_index].color = {} end
 	local bgcolor = Main.db.char.frames[self.frame_index].color.bg or Main.db.profile.frame.color.bg
 	self.bg:SetColorTexture( unpack( bgcolor ))
 	
@@ -536,15 +592,15 @@ function Method:ApplyChatOptions()
 	
 	self.chatbox:SetPoint( "LEFT", self, "LEFT", 2 + tabsize, 0 )
 	
-	local time_visible = Main.db.char.frames[self.frame_index].time_visible 
-	                     or Main.db.profile.frame.time_visible
-	if time_visible == 0 then
+	--local time_visible = Main.db.char.frames[self.frame_index].time_visible 
+	--                     or Main.db.profile.frame.time_visible
+--[[	if time_visible == 0 then
 		self.chatbox:SetFading( false )
 	else
 		self.chatbox:SetFading( true )
 		self.chatbox:SetFadeDuration( 3.0 )
 		self.chatbox:SetTimeVisible( time_visible )
-	end
+	end]]
 end
 
 -------------------------------------------------------------------------------
@@ -635,8 +691,24 @@ end
 -- Returns true if the window is listening to someone.
 --
 function Method:ListeningTo( name )
+	-- filter path:
+	-- global (listenall) -> group -> player
+	--
 	local f = self.players[name]
+	local g = Main.raid_groups[name]
+	if g then
+		-- if f is default then try using group filter
+		f = f or self.groups[g]
+	end
+	
+	
 	return f == 1 or (Main.db.char.frames[self.frame_index].listen_all and f ~= 0)
+end
+
+function Method:ResetGroupsFilter()
+	for k,_ in pairs( self.groups ) do
+		self.groups[k] = nil
+	end
 end
 
 -------------------------------------------------------------------------------
@@ -674,7 +746,7 @@ function Method:UpdateProbe()
 			
 			on = self:ListeningTo( target )
 			
-			local name, icon, color = Main:GetICName( target, guid )
+			local name, icon, color = Main.GetICName( target, guid )
 			title = " " .. name
 			
 		end
@@ -701,6 +773,23 @@ end
 --
 function Method:AddMessage( e, beep )
 	if not EntryFilter( self, e ) then return end
+	
+	self.fade_time = GetTime()
+	
+	-- autopopup
+	if not self:IsShown() then
+		local autopopup = self.frame_index == 1 and Main.db.profile.frame.auto_popup
+		                                         or Main.db.char.frames[self.frame_index].auto_popup
+		if autopopup then
+			if Main.db.char.frames[self.frame_index].combathide and InCombatLockdown() then
+				-- if we're in combat, just clear the hidden flag
+				-- so that it opens when we exit combat
+				Main.db.char.frames[self.frame_index].hidden = false
+			else
+				self:Open()
+			end
+		end
+	end
 	
 	self.chatid = self.chatid + 1
 	
@@ -769,29 +858,35 @@ local function UpdateReadmark( self, region, first_id )
 	
 	self.readmark:SetColorTexture( unpack( Main.db.profile.frame.color.readmark ) )
 	if region then
-		self.readmark:Show()
 		
 		-- set the marker here
 		local point = region:GetTop() - self.chatbox:GetBottom()
-		if point > self.chatbox:GetHeight() - 1 then 
-			point = self.chatbox:GetHeight() - 1 
-			self.readmark:SetHeight( 2 )
+		if point > self.chatbox:GetHeight()+1  then 
+			--point = self.chatbox:GetHeight() 
+			--self.readmark:SetHeight( 2 )
+			self.readmark:Hide()
+			return
 		else
 			self.readmark:SetHeight( 1 )
 		end
 		self.readmark:SetPoint( "TOP", self.chatbox, "BOTTOM", 0, point )
+		self.readmark:Show()
 		
 	elseif self.top_unread_id then
-		self.readmark:SetHeight( 2 )
-		self.readmark:Show()
 		
 		if first_id < self.top_unread_id then
 			-- past the bottom
+			self.readmark:SetHeight( 2 )
 			self.readmark:SetPoint( "TOP", self, "BOTTOM", 0, 3 )
 		else
 			-- past the top
-			self.readmark:SetPoint( "TOP", self.chatbox, "BOTTOM", 0, self.chatbox:GetHeight() - 1 )
+			
+			self.readmark:Hide()
+			return
+			--self.readmark:SetPoint( "TOP", self.chatbox, "BOTTOM", 0, self.chatbox:GetHeight() - 1 )
 		end
+		self.readmark:Show()
+		
 	else
 		-- no unread messages
 		self.readmark:Hide()
@@ -889,7 +984,7 @@ function Method:UpdateHighlight()
 	
 	local e = self.chat_buffer[chat_index_start]
 	if e then e = e.e end
-	if e and (Main.db.profile.frame.color.readmark[4] > 0) then
+	if e and (Main.db.profile.frame.color.readmark[4] > 0) and Main.db.char.frames[self.frame_index].readmark then
 		UpdateReadmark( self, first_unread_region, e.id )
 	else
 		self.readmark:Hide()
@@ -918,7 +1013,7 @@ function Method:RefreshChat()
 		if entry then
 			if EntryFilter( self, entry ) then
 				
-				if showhidden or self.players[entry.s] == 1 or (self.players[entry.s] ~= 0 and listen_all) then
+				if showhidden or self:ListeningTo( entry.s ) then
 					table.insert( entries, entry )
 				end
 			end
@@ -1067,11 +1162,13 @@ end
 
 -------------------------------------------------------------------------------
 function Me.OnUpdate( self )
-	self:UpdateBarVisibility()
+	self:UpdateVisibility()
 	
 	local picked = nil
 	
-	if Main.active_frame == self and self.show_highlight and not IsShiftKeyDown() then
+	if Main.active_frame == self 
+	   and self.show_highlight
+	   and not (self.auto_fade > 0 and GetTime() > self.fade_time + self.auto_fade) then
 		-- do some picking
 		picked = PickTextRegion( self, true )
 	else
@@ -1085,33 +1182,36 @@ end
 function Me.OnMouseDown( self, button )
 	local active = Main.active_frame == self
 	
+	
 	if not active then
 		Main.SetActiveFrame( self )
 	end
 	
-	if active and GetTime() > self.clickblock + CLICKBLOCK_TIME then
-		if not IsShiftKeyDown() then
-			local p = PickTextRegion( self, false )
-			if p then
+	local faded = false
+
+	if self.auto_fade > 0 and GetTime() > self.fade_time + self.auto_fade then
+		faded = true
+	end
+	
+	if active and GetTime() > self.clickblock + CLICKBLOCK_TIME and not faded then
+		local p = PickTextRegion( self, false )
+		if p then
+			if button == "LeftButton" then
 				Main.HighlightEntry( p.entry, not p.entry.h )
+			elseif button == "RightButton" then
+				if IsShiftKeyDown() then
+					self:TogglePlayer( p.entry.s )
+				end
 			end
-			
 		end
 	end
 	
-	if button == "LeftButton" and IsShiftKeyDown() then
-		self:StartDragging()
-	end
+	self.fade_time = GetTime()
 end
 
 -------------------------------------------------------------------------------
 function Me.OnMouseUp( self )
-	if self.picked then
-		if self.picked.region:IsMouseOver() then
-			
-		end
-	end
-	self:StopDragging()
+
 end
 
 -------------------------------------------------------------------------------
@@ -1137,6 +1237,8 @@ function Me.OnChatboxScroll( self, delta )
 			for i = 1,reps do self.chatbox:ScrollDown() end
 		end
 	end
+	
+	self.fade_time = GetTime()
 end
 
 -------------------------------------------------------------------------------
@@ -1164,6 +1266,8 @@ function Me.OnChatboxHyperlinkClick( self, link, text, button )
 	end
 	
 	SetItemRef( link, text, button, DEFAULT_CHAT_FRAME );
+	
+	self.fade_time = GetTime()
 end
 
 -------------------------------------------------------------------------------
@@ -1207,6 +1311,25 @@ function Me.CloseClicked( self, button )
 end
 
 -------------------------------------------------------------------------------
+function Me.BarMouseDown( self )
+	self.fade_time = GetTime()
+	Main.SelectFrame( self )
+end
+
+function Me.BarMouseUp( self ) end
+
+function Me.BarDragStart( self )
+	if not SplitOptions(self).locked then
+		self:StartDragging()
+	end
+end
+
+function Me.BarDragStop( self )
+	self:StopDragging()
+	self.fade_time = GetTime()
+end
+
+-------------------------------------------------------------------------------
 -- resize_thumb handlers.
 -------------------------------------------------------------------------------
 function Me.ResizeThumb_OnMouseDown( self, button )
@@ -1247,9 +1370,10 @@ function Me.InitOptions( index )
 	
 	local data = {
 		players    = {};
+		groups     = {};
 		listen_all = true;
 		filter     = {}; -- filled in below
-		showhidden = false;
+		showhidden = true;
 		layout     = {
 			anchor   = {};
 			width    = 200;
@@ -1258,6 +1382,7 @@ function Me.InitOptions( index )
 		hidden       = false;
 		color        = {};
 		combathide   = true;
+		readmark     = true;
 	}
 	
 	for k,v in pairs( DEFAULT_LISTEN_EVENTS ) do

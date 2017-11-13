@@ -39,7 +39,7 @@ end
 Main.GetCharacterClassColor = GetCharacterClassColor
 
 -------------------------------------------------------------------------------
-function Main:GetICName( name, guid )
+function Main.GetICName( name, guid )
 
 	if not g_func then
 		if not FindResolver() then

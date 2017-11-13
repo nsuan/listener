@@ -19,6 +19,7 @@ local FILTER_OPTIONS = {
 	Guild    = { "GUILD" };
 	Officer  = { "OFFICER" };
 	Whisper  = { "WHISPER" };
+	Rolls    = { "ROLL" };
 	Channel  = "Channels"; -- Treated specially.
 }
 

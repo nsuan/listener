@@ -42,8 +42,8 @@ end
 
 -------------------------------------------------------------------------------
 function Me.OnClick( frame, button )
+	GameTooltip:Hide()
 	if button == "LeftButton" then
-	
 		local wc = 0
 		for _,_ in pairs( Main.frames ) do
 			wc = wc + 1
@@ -56,6 +56,7 @@ function Me.OnClick( frame, button )
 		end
 		
 	elseif button == "RightButton" then
+		
 		Me.ShowMenu( "OPTIONS" )
 	end
 end
@@ -147,7 +148,7 @@ local function InitializeOptionsMenu( self, level, menuList )
 		UIDropDownMenu_AddButton( info, level )
 		
 		info = UIDropDownMenu_CreateInfo()
-		info.text             = "Snooper Filter"
+		info.text             = L["Snooper"]
 		info.notCheckable     = true
 		info.hasArrow         = true
 		info.menuList         = "SNOOPER"
@@ -155,7 +156,7 @@ local function InitializeOptionsMenu( self, level, menuList )
 		UIDropDownMenu_AddButton( info, level )
 		
 		info = UIDropDownMenu_CreateInfo()
-		info.text = "Open Configuraton"
+		info.text = L["Settings"]
 		info.func = function()
 			Main.OpenConfig()
 		end
@@ -222,6 +223,6 @@ function Me.OnEnter( frame )
 end
 
 -------------------------------------------------------------------------------
-function Main.MinimapButton:OnLeave( frame ) 
+function Main.MinimapButton:OnLeave( frame )
 	GameTooltip:Hide()
 end

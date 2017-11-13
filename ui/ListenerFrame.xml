@@ -52,7 +52,7 @@
     
     <Frames>
       <!-- Titlebar -->
-      <Frame name="$parentBar2" parentKey="bar2" enableMouse="false" hidden="true">
+      <Frame name="$parentBar2" parentKey="bar2" enableMouse="true" hidden="true">
         <Anchors>
           <Anchor point="TOPLEFT" x="0" y="0" />
           <Anchor point="BOTTOMRIGHT" relativePoint="TOPRIGHT"><Offset x="0" y="-15"/></Anchor>
@@ -65,6 +65,24 @@
             </Texture>
           </Layer>
         </Layers>
+        
+        <Scripts>
+          <OnLoad>
+            self:RegisterForDrag( "LeftButton" )
+          </OnLoad>
+          <OnMouseDown>
+            ListenerAddon.Frame.BarMouseDown( self:GetParent() )
+          </OnMouseDown>
+          <OnMouseUp>
+            ListenerAddon.Frame.BarMouseUp( self:GetParent() )
+          </OnMouseUp>
+          <OnDragStart>
+            ListenerAddon.Frame.BarDragStart( self:GetParent() )
+          </OnDragStart>
+          <OnDragStop>
+            ListenerAddon.Frame.BarDragStop( self:GetParent() )
+          </OnDragStop>
+        </Scripts>
         
         <Frames>
           <!-- Title text -->

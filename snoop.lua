@@ -96,6 +96,7 @@ local function GetHexCode( color )
 end
 
 -------------------------------------------------------------------------------
+local ENTRY_CHAT_REMAP = { ROLL = "SYSTEM" }
 local function GetEntryColor( e )
 	local info
 	if e.c then
@@ -104,7 +105,8 @@ local function GetEntryColor( e )
 		if not info then info = ChatTypeInfo.CHANNEL end
 		
 	else
-		info = ChatTypeInfo[ e.e ]
+		local t = ENTRY_CHAT_REMAP[e.e] or e.e
+		info = ChatTypeInfo[t]
 		if not info then info = ChatTypeInfo.SAY end
 	end
 	return { info.r, info.g, info.b, 1 }
@@ -368,7 +370,7 @@ end
 
 -------------------------------------------------------------------------------
 function Me.PopulateFilterMenu( level )
-	Main.PopulateFilterMenu( level, { "Public", "Party", "Raid", "Instance", "Guild", "Officer", "Whisper", "Channel" },
+	Main.PopulateFilterMenu( level, { "Public", "Party", "Raid", "Instance", "Guild", "Officer", "Rolls", "Whisper", "Channel" },
 		function( filter )
 			return Main.db.char.snoop_filter[filter]
 		end,

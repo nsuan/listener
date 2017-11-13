@@ -153,22 +153,36 @@ local OPTIONS = {
 				return g_char.tab_size or g_prof.tab_size
 			end;
 		};
-		time_visible = {
+		auto_fade = {
 			order = 40;
-			name  = L["Message visible time."];
-			desc  = L["Time that messages are kept visible (seconds). 0 disables fading."];
+			name  = L["Auto-fade time."];
+			desc  = L["Time from inactivity before window fades down. 0 disables fading."];
 			type  = "range";
 			min   = 0;
-			max   = 1000;
+			max   = 600;
 			step  = 1;
 			
 			set = function( info, val )
-				SwitchMain().time_visible = val
+				SwitchMain().auto_fade = val
 				ApplyOptionsAllIfMain()
 			end;
 			
 			get = function( info, val )
-				return g_char.time_visible or g_prof.time_visible
+				return g_char.auto_fade or g_prof.auto_fade
+			end;
+		};
+		
+		readmark = {
+			order = 50;
+			name  = L["Readmark"];
+			desc  = L["Show the readmark for this window. The readmark is the line that separates new messages and old messages."];
+			type  = "toggle";
+			set   = function( info, val )
+				g_char.readmark = val
+				g_frame:ApplyOptions()
+			end;
+			get   = function( info )
+				return g_char.readmark
 			end;
 		};
 		

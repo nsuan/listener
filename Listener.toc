@@ -17,6 +17,7 @@ listener.lua
 config_frame.lua
 config.lua
 filter_menu.lua
+raid_roster.lua
 minimapbutton.lua
 snoop.lua
 probe.lua

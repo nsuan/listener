@@ -60,6 +60,9 @@ Main.next_lineid    = 1
 Main.frames         = {}
 Main.active_frame   = nil
 
+Main.realm_map      = {}
+Main.guid_map       = {}
+
 local g_frame_creation_id = 0
  
 -------------------------------------------------------------------------------		  
@@ -587,7 +590,9 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 	end
 	
 	-- if the player's target emotes, then beep+flash
-	if Main.db.profile.sound.target and (UnitName("target") == sender or (guid and guid == UnitGUID( "target" ))) and not isplayer then
+	if Main.db.profile.sound.target
+       and (UnitName("target") == sender or (guid and guid == UnitGUID( "target" )))
+	   and not isplayer then
 		
 		Main:PlayMessageBeep()
 		Main:FlashClient()
@@ -671,7 +676,7 @@ function Main.FixupName( name )
 	
 	-- strip realm
 	name = name:gsub( "-.*", "" )
-	  
+	
 	-- (utf8 friendly) capitalize first character
 	name = name:gsub("^[%z\1-\127\194-\244][\128-\191]*", string.upper)
 	return name
@@ -684,12 +689,14 @@ function Main.SetActiveFrame( frame )
 	Main.active_frame = frame
 	
 	if old_frame then
-		old_frame:UpdateBarVisibility() 
+		old_frame:UpdateVisibility() 
 		old_frame:UpdateProbe()
 	end
-	frame:UpdateBarVisibility()
+	frame:UpdateVisibility()
 	frame:UpdateProbe()
 end
+
+Main.SelectFrame = Main.SetActiveFrame
 
 -------------------------------------------------------------------------------
 -- Returns a new frame or one of the unused frames.
@@ -709,7 +716,6 @@ end
 local function SetupFrames()
 	
 	for i,_ in pairs( Main.db.char.frames ) do
-		print( 'debug: loading frame', i )
 		local frame = GetFrameObject( i )
 		frame:SetFrameIndex( i )
 		Main.frames[i] = frame
@@ -769,10 +775,13 @@ function Main.DestroyWindow( frame )
 end
 
 StaticPopupDialogs["LISTENER_NEWFRAME"] = {
-	text    = L["Enter name of new window."];
-	button1 = L["Create"];
-	button2 = L["Cancel"];
-	hasEditBox = true;
+	text         = L["Enter name of new window."];
+	button1      = L["Create"];
+	button2      = L["Cancel"];
+	hasEditBox   = true;
+	hideOnEscape = true;
+	whileDead    = true;
+	timeout      = 0;
 	OnAccept = function( self )
 		local name = self.editBox:GetText()
 		if name == "" then return end
@@ -903,6 +912,20 @@ function Main.Print( text, hideprefix )
 	print( prefix .. text )
 end
 
+function Main:OnGroupJoined()
+	Main.UpdateRaidRoster()
+	
+	for _, frame in pairs( Main.frames ) do
+		frame:ResetGroupsFilter()
+	end
+	print("LISTENER DEBUG ONGROUPJOINED")
+end
+
+function Main:OnRaidRosterUpdate()
+	Main.UpdateRaidRoster()
+	print("LISTENER DEBUG ONrosterpudpate")
+end
+
 -------------------------------------------------------------------------------
 function Main:OnEnable()
 
@@ -944,14 +967,19 @@ function Main:OnEnable()
 	
 	self:RegisterEvent( "MODIFIER_STATE_CHANGED", "OnModifierChanged" )
 	
+	self:RegisterEvent( "GROUP_JOINED", "OnGroupJoined" )
+	self:RegisterEvent( "RAID_ROSTER_UPDATE", "OnRaidRosterUpdate" )
+	
 	Main.Print( L["Version:"] .. " " .. self.version )
-	   
+	
 	self:ApplyConfig()
 
 	Main.Snoop.Setup()
 	
 	Main.Init_OnEnabled()
 	Main.SetupProbe()
+	
+	Main.UpdateRaidRoster()
 	
 	for _, frame in pairs( Main.frames ) do
 		frame:RefreshChat()

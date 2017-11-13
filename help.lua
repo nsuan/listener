@@ -51,7 +51,7 @@ function Main.Help_Init()
 	
 	-- see locale for text
 	
-	AddHelp( ListenerFrame, "listenerframe" ) 
+	AddHelp( ListenerFrame1, "listenerframe" ) 
 	AddHelp( ListenerSnoopFrame, "snooper", function()
 		Main.Snoop.Unlock()
 	end)

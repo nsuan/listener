@@ -3,7 +3,7 @@
 -------------------------------------------------------------------------------
 
 local Main = ListenerAddon
-local L = Main.Locale
+local L    = Main.Locale
 
 local AceConfig       = LibStub("AceConfig-3.0")
 local AceConfigDialog = LibStub("AceConfigDialog-3.0")
@@ -65,6 +65,7 @@ local DB_DEFAULTS = {
 			--  sound = true        play a sound on new message
 			--  tab_size (inherit)
 			--  combathide          hide during combat
+			--  readmark = true     show readmark
 			--  
 			--  color_bg   = {color} background color
 			--  color_edge = {color} edge color
@@ -75,7 +76,8 @@ local DB_DEFAULTS = {
 		snoop_filter = { 
 			SAY  = true, EMOTE       = true, TEXT_EMOTE   = true, 
 			YELL = true, PARTY       = true, PARTY_LEADER = true, 
-			RAID = true, RAID_LEADER = true, RAID_WARNING = true 
+			RAID = true, RAID_LEADER = true, RAID_WARNING = true,
+			ROLL = true
 		};
 	};
 	
@@ -111,23 +113,37 @@ local DB_DEFAULTS = {
 				height = 400;
 			};
 			
+			-- can drag
+			locked = false;
+			
 			-- enable timestamps
 			timestamps = 0;
 			
 			-- time that text is kept visible
 			time_visible = 0;
 			
+			-- this is time_visible's successor
+			-- the entire window just fades.
+			auto_fade = 0;
+			
+			-- automatically show on new message
+			auto_popup = false;
+			
+			-- shared between all windows:
+			
 			-- show trp icons; zoom is for removing border
 			show_icons = true;
 			zoom_icons = true;
 			
-			-- pixel size of edges around frames
-			edge_size = 2;
-			
 			-- pixel width of the tabs next to messages
 			tab_size = 2;
 			
-			-- shared between all windows
+			-- pixel size of edges around frames
+			edge_size = 2;
+			
+			-- opacity for faded windows (percent)
+			auto_fade_opacity = 20;
+			
 			font = {
 				size = 14; -- except for this - this is custom per window
 				face = "Arial Narrow";
@@ -298,7 +314,7 @@ Main.config_options = {
 			order = 2;
 			args  = {
 				desc1 = {
-					name  = L["Listener frames can be moved and resized holding shift. The font size can be adjusted by holding Ctrl and scrolling! Additional options can be found per-frame, which is accessed from the context menu (right click the top left corner of the frame)."];
+					name  = L["Listener frames can be resized holding shift. The font size can be adjusted by holding Ctrl and scrolling! Additional options can be found per-frame, which is accessed from the context menu (right click the top left corner of the frame)."];
 					type  = "description"; 
 					order = 9;
 				};
@@ -435,10 +451,27 @@ Main.config_options = {
 						RefreshAllChat()
 					end;
 				};
+				auto_fade_opacity = {
+					order = 70;
+					name  = L["Auto-fade Opacity"];
+					desc  = L["Opacity for windows that fade out due to inactivity."];
+					type  = "range";
+					min   = 0;
+					max   = 100;
+					get   = function( info )
+						return Main.db.profile.frame.auto_fade_opacity
+					end;
+					set   = function( info, val )
+						Main.db.profile.frame.auto_fade_opacity = val
+						for _,f in pairs( Main.frames ) do
+							f:ApplyOtherOptions()
+						end
+					end;
+				};
 				
 				-- tab colors
 				group_tab_colors = {
-					order  = 70;
+					order  = 80;
 					type   = "group";
 					name   = L["Tab Colors"];
 					inline = true;

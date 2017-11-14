@@ -105,7 +105,7 @@ local DB_DEFAULTS = {
 		convert_links    = true;
 		
 		keywords_enable  = true;
-		keywords_string  = "<firstname> <lastname> <oocname>";
+		keywords_string  = "<firstname>, <lastname>, <oocname>";
 		keywords_color   = Hexc "75F754";
 		
 		-- notification settings
@@ -335,55 +335,63 @@ Main.config_options = {
 					end;
 				};
 				
-				keywords_desc = {
+				keywords = {
 					order = 91;
-					type  = "description";
-					name  = L["The keywords feature highlights things that appear in chat, such as your name. They also make a notification. Some substitutions are available:\n<firstname> - Your character's RP first name.\n<lastname> - Your character's RP last name.\n<oocname> - Your character's in-game name."];
+					name  = L["Keywords"];
+					type = "group";
+					inline = true;
+					args = {
+						
+						keywords_desc = {
+							order = 91;
+							type  = "description";
+							name  = L["The keywords feature highlights things that appear in chat, such as your name. They also make a notification. Separate keywords with commas. Some substitutions are available:\n<firstname> - Your character's RP first name.\n<lastname> - Your character's RP last name.\n<oocname> - Your character's in-game name."];
+						};
+						
+						keywords_enable = {
+							order = 92;
+							type  = "toggle";
+							name  = L["Enable Keywords"];
+							set = function( info, val )
+								Main.db.profile.keywords_enable = val;
+							end;
+							get = function( info )
+								return Main.db.profile.keywords_enable
+							end;
+						};
+						
+						keywords_string = {
+							order = 93;
+							type  = "input";
+							width = "full";
+							name  = L["Keywords To Highlight"];
+							desc  = L["Enter keywords separated by commas."];
+							set = function( info, val )
+								Main.db.profile.keywords_string = val;
+								Main.LoadKeywordsConfig()
+							end;
+							get = function( info )
+								return Main.db.profile.keywords_string
+							end;
+						};
+						
+						keywords_color = {
+							order    = 94;
+							type     = "color";
+							name     = L["Highlight Color"];
+							desc     = L["The color that keywords will be highlighted with."];
+							hasAlpha = false;
+							
+							set = function( info, r, g, b )
+								Main.db.profile.keywords_color = {r,g,b,1.0};
+								Main.LoadKeywordsConfig()
+							end;
+							get = function( info )
+								return unpack( Main.db.profile.keywords_color )
+							end;
+						};
+					};
 				};
-				
-				keywords_enable = {
-					order = 92;
-					type  = "toggle";
-					name  = L["Enable Keywords"];
-					set = function( info, val )
-						Main.db.profile.keywords_enable = val;
-					end;
-					get = function( info )
-						return Main.db.profile.keywords_enable
-					end;
-				};
-				
-				keywords_string = {
-					order = 93;
-					type  = "input";
-					width = "full";
-					name  = L["Keywords To Highlight"];
-					desc  = L["Enter keywords separated by spaces."];
-					set = function( info, val )
-						Main.db.profile.keywords_string = val;
-						Main.LoadKeywordsConfig()
-					end;
-					get = function( info )
-						return Main.db.profile.keywords_string
-					end;
-				};
-				
-				keywords_color = {
-					order    = 94;
-					type     = "color";
-					name     = L["Highlight Color"];
-					desc     = L["The color that keywords will be highlighted with."];
-					hasAlpha = false;
-					
-					set = function( info, r, g, b )
-						Main.db.profile.keywords_color = {r,g,b,1.0};
-						Main.LoadKeywordsConfig()
-					end;
-					get = function( info )
-						return unpack( Main.db.profile.keywords_color )
-					end;
-				};
-				
 				resethelp = {
 					order = 150;
 					type= "execute";

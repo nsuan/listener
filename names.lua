@@ -106,7 +106,7 @@ function Main.GetICName( name, get_full )
 		firstname = firstname:gsub( "^%S+%s+", "" )
 	end
 	
-	if Main.db.profile.shorten_names and not bypass_shorten then
+	if Main.db.profile.shorten_names and not get_full then
 		local newname = ""
 		
 		local source = (firstname .. " " .. (lastname or "")):gmatch( "%S+" )

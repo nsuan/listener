@@ -17,6 +17,7 @@ Raid group filters. For example, you can create a window to only listen to group
 Removed custom chat colors in preference to default chat colors. If you liked it the other way, sorry!
 Name shortener is now toggleable in the options.
 URL detector. So you can click on links to copy them.
+Keywords feature, to highlight specific things and notify you when they appear, such as your name.
 
 ## 1.5.8
 Compatibility update.

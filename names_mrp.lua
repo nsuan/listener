@@ -9,39 +9,31 @@ local function TryGet( name )
 	   and mrp.DisplayChat.NA( msp.char[name].field.NA ) ~= "" then
 		
 		local icname = msp.char[name].field.NA
-		local color = icname:match( "^|c([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])" )
-		local a = mrp.DisplayChat.NA( msp.char[name].field.NA ):gmatch( "%S+" )
+		local color  = icname:match( "^|c([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])" )
+		local name   = mrp.DisplayChat.NA( msp.char[name].field.NA )
 		
-		local name = (a() or "")
-		local b = a()
-		
-		if name:len() < 5 and b then
-			name = name .. " " .. b
-		end
- 
-		return name, color
+		return name, nil, color
 	end
 end
  
 -------------------------------------------------------------------------------
-local function Resolve( name, guid )
-	local firstname, lastname, color
+local function Resolve( name )
+	local firstname, color
 	
 	local fullname = name
 	if not name:find( "-" ) then
-		local n,r = UnitFullName( "player" )
-		fullname = name .. "-" .. r
+		fullname = fullname .. "-" .. Main.realm
 	end
 	
 	firstname, color = TryGet( fullname )
 	if firstname then
-		return firstname, nil, color
+		return firstname, nil, nil, color
 	end
 	
 	if fullname ~= name then
 		firstname, color = TryGet( name )
 		if firstname then
-			return firstname, nil, color
+			return firstname, nil, nil, color
 		end
 	end
   

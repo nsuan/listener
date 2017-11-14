@@ -91,22 +91,24 @@ end
 --
 local function IteratePlayers()
 	local raidparty = IsInRaid() and "raid" or "party"
-	local index     = 0
+	local index     = -1
 	
 	return function()
 		
 		while true do
 			index = index + 1
+			if index == 0 then
+				return Main:FullName( 'player' )
+			end
+			
 			local unit = raidparty .. index
 			if not UnitExists( unit ) then
 				return nil
 			end
 			
-			-- strip realm
-			local name = UnitName( unit )
-			name = name:gsub( "-.*", "" )
-			
-			return name
+			if not UnitIsUnit( unit, "player" ) then
+				return Main:FullName( unit )
+			end
 		end
 	end
 end

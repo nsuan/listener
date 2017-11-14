@@ -695,12 +695,14 @@ function Method:ListeningTo( name )
 	-- global (listenall) -> group -> player
 	--
 	local f = self.players[name]
-	local g = Main.raid_groups[name]
-	if g then
-		-- if f is default then try using group filter
-		f = f or self.groups[g]
-	end
 	
+	if IsInRaid() then
+		local g = Main.raid_groups[name]
+		if g then
+			-- if f is default then try using group filter
+			f = f or self.groups[g]
+		end
+	end
 	
 	return f == 1 or (Main.db.char.frames[self.frame_index].listen_all and f ~= 0)
 end
@@ -1008,7 +1010,7 @@ function Method:RefreshChat()
 	local showhidden = Main.db.char.frames[self.frame_index].showhidden
 	
 	-- go through the chat list and populate entries
-	for i = Main.next_lineid-1, 1, -1 do
+	for i = Main.next_lineid-1, Main.first_lineid, -1 do
 		local entry = Main.chatlist[i]
 		if entry then
 			if EntryFilter( self, entry ) then
@@ -1242,11 +1244,28 @@ function Me.OnChatboxScroll( self, delta )
 end
 
 -------------------------------------------------------------------------------
+local g_listener_copylink_text = ""
+StaticPopupDialogs["LISTENER_COPYLINK"] = {
+	text                   = L["Copy Link"];
+	button1                = L["Got it!"];
+	timeout                = 0,
+	whileDead              = true,
+	hideOnEscape           = true,
+	enterClicksFirstButton = true,
+	hasEditBox             = true,
+	
+	OnShow = function ( self )
+		self.editBox:SetText( g_listener_copylink_text )
+		self.editBox:HighlightText()
+	end
+}
+
+-------------------------------------------------------------------------------
 function Me.OnChatboxHyperlinkClick( self, link, text, button )
 	if GetTime() < self.clickblock + CLICKBLOCK_TIME then
 		-- block clicks when scroll changes
 		return
-	end	
+	end
 	
 	if strsub(link, 1, 6) == "player" then
 		local namelink, isGMLink;
@@ -1263,6 +1282,12 @@ function Me.OnChatboxHyperlinkClick( self, link, text, button )
 			self:TogglePlayer( name )
 			return
 		end
+	end
+	
+	if link == "lrurl" then
+		g_listener_copylink_text = text:match( "url|h(%S+)|h|r$" )
+		StaticPopup_Show( "LISTENER_COPYLINK" )
+		return
 	end
 	
 	SetItemRef( link, text, button, DEFAULT_CHAT_FRAME );

@@ -38,12 +38,6 @@ local function Resolve( name )
 		lastname = ci.LN or ""
 		title = "" -- todo?  
 		
-		if lastname == "" then
-			local a = firstname:gmatch( "%S+" )
-			firstname = a()
-			lastname = a()
-		end
-		
 		if ci.CH then 
 			color = "ff" .. ci.CH
 		end
@@ -52,14 +46,9 @@ local function Resolve( name )
 			icon = ci.IC 
 		end
 		
-		if firstname:len() < 5 and lastname then 
-			-- lengthen it
-			firstname = firstname .. " " .. lastname
-			lastname = ""
-		end
 	end
 	
-	return firstname, icon, color
+	return firstname, lastname, icon, color
 end
 
 -- check again after everything loads

@@ -8,7 +8,14 @@ local L    = Main.Locale
 -- Chat channel names that are ignored.
 --
 local IGNORED_CHANNELS = {
-	xtensionxtooltip2 = true -- Common addon channel.
+	xtensionxtooltip2   = true; -- Common addon channel.
+	
+	general             = true; -- we dont support server channels yet
+	trade               = true;
+	localdefense        = true;
+	lookingforgroup     = true;
+	bigfootworldchannel = true;
+	meetingstone        = true;
 }
 
 local FILTER_OPTIONS = {

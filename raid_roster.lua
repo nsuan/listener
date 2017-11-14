@@ -18,8 +18,7 @@ function Main.UpdateRaidRoster()
 	
 	for i = 1, GetNumGroupMembers() do
 		local name, _, subgroup = GetRaidRosterInfo(i)
-		local shortname = name:gsub( "-.*", "" )
+		if not name then return end
 		Main.raid_groups[name] = subgroup
-		Main.raid_groups[shortname] = subgroup
 	end
 end

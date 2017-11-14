@@ -46,6 +46,10 @@ local DB_DEFAULTS = {
 		help    = {};
 	};
 	
+	realm = {
+		guids = {};
+	};
+	
 	char = {
 		frames = {
 			-------------------------------------------------------------------
@@ -94,6 +98,15 @@ local DB_DEFAULTS = {
 		flashclient      = true;  -- flash taskbar on message
 		beeptime         = 3;     -- time needed between emotes to play another sound
 		rpconnect        = true;  -- rpconnect support
+		
+		shorten_names    = true;
+		strip_titles     = true;
+		
+		convert_links    = true;
+		
+		keywords_enable  = true;
+		keywords_string  = "<firstname> <lastname> <oocname>";
+		keywords_color   = Hexc "75F754";
 		
 		-- notification settings
 		sound = {
@@ -214,6 +227,7 @@ end
 local function RefreshAllChat()
 	for _, frame in pairs( Main.frames ) do
 		frame:RefreshChat()
+		frame:UpdateProbe()
 	end
 end
 
@@ -258,7 +272,6 @@ Main.config_options = {
 					order = 61;
 					name = L["Target Emote Sound"];
 					desc = L["Play a sound when your targeted player emotes."];
-					width = "full";
 					type = "toggle";
 					set = function( info, val ) Main.db.profile.sound.target = val end;
 					get = function( info ) return Main.db.profile.sound.target end;
@@ -281,7 +294,6 @@ Main.config_options = {
 					order = 63;
 					name = L["Poke Sound"];
 					desc = L["Play a sound when a person directs a stock emote at you. (e.g. /poke)"];
-					width = "full";
 					type = "toggle";
 					set = function( info, val ) Main.db.profile.notify_poke = val end;
 					get = function( info ) return Main.db.profile.notify_poke end;
@@ -291,10 +303,85 @@ Main.config_options = {
 					order = 65;
 					name = L["Flash Taskbar Icon"];
 					desc = L["Flash Taskbar Icon when Listener plays a sound."];
-					width = "full";
 					type = "toggle";
 					set = function( info, val ) Main.db.profile.flashclient = val end;
 					get = function( info ) return Main.db.profile.flashclient end;
+				};
+				
+				shorten_names = {
+					order = 71;
+					name = L["Shorten Names"];
+					desc = L["Shorten names in chat and other places. Cuts off surnames unless the first name is really short."];
+					type = "toggle";
+					set = function( info, val ) 
+						Main.ClearICNameCache()
+						Main.db.profile.shorten_names = val
+						RefreshAllChat()
+						FrameSettingsChanged()
+					end;
+					get = function( info ) return Main.db.profile.shorten_names end;
+				};
+				
+				links = {
+					order = 81;
+					name = L["Clickable Links"];
+					desc = L["Convert links into clickable items. You might want to disable this if you already have another addon that handles this."];
+					type = "toggle";
+					set = function( info, val )
+						Main.db.profile.convert_links = val
+					end;
+					get = function( info, val )
+						return Main.db.profile.convert_links
+					end;
+				};
+				
+				keywords_desc = {
+					order = 91;
+					type  = "description";
+					name  = L["The keywords feature highlights things that appear in chat, such as your name. They also make a notification. Some substitutions are available:\n<firstname> - Your character's RP first name.\n<lastname> - Your character's RP last name.\n<oocname> - Your character's in-game name."];
+				};
+				
+				keywords_enable = {
+					order = 92;
+					type  = "toggle";
+					name  = L["Enable Keywords"];
+					set = function( info, val )
+						Main.db.profile.keywords_enable = val;
+					end;
+					get = function( info )
+						return Main.db.profile.keywords_enable
+					end;
+				};
+				
+				keywords_string = {
+					order = 93;
+					type  = "input";
+					width = "full";
+					name  = L["Keywords To Highlight"];
+					desc  = L["Enter keywords separated by spaces."];
+					set = function( info, val )
+						Main.db.profile.keywords_string = val;
+						Main.LoadKeywordsConfig()
+					end;
+					get = function( info )
+						return Main.db.profile.keywords_string
+					end;
+				};
+				
+				keywords_color = {
+					order    = 94;
+					type     = "color";
+					name     = L["Highlight Color"];
+					desc     = L["The color that keywords will be highlighted with."];
+					hasAlpha = false;
+					
+					set = function( info, r, g, b )
+						Main.db.profile.keywords_color = {r,g,b,1.0};
+						Main.LoadKeywordsConfig()
+					end;
+					get = function( info )
+						return unpack( Main.db.profile.keywords_color )
+					end;
 				};
 				
 				resethelp = {

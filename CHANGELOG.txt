@@ -1,13 +1,22 @@
 ## 1.6.0
-Major updates.
-Redid interface.
-Ability to create new instances. (Right click the upper left corner.)
-Better customization.
-Custom channel support to better facilitate RP in channels.
-Removed hiding player name feature. (Sorry!)
-Removed message highlighting in favor of a single red line.
-Removed player coloring in favor of tab markers (left hand side).
-Lightened old timestamps in snooper.
+Major updates!
+Optimizations. Lots of little things so that it might use less memory and be easier on your computer!
+Redid interface. More intuitive, less cryptic.
+Better cross-realm support. Mainly support for linked realms.
+Ability to create new instances. Right click the upper left corner of the windows for options.
+Better customization. Configuation can be accessed by right clicking the minimap button.
+Custom channel support, to better facilitate RP that's done in channels.
+Support for other chat channels as well, such as guild/officer. More flexibility in that regard, especially so you can see your communicator in the main window.
+Removed hiding player name feature. Sorry, this was an obscure, early feature that was only meant to be a workaround.
+Removed message highlighting in favor of a single red line. So modern...
+Added tabs to the left hand side to mark things. Player text coloring has been removed to favor this (a green tab).
+Mouseover highlighting has been turned into mouseover/target highlighting, and instead uses a red tab.
+You can now click on messages to mark them, with a yellow tab. This is mainly meant for DMs to better manage which messages they have acknowledged.
+Lightened old timestamps in snooper, so you can see them better.
+Raid group filters. For example, you can create a window to only listen to groups 3 and 4, who are off exploring a separate trail!~
+Removed custom chat colors in preference to default chat colors. If you liked it the other way, sorry!
+Name shortener is now toggleable in the options.
+URL detector. So you can click on links to copy them.
 
 ## 1.5.8
 Compatibility update.

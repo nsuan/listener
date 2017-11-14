@@ -56,12 +56,12 @@ function Main.HasUnreadEntries()
 	for _,_ in pairs( Main.unread_entries ) do return true end
 end
 
+
+Main.realm          = select(2,UnitFullName("player"))
+Main.first_lineid   = 1
 Main.next_lineid    = 1
 Main.frames         = {}
 Main.active_frame   = nil
-
-Main.realm_map      = {}
-Main.guid_map       = {}
 
 local g_frame_creation_id = 0
  
@@ -94,6 +94,7 @@ local function CleanChatHistory()
 	-- we want to find the highest lineid so we can continue
 	-- (it should reset overnight!)
 	local max_lineid = 0
+	local min_lineid = nil
 	
 	for playername,chat_table in pairs( ListenerChatHistory.data ) do
 		local writeto = 1
@@ -109,6 +110,7 @@ local function CleanChatHistory()
 					chat_table[i] = nil
 					chat_table[writeto] = a
 					max_lineid = math.max( a.id, max_lineid )
+					min_lineid = math.min( a.id, min_lineid or a.id )
 					writeto = writeto + 1
 					
 					-- todo: should squish chat ids somewhere 
@@ -125,6 +127,7 @@ local function CleanChatHistory()
 		end
 	end
 	
+	Main.first_lineid = min_lineid or max_lineid
 	Main.next_lineid = max_lineid + 1
 end
 
@@ -288,12 +291,11 @@ end
 function Main:CheckPoke( msg, sender )
 	if not Main.db.profile.sound.poke then return end
 	
-	sender = sender:gsub( "-.*", "" )
 	local loc = GetLocale()
 	if loc == "enUS" then
 		if msg:find( " you" ) then
 			--if ListenerFrame:IsShown() and self.player_list[sender] then return end
-			if UnitName('target') == sender then return end
+			if Main:FullName('target') == sender then return end
 			if msg:find( "orders you to open fire." ) then return end
 			if msg:find( "asks you to wait." ) then return end
 			if msg:find( "tells you to attack" ) then return end
@@ -328,6 +330,21 @@ function Main:OnSystemMsg( event, message )
 		self:AddChatHistory( sender, "ROLL", message )
 		Main.Snoop.DoUpdate( sender )
 	end
+end
+
+function Main:OnChatMsgTextEmote( event, message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
+	if guid ~= UnitGUID( "player" ) then
+		local realm = message:match( sender .. "%-([A-Za-z0-9']+)" )
+		if realm ~= nil then
+			-- delete trailing "'s"
+			realm = realm:gsub( "'s$", "" )
+			
+			sender = sender .. "-" .. realm
+		end
+	end
+	
+	Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
+		
 end
 
 -------------------------------------------------------------------------------
@@ -378,7 +395,7 @@ function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a
 		end
 	end
 	
-	self:AddChatHistory( sender, event, message, language, guid, a9 )
+	Main:AddChatHistory( sender, event, message, language, guid, a9 )
 	Main.Snoop.DoUpdate( sender )
 end
 
@@ -496,19 +513,44 @@ local function LanguageFilter( message, sender, event, language )
 	return message
 end
 
+function Main:FullName( unit )
+	local n, r = UnitName( unit )
+	if r and r ~= "" then return n .. "-" .. r end
+	return n
+end
+
+local function Linkify( msg )
+	msg = " " .. msg .. " "
+	
+	local linkified = " |cFF0FBEF4|Hlrurl|h%1|h|r "
+	local links = {}
+	
+	local function getlink(t)
+		table.insert( links, t )
+		return "\001" .. #links .. "\001"
+	end
+	
+	-- http://abc.com/aaa
+	msg = msg:gsub( "%s(https?://%S+)%s", getlink )
+	
+	-- abc.me/aaa
+	msg = msg:gsub( "%s(%S+%.%S+/%S*)%s", getlink )
+	
+	-- and then insert them with formatting.
+	msg = msg:gsub( "\001(%d+)\001", function(i)
+		return " |cFF0FBEF4|Hlrurl|h" .. links[tonumber(i)] .. "|h|r "
+	end)
+	
+	return msg:sub( 2, msg:len() - 1 )
+end
+
 -------------------------------------------------------------------------------
 function Main:AddChatHistory( sender, event, message, language, guid, channel )
- 
-	--local time = date("*t")
-	--time = string.format( "[%02d:%02d]", time.hour, time.min );
-	
-	local original_sender = sender
-	
+
 	if message == "" then return end
+	sender = Ambiguate( sender, "all" )
 	
-	-- just strip the realm. collisions are -very- rare, and it just
-	-- messes things up
-	sender = sender:gsub( "-.*", "" )
+	Main.guidmap[sender] = guid
 	
 	self.chat_history[sender] = self.chat_history[sender] or {}
 	
@@ -543,6 +585,10 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 	end
 	---------------------------------------------------------------------------
 	
+	if Main.db.profile.convert_links then
+		message = Linkify( message )
+	end
+	
 	message = SubRaidTargets( message )
 	
 	local entry = {
@@ -551,8 +597,7 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 		e  = event;
 		m  = message;
 		s  = sender;
-		g  = guid;
-		r  = true;
+		r  = true;              -- unread
 	}
 	
 	if event == "CHANNEL" then
@@ -563,6 +608,7 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 		entry.p = true -- is player
 		entry.r = nil -- read
 	end
+	
 	if event == "YELL" then
 		entry.r = nil -- yells dont cause unread messages
 	end
@@ -572,6 +618,7 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 	
 	table.insert( self.chat_history[sender], entry )
 	
+	-- not worth the performance loss.
 --	while #self.chat_history[sender] > PLAYER_HISTORY_SIZE do
 --		table.remove( self.chat_history[sender], 1 )
 --	end
@@ -582,16 +629,12 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 	
 	if entry.p then
 		-- player is posting...
-	--	if event == "SAY" or event == "EMOTE" or event == "TEXT_EMOTE" then
-			-- player is publicly emoting, clear read status
-			--Main.MarkAllRead( true ) 
-	--	end
 		Main.MarkMessagesRead( entry )
 	end
 	
 	-- if the player's target emotes, then beep+flash
 	if Main.db.profile.sound.target
-       and (UnitName("target") == sender or (guid and guid == UnitGUID( "target" )))
+       and Main:FullName("target") == sender
 	   and not isplayer then
 		
 		Main:PlayMessageBeep()
@@ -672,10 +715,12 @@ end
 -- Clean a name so that it starts with a capital letter.
 --
 function Main.FixupName( name )
-	name = name:lower()
-	
-	-- strip realm
-	name = name:gsub( "-.*", "" )
+
+	if name:find( "-" ) then
+		name = name:gsub( "^.+%-", string.lower )
+	else
+		name = name:lower()
+	end
 	
 	-- (utf8 friendly) capitalize first character
 	name = name:gsub("^[%z\1-\127\194-\244][\128-\191]*", string.upper)
@@ -774,6 +819,7 @@ function Main.DestroyWindow( frame )
 	Main.db.char.frames[index] = nil
 end
 
+-------------------------------------------------------------------------------
 StaticPopupDialogs["LISTENER_NEWFRAME"] = {
 	text         = L["Enter name of new window."];
 	button1      = L["Create"];
@@ -912,23 +958,36 @@ function Main.Print( text, hideprefix )
 	print( prefix .. text )
 end
 
+-------------------------------------------------------------------------------
 function Main:OnGroupJoined()
 	Main.UpdateRaidRoster()
 	
 	for _, frame in pairs( Main.frames ) do
 		frame:ResetGroupsFilter()
 	end
-	print("LISTENER DEBUG ONGROUPJOINED")
 end
 
+-------------------------------------------------------------------------------
 function Main:OnRaidRosterUpdate()
-	Main.UpdateRaidRoster()
-	print("LISTENER DEBUG ONrosterpudpate")
+	if IsInRaid() then
+		Main.UpdateRaidRoster()
+		for _, frame in pairs( Main.frames ) do
+			local hasgroups = false
+			for _,_ in pairs( frame.groups ) do
+				hasgroups = true
+				break
+			end
+			
+			if hasgroups then
+				frame:RefreshChat()
+			end
+		end
+	end
 end
 
 -------------------------------------------------------------------------------
 function Main:OnEnable()
-
+	Main.realm = select(2,UnitFullName("player"))
 	Main.SetupBindingText()
 
 	CleanChatHistory() 
@@ -937,6 +996,12 @@ function Main:OnEnable()
 	CleanPlayerList()
 	Main.MinimapButton.OnLoad()
 	
+	if Main.next_lineid == 1 then
+		-- we don't have anything in our history
+		-- so we can discard the old guid map.
+		Main.db.realm.guids = {}
+	end
+	Main.guidmap = Main.db.realm.guids
 	SetupFrames()
 	
 	AddFriendsList()
@@ -945,9 +1010,9 @@ function Main:OnEnable()
 
 	self:RegisterEvent( "CHAT_MSG_SAY", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_EMOTE", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_TEXT_EMOTE", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_TEXT_EMOTE", "OnChatMsgTextEmote" )
 	self:RegisterEvent( "CHAT_MSG_WHISPER", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_WHISPER_INFORM", "OnChatMsg" )
+	--self:RegisterEvent( "CHAT_MSG_WHISPER_INFORM", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_PARTY", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_PARTY_LEADER", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_RAID", "OnChatMsg" )
@@ -968,7 +1033,7 @@ function Main:OnEnable()
 	self:RegisterEvent( "MODIFIER_STATE_CHANGED", "OnModifierChanged" )
 	
 	self:RegisterEvent( "GROUP_JOINED", "OnGroupJoined" )
-	self:RegisterEvent( "RAID_ROSTER_UPDATE", "OnRaidRosterUpdate" )
+	self:RegisterEvent( "GROUP_ROSTER_UPDATE", "OnRaidRosterUpdate" )
 	
 	Main.Print( L["Version:"] .. " " .. self.version )
 	
@@ -979,9 +1044,11 @@ function Main:OnEnable()
 	Main.Init_OnEnabled()
 	Main.SetupProbe()
 	
-	Main.UpdateRaidRoster()
-	
 	for _, frame in pairs( Main.frames ) do
 		frame:RefreshChat()
 	end
+	
+	C_Timer.After( 3, function() Main:OnRaidRosterUpdate() end )
+	
+	Main.InitKeywords()
 end

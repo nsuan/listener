@@ -4,11 +4,10 @@ local Main = ListenerAddon
 local L = Main.Locale
  
 -------------------------------------------------------------------------------
-local function Resolve( name, guid )
-	if not guid then return name end
+local function Resolve( name )
+
 	local color = nil
-	
-	local ch = xrp.characters.byGUID[ guid ]
+	local ch = xrp.characters.byName[ name ]
 	
 	if ch and not ch.hide then
 		local icname = ch.fields.NA or name
@@ -16,14 +15,8 @@ local function Resolve( name, guid )
 		-- get trp color code
 		color = icname:match( "^|c([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])" )
 		icname = xrp.Strip( icname )
-		local a = icname:gmatch( "%S+" )
-		local name = (a() or "")
-		local b = a()
-		if name:len() < 5 and b then
-			name = name .. " " .. b
-		end
 		
-		return name, nil, color
+		return icname, nil, color
 	end
 	
 	return name

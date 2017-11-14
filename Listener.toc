@@ -1,6 +1,6 @@
 ## Interface: 70300
 ## Title: Listener
-## Notes: Public chat assistant.
+## Notes: Chat assistant.
 ## Author: Tammya-MoonGuard
 ## SavedVariables: ListenerAddonSaved
 ## SavedVariablesPerCharacter: ListenerChatHistory
@@ -16,6 +16,7 @@ locale\index.xml
 listener.lua
 config_frame.lua
 config.lua
+keywords.lua
 filter_menu.lua
 raid_roster.lua
 minimapbutton.lua

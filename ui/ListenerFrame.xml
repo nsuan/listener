@@ -227,7 +227,6 @@
             self:SetFading( false )
             
             self.highlight:SetBlendMode( "ADD" )
-            
           </OnLoad>
           <OnMouseWheel>
             ListenerAddon.Frame.OnChatboxScroll( self:GetParent(), delta )

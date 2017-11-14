@@ -64,7 +64,6 @@ function Me.DoUpdate( sender )
 		return
 	end
 	
-	sender = sender:gsub( "-.*", "" )
 	if g_current_name == sender then
 		g_update_time = 0
 	end

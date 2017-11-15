@@ -650,6 +650,7 @@ Main.config_options = {
 					set   = function( info, val ) Main.Snoop.SetShadow( val ) end;
 					get   = function( info ) return Main.db.profile.snoop.font.shadow end;
 				};
+				--[[
 				partyprefix = {
 					order = 8;
 					name  = L["Channel Prefix"];
@@ -657,7 +658,7 @@ Main.config_options = {
 					type  = "toggle";
 					set   = function( info, val ) Main.db.profile.snoop.partyprefix = val Main.Snoop.DoUpdate() end;
 					get   = function( info ) return Main.db.profile.snoop.partyprefix end;
-				};
+				};]]
 			};
 		};
 		

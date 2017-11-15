@@ -37,7 +37,7 @@ local function ChatFilter( self, event, msg, sender, ... )
 	if Main.db.profile.keywords_enable then
 		local found = false
 		
-		--if Ambiguate(sender,"all") == UnitName("player") then return end
+		if Ambiguate(sender,"all") == UnitName("player") then return end
 		
 		local replaced = {}
 		

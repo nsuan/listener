@@ -16,25 +16,12 @@ local DEFAULT_LISTEN_EVENTS = {
 	"ROLL"
 }
 
--------------------------------------------------------------------------------
--- These message types are included in the "public" filter.
---
-local SAY_EVENTS = { SAY=true, EMOTE=true, TEXT_EMOTE=true, YELL=true }
-
--------------------------------------------------------------------------------
--- Message format types. For building strings in window.
---
-local MSG_FORMAT_TYPES = { 
-
-	-- "<name>: <msg>"
-	SAY=1, PARTY=1, PARTY_LEADER=1, RAID=1, RAID_LEADER=1, RAID_WARNING=1, YELL=1;
-	INSTANCE_CHAT=1, INSTANCE_CHAT_LEADER=1, GUILD=1, OFFICER=1, CHANNEL=1;
-	
-	-- "<name> <msg>"
-	EMOTE=2;
-	
-	-- "<name> <msg>" name is substituted
-	TEXT_EMOTE=3; ROLL=3;
+-- Events that should not make a notification.
+local SKIP_BEEP = {
+	ONLINE = true;
+	OFFLINE = true;
+	CHANNEL_JOIN = true;
+	CHANNEL_LEAVE = true;
 }
 
 -------------------------------------------------------------------------------
@@ -50,13 +37,15 @@ local MSG_FORMAT_PREFIX = {
 	GUILD                 = "[G] ";
 	OFFICER               = "[O] ";
 	RAID_WARNING          = "[RW] ";
-	CHANNEL               = "[C] "
+	CHANNEL               = "[C] ";
+	WHISPER               = L["From"] .. " ";
+	WHISPER_INFORM        = L["To"] .. " ";
 }
 
 -------------------------------------------------------------------------------
 -- Static methods
 -------------------------------------------------------------------------------
-local ENTRY_CHAT_REMAP = { ROLL = "SYSTEM" }
+local ENTRY_CHAT_REMAP = { ROLL = "SYSTEM", OFFLINE = "SYSTEM", ONLINE = "SYSTEM" }
 local function GetEntryColor( e )
 	local info
 	if e.c then
@@ -256,7 +245,12 @@ end
 --
 local function EntryFilter( self, entry )
 	if entry.c then
-		return self.listen_events[ "#" .. entry.c ]
+		if entry.e == "CHANNEL" then 
+			return self.listen_events[ "#" .. entry.c ]
+		else
+			return self.listen_events[entry.e] 
+			       and self.listen_events[ "#" .. entry.c ]
+		end
 	end
 	return self.listen_events[entry.e]
 end
@@ -280,8 +274,75 @@ local TIMESTAMP = {
 }
 
 -------------------------------------------------------------------------------
+-- Normal "name: text"
+local function MsgFormatNormal( e, name )
+	local prefix = MSG_FORMAT_PREFIX[e.e] or ""
+	if e.e == "CHANNEL" then
+		prefix = prefix:gsub( "C", (GetChannelName( e.c )) )
+	end
+	return prefix .. name .. ": " .. e.m
+end
+
+-------------------------------------------------------------------------------
+-- No separator between name and text.
+local function MsgFormatEmote( e, name )
+	return name .. " " .. e.m
+end
+
+-------------------------------------------------------------------------------
+-- <name> <msg> - name is substituted
+local function MsgFormatTextEmote( e, name )
+	local msg = e.m:gsub( e.s, name )
+	return msg
+end
+
+-------------------------------------------------------------------------------
+-- x joined/left channel.
+local function MsgFormatJoinLeave( e, name )
+	local prefix = "[" .. GetChannelName( e.c ) .. "] "
+	if e.e == "CHANNEL_JOIN" then
+		return prefix .. L( "{1} joined channel.", name )
+	elseif e.e == "CHANNEL_LEAVE" then
+		return prefix .. L( "{1} left channel.", name )
+	end
+	return "<Error>"
+end
+
+-------------------------------------------------------------------------------
+local MSG_FORMAT_FUNCTIONS = { 
+	SAY                  = MsgFormatNormal;
+	PARTY                = MsgFormatNormal;
+	PARTY_LEADER         = MsgFormatNormal;
+	RAID                 = MsgFormatNormal;
+	RAID_LEADER          = MsgFormatNormal;
+	RAID_WARNING         = MsgFormatNormal;
+	YELL                 = MsgFormatNormal;
+	INSTANCE_CHAT        = MsgFormatNormal;
+	INSTANCE_CHAT_LEADER = MsgFormatNormal;
+	GUILD                = MsgFormatNormal;
+	OFFICER              = MsgFormatNormal;
+	CHANNEL              = MsgFormatNormal;
+	
+	EMOTE   = MsgFormatEmote;
+	ONLINE  = MsgFormatEmote;
+	OFFLINE = MsgFormatEmote;
+	
+	CHANNEL_JOIN  = MsgFormatJoinLeave;
+	CHANNEL_LEAVE = MsgFormatJoinLeave;
+	
+	TEXT_EMOTE = MsgFormatTextEmote;
+	ROLL       = MsgFormatTextEmote;
+}
+
+-------------------------------------------------------------------------------
+setmetatable( MSG_FORMAT_FUNCTIONS, {
+	__index = function( table, key ) 
+		return MsgFormatNormal
+	end;
+})
+
+-------------------------------------------------------------------------------
 local function FormatChatMessage( self, e )
-	local msgtype = MSG_FORMAT_TYPES[e.e]
 	
 	local stamp = ""
 	local ts = Main.db.profile.frame.timestamps
@@ -290,7 +351,7 @@ local function FormatChatMessage( self, e )
 	end
 	
 	-- get icon and name 
-	local name, icon, color = Main.GetICName( e.s, e.g )
+	local name, icon, color = Main.GetICName( e.s )
 	
 	if icon and Main.db.profile.frame.show_icons then
 		if Main.db.profile.frame.zoom_icons then
@@ -308,35 +369,7 @@ local function FormatChatMessage( self, e )
 	
 	name = "|Hplayer:" .. e.s .. "|h" .. name .. "|h" 
 	
-	local text = ""
-	
-	if msgtype == 1 then
-	   -- say/party
-	   
-		local prefix = MSG_FORMAT_PREFIX[e.e] or ""
-		if e.e == "CHANNEL" then
-			prefix = prefix:gsub( "C", (GetChannelName( e.c )) )
-		end
-		prefix = stamp .. icon .. prefix
-		
-		
-		text = string.format( "%s%s: %s", prefix, name, e.m )
-		
-	elseif msgtype == 2 then
-		-- emote message
-		text = string.format( "%s%s%s %s", stamp, icon, name, e.m )
-		
-	elseif msgtype == 3 then
-		-- text emote/roll
-	
-		-- replace sender name with IC name
-		local msg = e.m:gsub( e.s, name )
-		
-		text = string.format( "%s%s%s", stamp, icon, msg )
-	end
-	
-	return text
-	
+	return string.format( "%s%s%s", stamp, icon, MSG_FORMAT_FUNCTIONS[e.e]( e, name ) )
 end
 
 -------------------------------------------------------------------------------
@@ -748,7 +781,7 @@ function Method:UpdateProbe()
 			
 			on = self:ListeningTo( target )
 			
-			local name, icon, color = Main.GetICName( target, guid )
+			local name, icon, color = Main.GetICName( target )
 			title = " " .. name
 			
 		end
@@ -804,7 +837,7 @@ function Method:AddMessage( e, beep )
 	
 	if e.r and not e.p and not hidden then -- not read and not from the player and not hidden
 		if self:IsShown() then
-			if beep and Main.db.char.frames[self.frame_index].sound then
+			if beep and Main.db.char.frames[self.frame_index].sound and not SKIP_BEEP[e.e] then
 				Main:PlayMessageBeep() 
 				Main:FlashClient()
 			end
@@ -855,7 +888,7 @@ end
 --               region
 --
 local function UpdateReadmark( self, region, first_id )
-
+print("UPDATELIGHTLITH" )
 	-- todo: option for hiding readmark here.
 	
 	self.readmark:SetColorTexture( unpack( Main.db.profile.frame.color.readmark ) )

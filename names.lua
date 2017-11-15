@@ -127,9 +127,11 @@ function Main.GetICName( name, get_full )
 		color = GetCharacterClassColor( Main.guidmap[name] )
 	end
 	
-	g_cache[name] = {
-		t = GetTime();
-		r = {firstname, icon, color};
-	}
+	if not get_full then
+		g_cache[name] = {
+			t = GetTime();
+			r = {firstname, icon, color};
+		}
+	end
 	return firstname, icon, color
 end

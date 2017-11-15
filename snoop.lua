@@ -13,7 +13,6 @@ local g_update_time  = 0
 
 -------------------------------------------------------------------------------
 local MESSAGE_PREFIXES = {
-	
 	PARTY           = "[P] ";
 	PARTY_LEADER    = "[P] ";
 	RAID            = "[R] ";
@@ -23,6 +22,8 @@ local MESSAGE_PREFIXES = {
 	OFFICER         = "[O] ";
 	GUILD           = "[G] ";
 	RAID_WARNING    = "[RW] ";
+	WHISPER         = "[W From] ";
+	WHISPER_INFORM  = "[W To] ";
 }
 
 -------------------------------------------------------------------------------
@@ -95,7 +96,7 @@ local function GetHexCode( color )
 end
 
 -------------------------------------------------------------------------------
-local ENTRY_CHAT_REMAP = { ROLL = "SYSTEM" }
+local ENTRY_CHAT_REMAP = { ROLL = "SYSTEM", OFFLINE = "SYSTEM", ONLINE = "SYSTEM" }
 local function GetEntryColor( e )
 	local info
 	if e.c then
@@ -170,7 +171,11 @@ function Me.SetText( name )
 			local msgtext = e.m
 			msgtext = msgtext:gsub( "|r", color )
 			
-			local prefix = (Main.db.profile.snoop.partyprefix and MESSAGE_PREFIXES[ e.e ]) or ""
+			if e.e == "EMOTE" then
+				msgtext = Main.GetICName(e.s) .. " " .. msgtext
+			end
+			
+			local prefix = MESSAGE_PREFIXES[ e.e ] or ""
 			text = string.format( "%s %s%s%s", stamp, color, prefix, msgtext ) .. text
 			
 			count = count + 1
@@ -367,9 +372,10 @@ function Me.Lock()
 	end
 end
 
--------------------------------------------------------------------------------
-function Me.PopulateFilterMenu( level )
-	Main.PopulateFilterMenu( level, { "Public", "Party", "Raid", "Instance", "Guild", "Officer", "Rolls", "Whisper", "Channel" },
+function Me.SetupFilterMenu()
+	Main.SetupFilterMenu(
+		{ "Public", "Party", "Raid", "Instance", 
+		  "Guild", "Officer", "Rolls", "Whisper", "Channel" },
 		function( filter )
 			return Main.db.char.snoop_filter[filter]
 		end,
@@ -379,4 +385,9 @@ function Me.PopulateFilterMenu( level )
 			end
 			Me.DoUpdate()
 		end)
+end
+
+-------------------------------------------------------------------------------
+function Me.PopulateFilterSubMenu( level, menuList )
+	Main.PopulateFilterSubMenu( level, menuList )
 end

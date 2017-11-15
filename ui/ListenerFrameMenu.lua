@@ -334,11 +334,24 @@ local function InitializeMenu( self, level, menuList )
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
 		
+		Main.SetupFilterMenu(
+			{ "Public", "Party", "Raid", "Whisper", "Instance", "Guild", "Officer", "Rolls", "Channel", "Misc" }, 
+			function( filter )
+				return Me.menu_parent:HasEvent( filter )
+			end,
+			function( filters, checked )
+				if checked then
+					Me.menu_parent:AddEvents( unpack( filters ))
+				else
+					Me.menu_parent:RemoveEvents( unpack( filters ))
+				end
+			end)
+			
 		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Filter"]
 		info.notCheckable     = true
 		info.hasArrow         = true
-		info.menuList         = "SHOW"
+		info.menuList         = "FILTERS"
 		info.tooltipTitle     = L["Display filter."]
 		info.tooltipText      = L["Selects which chat types to display."]
 		info.tooltipOnButton  = true
@@ -406,20 +419,10 @@ local function InitializeMenu( self, level, menuList )
 			UIDropDownMenu_AddButton( info, level )
 		end
 	
-	elseif menuList == "SHOW" then
+	elseif menuList and menuList:find( "FILTERS" ) then
 		
-		Main.PopulateFilterMenu( level, 
-			{ "Public", "Party", "Raid", "Instance", "Guild", "Officer", "Rolls", "Channel" }, 
-			function( filter )
-				return Me.menu_parent:HasEvent( filter )
-			end,
-			function( filters, checked )
-				if checked then
-					Me.menu_parent:AddEvents( unpack( filters ))
-				else
-					Me.menu_parent:RemoveEvents( unpack( filters ))
-				end
-			end)
+		Main.PopulateFilterSubMenu( level, menuList )
+		
 	elseif menuList == "PLAYERS" then
 		PopulatePlayersMenu( level )
 	elseif menuList == "RAID" then

@@ -22,6 +22,14 @@ SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%%s", "(%%S+)" )
 SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%%d", "(%%d+)" )
 SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%(%(%%d%+%)%-%(%%d%+%)%)", "%%((%%d+)%%-(%%d+)%%)" ) -- this is what we call voodoo?
 
+local SYSTEM_ONLINE_PATTERN = ERR_FRIEND_ONLINE_SS
+SYSTEM_ONLINE_PATTERN = SYSTEM_ONLINE_PATTERN:gsub( "|Hplayer:%%s|h%[%%s%]|h", "|Hplayer:([^|]+)|h%%[[^%%]]+%%]|h" )
+SYSTEM_ONLINE_PATTERN = SYSTEM_ONLINE_PATTERN:gsub( "%.", "%%." )
+
+local SYSTEM_OFFLINE_PATTERN = ERR_FRIEND_OFFLINE_S
+SYSTEM_OFFLINE_PATTERN = SYSTEM_OFFLINE_PATTERN:gsub( "%%s", "(%%S+)" )
+SYSTEM_OFFLINE_PATTERN = SYSTEM_OFFLINE_PATTERN:gsub( "%.", "%%." )
+
 --[[
  Chat history database:
     Main.chat_history = {
@@ -319,16 +327,33 @@ end
 -- Hook for system messages (player rolls)
 --
 function Main:OnSystemMsg( event, message )
-	if DiceMaster4 then
-		-- user is using DiceMaster4, and we should instead listen for dicemaster events
-		return
+
+	do
+		local sender = message:match( SYSTEM_ONLINE_PATTERN )
+		if sender then
+			self:AddChatHistory( sender, "ONLINE", L["has come online."] )
+			return
+		end
+		
+		local sender = message:match( SYSTEM_OFFLINE_PATTERN ) 
+		if sender then
+			self:AddChatHistory( sender, "OFFLINE", L["has gone offline."] )
+			return
+		end
 	end
-	
-	local sender, roll, min, max = message:match( SYSTEM_ROLL_PATTERN )
-	if sender then
-		-- this is a roll message
-		self:AddChatHistory( sender, "ROLL", message )
-		Main.Snoop.DoUpdate( sender )
+
+	if not DiceMaster4 then
+		-- skip this if theyre using dicemaster
+		-- and we just listen for dicemaster's roll events.
+		local sender, roll, min, max = message:match( SYSTEM_ROLL_PATTERN )
+		
+		if sender then
+			-- this is a roll message
+			self:AddChatHistory( sender, "ROLL", message )
+			Main.Snoop.DoUpdate( sender )
+			
+			return
+		end
 	end
 end
 
@@ -346,7 +371,7 @@ function Main:OnChatMsgTextEmote( event, message, sender, language, a4, a5, a6, 
 	Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
 		
 end
-
+  
 -------------------------------------------------------------------------------
 function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
 	local filters = ChatFrame_GetMessageEventFilters( event )
@@ -357,7 +382,7 @@ function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a
 		end
 	end
 	
-	if event == "CHANNEL" and IGNORED_CHANNELS[a9:lower()] then
+	if event:find( "CHANNEL" ) and IGNORED_CHANNELS[a9:lower()] then
 		-- this channel is ignored and not logged.
 		return
 	end	
@@ -396,7 +421,7 @@ function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a
 	end
 	
 	Main:AddChatHistory( sender, event, message, language, guid, a9 )
-	Main.Snoop.DoUpdate( sender )
+	Main.Snoop.DoUpdate( Ambiguate( sender, "all" ) )
 end
 
 -------------------------------------------------------------------------------
@@ -534,7 +559,7 @@ local function Linkify( msg )
 	msg = msg:gsub( "%s(https?://%S+)%s", getlink )
 	
 	-- abc.me/aaa
-	msg = msg:gsub( "%s(%S+%.%S+/%S*)%s", getlink )
+	msg = msg:gsub( "%s([A-Za-z0-9-]+%.[A-Za-z0-9]+/%S*)%s", getlink )
 	
 	-- and then insert them with formatting.
 	msg = msg:gsub( "\001(%d+)\001", function(i)
@@ -546,11 +571,13 @@ end
 
 -------------------------------------------------------------------------------
 function Main:AddChatHistory( sender, event, message, language, guid, channel )
-
-	if message == "" then return end
+	
+	if message == "" and (event ~= "CHANNEL_JOIN" and event ~= "CHANNEL_LEAVE") then return end
 	sender = Ambiguate( sender, "all" )
 	
-	Main.guidmap[sender] = guid
+	if guid then
+		Main.guidmap[sender] = guid
+	end
 	
 	self.chat_history[sender] = self.chat_history[sender] or {}
 	
@@ -600,7 +627,7 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 		r  = true;              -- unread
 	}
 	
-	if event == "CHANNEL" then
+	if event:find( "CHANNEL" ) then
 		entry.c = channel:upper()
 	end
 	
@@ -1012,7 +1039,7 @@ function Main:OnEnable()
 	self:RegisterEvent( "CHAT_MSG_EMOTE", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_TEXT_EMOTE", "OnChatMsgTextEmote" )
 	self:RegisterEvent( "CHAT_MSG_WHISPER", "OnChatMsg" )
-	--self:RegisterEvent( "CHAT_MSG_WHISPER_INFORM", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_WHISPER_INFORM", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_PARTY", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_PARTY_LEADER", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_RAID", "OnChatMsg" )
@@ -1022,6 +1049,8 @@ function Main:OnEnable()
 	self:RegisterEvent( "CHAT_MSG_GUILD", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_OFFICER", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_CHANNEL", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_CHANNEL_JOIN", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_CHANNEL_LEAVE", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_INSTANCE_CHAT", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_INSTANCE_CHAT_LEADER", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_SYSTEM", "OnSystemMsg" )

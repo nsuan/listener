@@ -147,11 +147,12 @@ local function InitializeOptionsMenu( self, level, menuList )
 		info.notCheckable = true
 		UIDropDownMenu_AddButton( info, level )
 		
+		Main.Snoop.SetupFilterMenu()
 		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Snooper"]
 		info.notCheckable     = true
 		info.hasArrow         = true
-		info.menuList         = "SNOOPER"
+		info.menuList         = "FILTERS"
 		info.keepShownOnClick = true
 		UIDropDownMenu_AddButton( info, level )
 		
@@ -162,8 +163,8 @@ local function InitializeOptionsMenu( self, level, menuList )
 		end
 		info.notCheckable = true
 		UIDropDownMenu_AddButton( info, level )
-	elseif level == 2 and menuList == "SNOOPER" then
-		Main.Snoop.PopulateFilterMenu( level )
+	elseif menuList and menuList:find("FILTERS") then
+		Main.Snoop.PopulateFilterSubMenu( level, menuList )
 	end
 end
 

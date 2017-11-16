@@ -195,7 +195,7 @@
       </Button>
       
       <!-- The main chatbox. -->
-      <ScrollingMessageFrame name="$parentChat" parentKey="chatbox" maxlines="500" displayduration="300" nonspacewrap="true">
+      <ScrollingMessageFrame name="$parentChat" parentKey="chatbox" maxlines="300" displayduration="300" nonspacewrap="true">
         <Anchors>
           <Anchor point="LEFT"   x="2" y="-6"/>
           <Anchor point="RIGHT"  x="-2" y="-6"/>

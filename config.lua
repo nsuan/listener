@@ -77,7 +77,7 @@ local DB_DEFAULTS = {
 		};
 		
 		-- events that the snooper is listening to
-		snoop_filter = { 
+		snoop_filter = {
 			SAY  = true, EMOTE       = true, TEXT_EMOTE   = true, 
 			YELL = true, PARTY       = true, PARTY_LEADER = true, 
 			RAID = true, RAID_LEADER = true, RAID_WARNING = true,
@@ -93,7 +93,6 @@ local DB_DEFAULTS = {
 		};
 		
 		-- general settings
-		locked           = false; -- unused?
 		addgrouped       = true;  -- add player's party automatically (todo)
 		flashclient      = true;  -- flash taskbar on message
 		beeptime         = 3;     -- time needed between emotes to play another sound
@@ -103,6 +102,7 @@ local DB_DEFAULTS = {
 		strip_titles     = true;
 		
 		convert_links    = true;
+		trp_emotes       = true; -- allow trp style pipe emotes
 		
 		keywords_enable  = true;
 		keywords_string  = "<firstname>, <lastname>, <oocname>";
@@ -158,10 +158,10 @@ local DB_DEFAULTS = {
 			auto_fade_opacity = 20;
 			
 			font = {
-				size = 14; -- except for this - this is custom per window
+				size = 12; -- except for this - this is custom per window
 				face = "Arial Narrow";
 				outline = 1;
-				shadow = false;
+				shadow = true;
 			};
 			
 			-- shared between all windows
@@ -187,20 +187,24 @@ local DB_DEFAULTS = {
 			};
 		};
 		
-		-- snooper settings
+		-- snooper settings, this is also a frame.
 		snoop = {
-			point   = {};
-			width  = 400;
-			height = 500;
-			show   = true;
-			partyprefix = false; -- show prefixes for party chat channels
-			
-			font = {
-				size = 11;
-				face = "Myriad Condensed Web";
-				outline = 2;
-				shadow = true;
+		
+			layout = {
+				anchor = {};
+				width  = 350;
+				height = 400;
 			};
+			
+			locked             = false;
+			auto_fade          = 0;
+			tab_size           = 0;
+			timestamp_brackets = true;
+			shift_mouse        = true;
+			name_colors        = true;
+			
+			font  = {};
+			color = {};
 		};
 		
 	};
@@ -335,6 +339,20 @@ Main.config_options = {
 					end;
 				};
 				
+				trp_emotes = {
+					order = 82;
+					name  = L["TRP NPC Emotes"];
+					desc  = L["Hide name when an emote is prefixed by |."];
+					type  = "toggle";
+					set = function( info, val )
+						Main.db.profile.trp_emotes = val
+						RefreshAllChat()
+					end;
+					get = function( info )
+						return Main.db.profile.trp_emotes
+					end;
+				};
+				
 				keywords = {
 					order = 91;
 					name  = L["Keywords"];
@@ -412,46 +430,6 @@ Main.config_options = {
 					name  = L["Listener frames can be resized holding shift. The font size can be adjusted by holding Ctrl and scrolling! Additional options can be found per-frame, which is accessed from the context menu (right click the top left corner of the frame)."];
 					type  = "description"; 
 					order = 9;
-				};
-				fontface = {
-					order = 10;
-					name  = L["Chat Font"];
-					desc  = L["Font face for chatbox text."];
-					type  = "select";
-					set   = function( info, val ) 
-						Main.db.profile.frame.font.face = g_font_list[val]
-						FrameSettingsChanged()
-					end;
-					get   = function( info ) 
-						return FindValueKey( g_font_list, Main.db.profile.frame.font.face ) 
-					end;
-				};
-				outline = {
-					order  = 11;
-					name   = L["Outline"];
-					desc   = L["Font outline for chatbox text."];
-					type   = "select"; 
-					values = outline_values;
-					set    = function( info, val ) 
-						Main.db.profile.frame.font.outline = val
-						FrameSettingsChanged()
-					end;
-					get    = function( info ) 
-						return Main.db.profile.frame.font.outline 
-					end;
-				};
-				shadow = {
-					order = 12;
-					name  = L["Text Shadow"];
-					desc  = L["Enable text shadow for chatbox text."];
-					type  = "toggle"; 
-					set   = function( info, val ) 
-						Main.db.profile.frame.font.shadow = val
-						FrameSettingsChanged()
-					end;
-					get   = function( info ) 
-						return Main.db.profile.frame.font.shadow 
-					end;
 				};
 				edge_size = {
 					order = 20;
@@ -548,8 +526,8 @@ Main.config_options = {
 				};
 				auto_fade_opacity = {
 					order = 70;
-					name  = L["Auto-fade Opacity"];
-					desc  = L["Opacity for windows that fade out due to inactivity."];
+					name  = L["Auto-Fade Opacity"];
+					desc  = L["Opacity (percent) for windows that fade out due to inactivity."];
 					type  = "range";
 					min   = 0;
 					max   = 100;
@@ -584,84 +562,6 @@ Main.config_options = {
 			};
 		};
 		
-		snoop = {
-			name = L["Snooper"];
-			type = "group";
-			order=3;
-			args = {
-				desc = {
-					order = 1;
-					type = "description";
-					name = L["The snooper is a transparent window that shows a chat history for a person that you mouseover or target."];
-					
-				};
-				unlock = {
-					order = 2;
-					name = L["Unlock"];
-					desc = L["Unlock frame."];
-					type = "execute";
-					func = function() Main.Snoop.Unlock() end;
-				};
-				show = {
-					order= 3;
-					width = "full";
-					name = L["Show"];
-					desc = L["Show the snooper window."];
-					type = "toggle";
-					set  = function( info, val ) Main.Snoop.Show( val ) end;
-					get  = function( info ) return Main.db.profile.snoop.show end;
-				};
-				
-				fontface = {
-					order = 4;
-					name  = L["Font"];
-					desc  = L["Chat font."];
-					type  = "select"; 
-					set   = function( info, val ) Main.Snoop.SetFont( g_font_list[val] ) end;
-					get   = function( info ) return FindValueKey( g_font_list, Main.db.profile.snoop.font.face ) end;
-				};
-				
-				fontsize = {
-					order = 5;
-					name = L["Font Size"];
-					desc = L["Size of font."];
-					type = "range";
-					min = 4;
-					max = 20;
-					step = 1;
-					set = function( info, val ) Main.Snoop.SetFontSize( val ) end;
-					get = function( info ) return Main.db.profile.snoop.font.size end;
-				};
-				outline = {
-					order = 6;
-					name  = L["Outline"];
-					desc  = L["Chat text outline."];
-					type  = "select"; 
-					values = outline_values;
-					
-					set   = function( info, val ) Main.Snoop.SetOutline( val ) end;
-					get   = function( info ) return Main.db.profile.snoop.font.outline end;
-				};
-				shadow = {
-					order = 7;
-					name  = L["Shadow"];
-					desc  = L["Show text shadow."];
-					type  = "toggle"; 
-					set   = function( info, val ) Main.Snoop.SetShadow( val ) end;
-					get   = function( info ) return Main.db.profile.snoop.font.shadow end;
-				};
-				--[[
-				partyprefix = {
-					order = 8;
-					name  = L["Channel Prefix"];
-					desc  = L["Show channel prefixes."];
-					type  = "toggle";
-					set   = function( info, val ) Main.db.profile.snoop.partyprefix = val Main.Snoop.DoUpdate() end;
-					get   = function( info ) return Main.db.profile.snoop.partyprefix end;
-				};]]
-			};
-		};
-		
 	};
 }
   
@@ -692,9 +592,7 @@ local function InitConfigPanel()
 	local options = Main.config_options
 	
 	g_font_list = SharedMedia:List( "font" ) 
-	options.args.frame.args.fontface.values = g_font_list 
 	options.args.frame.args.bar_fontface.values = g_font_list 
-	options.args.snoop.args.fontface.values = g_font_list 
 	options.args.profile = LibStub("AceDBOptions-3.0"):GetOptionsTable( Main.db )
 	options.args.profile.order = 500
 	 
@@ -718,6 +616,14 @@ end
 -- Apply the configuration settings.
 --
 function Main:ApplyConfig( onload )
+	if not Main.db.profile.snoop.initialized then
+		Main.db.profile.snoop.initialized = true;
+		Main.db.profile.snoop.color = {
+			bg   = Hexc "00000030";
+			edge = Hexc "00000020";
+			bar  = Hexc "00000040";
+		}
+	end
 	FrameSettingsChanged()
 end
  

@@ -69,6 +69,9 @@ Main.realm          = select(2,UnitFullName("player"))
 Main.first_lineid   = 1
 Main.next_lineid    = 1
 Main.frames         = {}
+-- frame 1 is the main frame
+-- frame 2 is the snooper
+-- frame 3+ are custom frames.
 Main.active_frame   = nil
 
 local g_frame_creation_id = 0
@@ -111,7 +114,8 @@ local function CleanChatHistory()
 			if chat_table[i] then
 				chat_table[i].r = nil
 				
-				if time > chat_table[i].t + expiry then
+				if time > chat_table[i].t + expiry 
+				   or chat_table[i].e == "GUILD_MOTD" then -- discard motd events.
 					chat_table[i] = nil
 				else
 					local a = chat_table[i]
@@ -245,6 +249,8 @@ function Main:OnModifierChanged( evt, key, state )
 				frame:StopDragging()
 			end
 		end
+		
+		Main.Snoop2.UpdateMouseLock()
 	end
 end
 
@@ -320,7 +326,6 @@ end
 --
 function Main:OnDiceMasterRoll( event, sender, message )
 	self:AddChatHistory( sender, "ROLL", message )
-	Main.Snoop.DoUpdate( sender )
 end
 
 -------------------------------------------------------------------------------
@@ -350,11 +355,15 @@ function Main:OnSystemMsg( event, message )
 		if sender then
 			-- this is a roll message
 			self:AddChatHistory( sender, "ROLL", message )
-			Main.Snoop.DoUpdate( sender )
 			
 			return
 		end
 	end
+end
+
+function Main:OnGuildMOTD( event, message )
+	print( "MOTDLOAD", GetGuildRosterMOTD()) 
+	Main:AddChatHistory( "Guild", "GUILD_MOTD", message )
 end
 
 function Main:OnChatMsgTextEmote( event, message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
@@ -421,7 +430,6 @@ function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a
 	end
 	
 	Main:AddChatHistory( sender, event, message, language, guid, a9 )
-	Main.Snoop.DoUpdate( Ambiguate( sender, "all" ) )
 end
 
 -------------------------------------------------------------------------------
@@ -618,6 +626,18 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 	
 	message = SubRaidTargets( message )
 	
+	if event == "GUILD_ITEM_LOOTED" then
+		-- cut off that little $s player marker
+		-- hopefully this doesnt break things in other languages.
+		message = message:gsub( "$s%S+", "" )
+	end
+	
+	if event == "GUILD_ACHIEVEMENT" then
+		-- cut off that little $s player marker
+		-- hopefully this doesnt break things in other languages.
+		message = message:gsub( "%%s%s+", "" )
+	end
+	
 	local entry = {
 		id = Main.next_lineid;
 		t  = time();
@@ -628,7 +648,7 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 	}
 	
 	if event:find( "CHANNEL" ) then
-		entry.c = channel:upper()
+		entry.c = channel:match("^%S+"):upper()
 	end
 	
 	if isplayer then
@@ -636,8 +656,8 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 		entry.r = nil -- read
 	end
 	
-	if event == "YELL" then
-		entry.r = nil -- yells dont cause unread messages
+	if event == "YELL" or event == "GUILD_MOTD" then
+		entry.r = nil -- yells/motd dont cause unread messages
 	end
 	
 	Main.chatlist[entry.id] = entry
@@ -793,9 +813,16 @@ local function SetupFrames()
 		Main.frames[i] = frame
 	end
 	
-	-- first time creation
+	-- first time load needs to create the main and snooper frames.
+	--
 	if not Main.db.char.frames[1] then
 		Main.AddWindow()
+		Main.frames[1].charopts.name = "MAIN"
+	end
+	
+	if not Main.db.char.frames[2] then
+		Main.AddWindow()
+		Main.frames[2].charopts.name = "SNOOPER"
 	end
 	
 	Main.SetActiveFrame( Main.frames[1] )
@@ -832,7 +859,7 @@ end
 -- Cannot be the primary window.
 --
 function Main.DestroyWindow( frame )
-	if frame.frame_index == 1 then return end -- cannot delete the primary frame
+	if frame.frame_index <= 2 then return end -- cannot delete the primary frame or snooper
 	
 	Main.CloseFrameConfig( frame )
 	frame:Hide()
@@ -861,8 +888,7 @@ StaticPopupDialogs["LISTENER_NEWFRAME"] = {
 		
 		local frame = Main.AddWindow()
 		if not frame then return end
-		
-		Main.db.char.frames[frame.frame_index].name = name
+		frame.charopts.name = name
 		
 	end;
 }
@@ -1013,6 +1039,40 @@ function Main:OnRaidRosterUpdate()
 end
 
 -------------------------------------------------------------------------------
+function Main.ShowMenu( initialize )
+	if not Main.context_menu then
+		Main.context_menu = CreateFrame( "Button", "ListenerContextMenu", UIParent, "UIDropDownMenuTemplate" )
+		Main.context_menu.displayMode = "MENU"
+	end
+	
+	UIDropDownMenu_Initialize( Main.context_menu, initialize )
+	UIDropDownMenu_JustifyText( Main.context_menu, "LEFT" )
+	
+	local x,y = GetCursorPosition()
+	local scale = UIParent:GetEffectiveScale()
+	ToggleDropDownMenu( 1, nil, Main.context_menu, "UIParent", x / scale, y / scale )
+end
+
+-------------------------------------------------------------------------------
+local g_motd_tries = 0
+local function TryGetMOTD()
+	local motd = GetGuildRosterMOTD()
+	if motd and motd ~= "" then
+		Main:AddChatHistory( "Guild", "GUILD_MOTD", motd )
+		return
+	else
+		g_motd_tries = g_motd_tries + 1
+		if g_motd_tries < 30 then
+			if g_motd_tries > 10 then
+				-- after 10 seconds, we should be safe to test if we're actually in a guild.
+				if not IsInGuild() then return end
+			end
+			C_Timer.After( 1, TryGetMOTD )
+		end
+	end
+end
+
+-------------------------------------------------------------------------------
 function Main:OnEnable()
 	Main.realm = select(2,UnitFullName("player"))
 	Main.SetupBindingText()
@@ -1053,6 +1113,9 @@ function Main:OnEnable()
 	self:RegisterEvent( "CHAT_MSG_CHANNEL_LEAVE", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_INSTANCE_CHAT", "OnChatMsg" )
 	self:RegisterEvent( "CHAT_MSG_INSTANCE_CHAT_LEADER", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_GUILD_ITEM_LOOTED", "OnChatMsg" )
+	self:RegisterEvent( "CHAT_MSG_GUILD_ACHIEVEMENT", "OnChatMsg" )
+	self:RegisterEvent( "GUILD_MOTD", "OnGuildMOTD" )
 	self:RegisterEvent( "CHAT_MSG_SYSTEM", "OnSystemMsg" )
 	self:RegisterMessage( "DiceMaster4_Roll", "OnDiceMasterRoll" )
 	
@@ -1066,9 +1129,9 @@ function Main:OnEnable()
 	
 	Main.Print( L["Version:"] .. " " .. self.version )
 	
-	self:ApplyConfig()
+	Main:ApplyConfig()
 
-	Main.Snoop.Setup()
+	Main.Snoop2.Setup()
 	
 	Main.Init_OnEnabled()
 	Main.SetupProbe()
@@ -1080,4 +1143,6 @@ function Main:OnEnable()
 	C_Timer.After( 3, function() Main:OnRaidRosterUpdate() end )
 	
 	Main.InitKeywords()
+	
+	C_Timer.After( 1, TryGetMOTD )
 end

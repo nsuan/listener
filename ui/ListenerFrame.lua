@@ -16,12 +16,15 @@ local DEFAULT_LISTEN_EVENTS = {
 	"ROLL"
 }
 
+-------------------------------------------------------------------------------
 -- Events that should not make a notification.
 local SKIP_BEEP = {
-	ONLINE = true;
-	OFFLINE = true;
-	CHANNEL_JOIN = true;
-	CHANNEL_LEAVE = true;
+	ONLINE            = true;
+	OFFLINE           = true;
+	CHANNEL_JOIN      = true;
+	CHANNEL_LEAVE     = true;
+	GUILD_ACHIEVEMENT = true;
+	GUILD_MOTD        = true;
 }
 
 -------------------------------------------------------------------------------
@@ -45,14 +48,13 @@ local MSG_FORMAT_PREFIX = {
 -------------------------------------------------------------------------------
 -- Static methods
 -------------------------------------------------------------------------------
-local ENTRY_CHAT_REMAP = { ROLL = "SYSTEM", OFFLINE = "SYSTEM", ONLINE = "SYSTEM" }
+local ENTRY_CHAT_REMAP = { ROLL = "SYSTEM", OFFLINE = "SYSTEM", ONLINE = "SYSTEM", GUILD_MOTD = "GUILD", GUILD_ITEM_LOOTED = "GUILD_ACHIEVEMENT" }
 local function GetEntryColor( e )
 	local info
 	if e.c then
 		local index = GetChannelName( e.c )
 		info = ChatTypeInfo[ "CHANNEL" .. index ]
 		if not info then info = ChatTypeInfo.CHANNEL end
-		
 	else
 		local t = ENTRY_CHAT_REMAP[e.e] or e.e
 		info = ChatTypeInfo[t]
@@ -108,11 +110,6 @@ local function SetupMembers( self )
 	--self.picked = nil (too complex)
 end
 
-local function SplitOptions( self )
-	if self.frame_index == 1 then return Main.db.profile.frame end
-	return Main.db.char.frames[self.frame_index]
-end
-
 -------------------------------------------------------------------------------
 local function PickTextRegion( self, setup_highlight )
 	for _,v in pairs( self.pick_regions ) do
@@ -148,14 +145,8 @@ end
 --
 local function AdjustFontSize( self, delta )
 	local size = 0
-	if self.frame_index == 1 then
-		size = Main.db.profile.frame.font.size
-	else
-		size = Main.db.char.frames[self.frame_index].font_size or Main.db.profile.frame.font.size
-	end
-	
+	size = self.frameopts.font.size or self.baseopts.font.size
 	size = size + delta
-	
 	self:SetFontSize( size )
 end
 
@@ -164,6 +155,7 @@ end
 --
 local function SaveFrameLayout( self )
 	if not self.frame_index then return end
+	
 	local point, region, point2, x, y = self:GetPoint(1)
 	local width, height = self:GetSize()
 	width  = math.floor( width + 0.5 )
@@ -176,29 +168,20 @@ local function SaveFrameLayout( self )
 		height = height;
 	}
 	
-	if self.frame_index == 1 then
-		-- primary frame
-		Main.db.profile.frame.layout = layout
-	else
-		-- other frame
-		Main.db.char.frames[self.frame_index].layout = layout
-	end
+	self.frameopts.layout = layout
 	
 	LibStub("AceConfigRegistry-3.0"):NotifyChange( "Listener Frame Settings" )
 end
 
 -------------------------------------------------------------------------------
 local function ShowOrHide( self, show, save )
-	if show and not self:IsShown() then
-		self.fade_time = GetTime()
-		self:Show()
-	elseif not show and self:IsShown() then
-		self:Hide()
-	end
 	
 	if save then
-		Main.db.char.frames[self.frame_index].hidden = not show
+		self.charopts.hidden = not show
+		if show then self.fade_time = GetTime() end
 	end
+	
+	self:UpdateShown()
 end
 
 -------------------------------------------------------------------------------
@@ -255,6 +238,44 @@ local function EntryFilter( self, entry )
 	return self.listen_events[entry.e]
 end
 
+-------------------------------------------------------------------------------
+-- Public Methods
+-------------------------------------------------------------------------------
+local Method = {}
+Me.methods = Method
+
+-------------------------------------------------------------------------------
+-- Link this frame to the database.
+--
+function Method:SetFrameIndex( index )
+	if index == nil then return end
+	
+	self.frame_index = index
+	Me.InitOptions( index )
+	self.players       = Main.db.char.frames[index].players
+	self.listen_events = Main.db.char.frames[index].filter
+	self.groups        = Main.db.char.frames[index].groups
+	
+	-- baseopts exist at the profile level and may contain
+	-- global options.
+	-- frameopts are options that override them.
+	-- for the snooper frameopts is stored on the profile level
+	-- otherwise theyre at the character level.
+	if index == 1 then
+		self.frameopts = Main.db.profile.frame
+	elseif index == 2 then
+		self.frameopts = Main.db.profile.snoop
+	else
+		self.frameopts = Main.db.char.frames[index]
+	end
+	self.baseopts = Main.db.profile.frame
+	
+	-- char options exist only at the character level and are
+	-- initialized when the frame is created
+	self.charopts = Main.db.char.frames[index]
+end
+
+-------------------------------------------------------------------------------
 local TIMESTAMP = {
 	
 	-- HH:MM:SS
@@ -277,15 +298,22 @@ local TIMESTAMP = {
 -- Normal "name: text"
 local function MsgFormatNormal( e, name )
 	local prefix = MSG_FORMAT_PREFIX[e.e] or ""
-	if e.e == "CHANNEL" then
-		prefix = prefix:gsub( "C", (GetChannelName( e.c )) )
-	end
+	return prefix .. name .. ": " .. e.m
+end
+
+-------------------------------------------------------------------------------
+local function MsgFormatNormalChannel( e, name )
+	local prefix = MSG_FORMAT_PREFIX[e.e] or ""
+	prefix = prefix:gsub( "C", (GetChannelName( e.c )) )
 	return prefix .. name .. ": " .. e.m
 end
 
 -------------------------------------------------------------------------------
 -- No separator between name and text.
 local function MsgFormatEmote( e, name )
+	if Main.db.profile.trp_emotes and e.m:sub(1,3) == "|| " then
+		return e.m:sub( 4 )
+	end
 	return name .. " " .. e.m
 end
 
@@ -309,6 +337,11 @@ local function MsgFormatJoinLeave( e, name )
 end
 
 -------------------------------------------------------------------------------
+local function MsgFormatGuildMOTD( e, name )
+	return "|cffffffff" .. L["Guild Message of the Day: "] .. "|r" .. e.m
+end
+
+-------------------------------------------------------------------------------
 local MSG_FORMAT_FUNCTIONS = { 
 	SAY                  = MsgFormatNormal;
 	PARTY                = MsgFormatNormal;
@@ -321,17 +354,21 @@ local MSG_FORMAT_FUNCTIONS = {
 	INSTANCE_CHAT_LEADER = MsgFormatNormal;
 	GUILD                = MsgFormatNormal;
 	OFFICER              = MsgFormatNormal;
-	CHANNEL              = MsgFormatNormal;
+	CHANNEL              = MsgFormatNormalChannel;
 	
 	EMOTE   = MsgFormatEmote;
 	ONLINE  = MsgFormatEmote;
 	OFFLINE = MsgFormatEmote;
+	GUILD_ITEM_LOOTED = MsgFormatEmote;
+	GUILD_ACHIEVEMENT = MsgFormatEmote;
 	
 	CHANNEL_JOIN  = MsgFormatJoinLeave;
 	CHANNEL_LEAVE = MsgFormatJoinLeave;
 	
 	TEXT_EMOTE = MsgFormatTextEmote;
 	ROLL       = MsgFormatTextEmote;
+	
+	GUILD_MOTD = MsgFormatGuildMOTD;
 }
 
 -------------------------------------------------------------------------------
@@ -342,7 +379,7 @@ setmetatable( MSG_FORMAT_FUNCTIONS, {
 })
 
 -------------------------------------------------------------------------------
-local function FormatChatMessage( self, e )
+function Method:FormatChatMessage( e )
 	
 	local stamp = ""
 	local ts = Main.db.profile.frame.timestamps
@@ -370,25 +407,6 @@ local function FormatChatMessage( self, e )
 	name = "|Hplayer:" .. e.s .. "|h" .. name .. "|h" 
 	
 	return string.format( "%s%s%s", stamp, icon, MSG_FORMAT_FUNCTIONS[e.e]( e, name ) )
-end
-
--------------------------------------------------------------------------------
--- Public Methods
--------------------------------------------------------------------------------
-local Method = {}
-Me.methods = Method
-
--------------------------------------------------------------------------------
--- Link this frame to the database.
---
-function Method:SetFrameIndex( index )
-	self.frame_index = index
-	if not Main.db.char.frames[index] then
-		Me.InitOptions( index )
-	end
-	self.players       = Main.db.char.frames[index].players
-	self.listen_events = Main.db.char.frames[index].filter
-	self.groups        = Main.db.char.frames[index].groups
 end
 
 -------------------------------------------------------------------------------
@@ -424,11 +442,14 @@ end
 
 -------------------------------------------------------------------------------
 function Method:UpdateVisibility()
-	local hover = self:IsMouseOver( 8, -8, -8, 8 )
+	local hover = self:IsMouseOver( 8, -8, -8, 8 ) 
 	
 	local faded = self.auto_fade > 0 and GetTime() > self.fade_time + self.auto_fade
 	
-	self:ShowBar( hover or (Main.active_frame == self and not faded) )
+	self:ShowBar( 
+		(hover and not (self.snooper and self.frameopts.locked))
+		or self.dragging 
+		or (Main.active_frame == self and not faded) )
 	
 	if self.auto_fade > 0 then
 		local alpha = self:GetAlpha()
@@ -482,12 +503,7 @@ function Method:SetFontSize( size )
 	size = math.max( size, 6 )
 	size = math.min( size, 24 )
 	
-	if self.frame_index == 1 then
-		Main.db.profile.frame.font.size = size
-	else
-		Main.db.char.frames[self.frame_index].font_size = size
-	end
-	
+	self.frameopts.font.size = size
 	self:ApplyChatOptions()
 end
 
@@ -495,6 +511,9 @@ end
 -- Load all options.
 --
 function Method:ApplyOptions()
+
+	self:SetFrameIndex( self.frame_index )
+
 	self:ApplyLayoutOptions()
 	self:ApplyChatOptions()
 	self:ApplyColorOptions()
@@ -504,23 +523,24 @@ end
 
 -------------------------------------------------------------------------------
 function Method:ApplyOtherOptions()
-	self.bar2.hidden_button:SetOn( Main.db.char.frames[self.frame_index].showhidden )
-	self.auto_fade = Main.db.char.frames[self.frame_index].auto_fade or Main.db.profile.frame.auto_fade
-	self.auto_fade_opacity = Main.db.profile.frame.auto_fade_opacity / 100
+	self.bar2.hidden_button:SetOn( self.charopts.showhidden )
+	
+	self.auto_fade         = self.frameopts.auto_fade or self.baseopts.auto_fade
+	self.auto_fade_opacity = self.baseopts.auto_fade_opacity / 100
 end
 
 -------------------------------------------------------------------------------
 function Method:ApplyColorOptions()
-	if not Main.db.char.frames[self.frame_index].color then Main.db.char.frames[self.frame_index].color = {} end
-	local bgcolor = Main.db.char.frames[self.frame_index].color.bg or Main.db.profile.frame.color.bg
+	
+	local bgcolor = self.frameopts.color.bg or self.baseopts.color.bg
 	self.bg:SetColorTexture( unpack( bgcolor ))
 	
-	local edgecolor = Main.db.char.frames[self.frame_index].color.edge or Main.db.profile.frame.color.edge
+	local edgecolor = self.frameopts.color.edge or self.baseopts.color.edge
 	for k,v in pairs( self.edges ) do
 		v:SetColorTexture( unpack( edgecolor )) 
 	end
 	
-	local bar_color = Main.db.char.frames[self.frame_index].color.bar or Main.db.profile.frame.color.bar
+	local bar_color = self.frameopts.color.bar or self.baseopts.color.bar
 	self.bar2.bg:SetColorTexture( unpack( bar_color ) )
 end
 
@@ -529,11 +549,7 @@ end
 --
 function Method:ApplyLayoutOptions()
 	local layout
-	if self.frame_index == 1 then
-		layout = Main.db.profile.frame.layout
-	else
-		layout = Main.db.char.frames[self.frame_index].layout
-	end
+	layout = self.frameopts.layout
 	
 	self:ClearAllPoints()
 	local anchor = layout.anchor
@@ -566,25 +582,11 @@ function Method:ApplyLayoutOptions()
 			edge:Hide()
 		end
 	else
-		-- top
-		self.edges[1]:SetPoint( "TOPLEFT",     self, "TOPLEFT",  -es, es )
-		self.edges[1]:SetPoint( "BOTTOMRIGHT", self, "TOPRIGHT",  es, 0 )
-		-- bottom
-		self.edges[2]:SetPoint( "TOPLEFT",     self, "BOTTOMLEFT",  -es, 0 )
-		self.edges[2]:SetPoint( "BOTTOMRIGHT", self, "BOTTOMRIGHT",  es, -es )
-		-- left
-		self.edges[3]:SetPoint( "TOPLEFT",     self, "TOPLEFT",    -es, 0 )
-		self.edges[3]:SetPoint( "BOTTOMRIGHT", self, "BOTTOMLEFT", -0, 0 )
-		-- right
-		self.edges[4]:SetPoint( "TOPLEFT",     self, "TOPRIGHT",     0, 0 )
-		self.edges[4]:SetPoint( "BOTTOMRIGHT", self, "BOTTOMRIGHT",  es, 0 )
+		Me.CraftEdges( self, es )
 		
-		for _, edge in pairs( self.edges ) do
-			edge:Show()
-		end
 	end
 	
-	if Main.db.char.frames[self.frame_index].hidden then
+	if self.charopts.hidden then
 		self:Hide()
 	else
 		self:Show()
@@ -595,45 +597,34 @@ end
 -- Options for the chat/text appearance.
 --
 function Method:ApplyChatOptions()
-	local outline = nil
-	if Main.db.profile.frame.font.outline == 2 then
+
+	local outline = self.frameopts.font.outline or self.baseopts.font.outline
+	local face    = self.frameopts.font.face    or self.baseopts.font.face
+	local size    = self.frameopts.font.size    or self.baseopts.font.size
+	local shadow  = self.frameopts.font.shadow
+	if shadow == nil then shadow = self.baseopts.font.shadow end
+	
+	if outline == 2 then
 		outline = "OUTLINE"
-	elseif Main.db.profile.frame.font.outline == 3 then
+	elseif outline == 3 then
 		outline = "THICKOUTLINE"
-	end
-	local font = SharedMedia:Fetch( "font", Main.db.profile.frame.font.face )
-	
-	local size = 0
-	if self.frame_index == 1 then
-		size = Main.db.profile.frame.font.size
 	else
-		size = Main.db.char.frames[self.frame_index].font_size 
-		       or Main.db.profile.frame.font.size
+		outline = nil
 	end
+	face = SharedMedia:Fetch( "font", face )
 	
-	self.chatbox:SetFont( font, size, outline )
+	self.chatbox:SetFont( face, size, outline )
 	
-	if Main.db.profile.frame.font.shadow then 
+	if shadow then
 		self.chatbox:SetShadowColor( 0, 0, 0, 0.8 )
-		self.chatbox:SetShadowOffset( 1,-1 )
+		self.chatbox:SetShadowOffset( 1, -1 )
 	else
 		self.chatbox:SetShadowColor( 0, 0, 0, 0 )
 	end
 	
-	local tabsize = Main.db.char.frames[self.frame_index].tab_size
-	                or Main.db.profile.frame.tab_size
+	local tabsize = self.frameopts.tab_size or self.baseopts.tab_size
 	
 	self.chatbox:SetPoint( "LEFT", self, "LEFT", 2 + tabsize, 0 )
-	
-	--local time_visible = Main.db.char.frames[self.frame_index].time_visible 
-	--                     or Main.db.profile.frame.time_visible
---[[	if time_visible == 0 then
-		self.chatbox:SetFading( false )
-	else
-		self.chatbox:SetFading( true )
-		self.chatbox:SetFadeDuration( 3.0 )
-		self.chatbox:SetTimeVisible( time_visible )
-	end]]
 end
 
 -------------------------------------------------------------------------------
@@ -737,7 +728,7 @@ function Method:ListeningTo( name )
 		end
 	end
 	
-	return f == 1 or (Main.db.char.frames[self.frame_index].listen_all and f ~= 0)
+	return f == 1 or (self.charopts.listen_all and f ~= 0)
 end
 
 function Method:ResetGroupsFilter()
@@ -758,7 +749,7 @@ function Method:TogglePlayer( name, silent )
 	elseif self.players[name] == 0 then
 		self:AddPlayer( name, silent )
 	else
-		if Main.db.char.frames[self.frame_index].listen_all then
+		if self.charopts.listen_all then
 			self:RemovePlayer( name, silent )
 		else
 			self:AddPlayer( name, silent )
@@ -770,21 +761,20 @@ end
 -- Called when the window is active and the probe target changes.
 --
 function Method:UpdateProbe()
+	if self.snooper then return end -- the snooper does not have this.
 
 	local title = "—"
 	local on = false
 	
-	if Main.active_frame == self then
-		local target, guid = Main:GetProbed()
+	local target, guid = Main:GetProbed()
+	
+	if target then
 		
-		if target then
-			
-			on = self:ListeningTo( target )
-			
-			local name, icon, color = Main.GetICName( target )
-			title = " " .. name
-			
-		end
+		on = self:ListeningTo( target )
+		
+		local name, icon, color = Main.GetICName( target )
+		title = " " .. name
+		
 	end
 	
 	self.bar2.title:SetText( title )
@@ -806,25 +796,10 @@ end
 -- @param e    Message event data.
 -- @param beep Enable playing a beep.
 --
-function Method:AddMessage( e, beep )
+function Method:AddMessage( e, beep, from_refresh )
 	if not EntryFilter( self, e ) then return end
 	
 	self.fade_time = GetTime()
-	
-	-- autopopup
-	if not self:IsShown() then
-		local autopopup = self.frame_index == 1 and Main.db.profile.frame.auto_popup
-		                                         or Main.db.char.frames[self.frame_index].auto_popup
-		if autopopup then
-			if Main.db.char.frames[self.frame_index].combathide and InCombatLockdown() then
-				-- if we're in combat, just clear the hidden flag
-				-- so that it opens when we exit combat
-				Main.db.char.frames[self.frame_index].hidden = false
-			else
-				self:Open()
-			end
-		end
-	end
 	
 	self.chatid = self.chatid + 1
 	
@@ -837,7 +812,7 @@ function Method:AddMessage( e, beep )
 	
 	if e.r and not e.p and not hidden then -- not read and not from the player and not hidden
 		if self:IsShown() then
-			if beep and Main.db.char.frames[self.frame_index].sound and not SKIP_BEEP[e.e] then
+			if beep and self.charopts.sound and not SKIP_BEEP[e.e] then
 				Main:PlayMessageBeep() 
 				Main:FlashClient()
 			end
@@ -851,14 +826,34 @@ function Method:AddMessage( e, beep )
 	
 	local color = GetEntryColor( e )
 	
-	self.chatbox:AddMessage( FormatChatMessage( self, e ), color[1], color[2], color[3], self.chatid )
+	self.chatbox:AddMessage( self:FormatChatMessage( e ), color[1], color[2], color[3], self.chatid )
+	
+	-- autopopup/hideempty popup
+	if not self:IsShown() and not from_refresh then
+		if self.frameopts.auto_popup then
+			if self.charopts.combathide and InCombatLockdown() then
+				-- if we're in combat, just clear the hidden flag
+				-- so that it opens when we exit combat
+				self.charopts.hidden = false
+				
+				-- this causes the window to fade in after combat ends.
+				self.fadein_after_combat = true 
+			else
+				self:Open()
+			end
+		end
+		
+		if self.frameopts.hideempty then
+			self:UpdateShown()
+		end
+	end
 end
 
 -------------------------------------------------------------------------------
 -- Add a message into the chat window if it passes our filters.
 --
 function Method:TryAddMessage( e, beep )
-	if Main.db.char.frames[self.frame_index].showhidden or self:ListeningTo( e.s ) then
+	if self.charopts.showhidden or self:ListeningTo( e.s ) then
 		self:AddMessage( e, beep )
 	end
 end
@@ -888,7 +883,7 @@ end
 --               region
 --
 local function UpdateReadmark( self, region, first_id )
-print("UPDATELIGHTLITH" )
+
 	-- todo: option for hiding readmark here.
 	
 	self.readmark:SetColorTexture( unpack( Main.db.profile.frame.color.readmark ) )
@@ -959,8 +954,7 @@ function Method:UpdateHighlight()
 	local first_unread_region = nil
 	--local first_unread_id     = 0
 	
-	local tabsize = Main.db.char.frames[self.frame_index].tab_size
-	                or Main.db.profile.frame.tab_size
+	local tabsize = self.frameopts.tab_size or self.baseopts.tab_size
 					
 	-- we'll build the pick_regions table in here too!
 	local pick_regions = {}
@@ -983,8 +977,9 @@ function Method:UpdateHighlight()
 			end
 			
 			local targeted = (Main.GetProbed() == e.s) and (Main.db.profile.frame.color.tab_target[4] > 0)
+			
 
-			if tabsize > 0 and targeted or e.p or e.h then
+			if tabsize > 0 and ((targeted or e.p) and not self.snooper) or e.h then
 				-- setup block
 				count = count + 1
 				if not self.tab_texes[count] then
@@ -1019,7 +1014,7 @@ function Method:UpdateHighlight()
 	
 	local e = self.chat_buffer[chat_index_start]
 	if e then e = e.e end
-	if e and (Main.db.profile.frame.color.readmark[4] > 0) and Main.db.char.frames[self.frame_index].readmark then
+	if e and (self.baseopts.color.readmark[4] > 0) and self.frameopts.readmark then
 		UpdateReadmark( self, first_unread_region, e.id )
 	else
 		self.readmark:Hide()
@@ -1031,41 +1026,76 @@ function Method:UpdateHighlight()
 end	
 
 -------------------------------------------------------------------------------
+function Method:UpdateShown()
+	if self:IsShown() then
+		if self.charopts.hidden 
+		   or (self.frameopts.combathide and InCombatLockdown()) 
+		   or (self.chatid == 0 and self.frameopts.hideempty) then
+		   
+			self:Hide()
+		end
+	else
+		if not self.charopts.hidden
+		   and not (self.frameopts.combathide and InCombatLockdown()) 
+		   and not (self.chatid == 0 and self.frameopts.hideempty) then
+			self:Show()
+		end
+	end
+end
+
+-------------------------------------------------------------------------------
 function Method:RefreshChat()
 	self.chatbox:Clear()
 	self.chat_buffer = {}
 	self.chatid = 0
 	self:CheckUnread()
 	
-	local entries = {}
-	
-	local listen_all = Main.db.char.frames[self.frame_index].listen_all
-	local showhidden = Main.db.char.frames[self.frame_index].showhidden
-	
-	-- go through the chat list and populate entries
-	for i = Main.next_lineid-1, Main.first_lineid, -1 do
-		local entry = Main.chatlist[i]
-		if entry then
-			if EntryFilter( self, entry ) then
-				
-				if showhidden or self:ListeningTo( entry.s ) then
-					table.insert( entries, entry )
+	if not self.snooper then
+		local entries = {}
+		
+		local listen_all = self.charopts.listen_all
+		local showhidden = self.charopts.showhidden
+		
+		-- go through the chat list and populate entries
+		for i = Main.next_lineid-1, Main.first_lineid, -1 do
+			local entry = Main.chatlist[i]
+			if entry then
+				if EntryFilter( self, entry ) then
+					
+					if showhidden or self:ListeningTo( entry.s ) then
+						table.insert( entries, entry )
+					end
+				end
+			end
+			
+			-- break when we have enough messages
+			if #entries >= CHAT_BUFFER_SIZE then
+				break
+			end
+		end
+
+		-- TODO: disable chatbox refreshes until this is done
+		-- (check to see if its spammed.)
+		for i = #entries, 1, -1 do
+			self:AddMessage( entries[i], false, true )
+		end
+		
+	else
+		if self.snoop_player then
+			local chat = Main.chat_history[self.snoop_player]
+			if chat then
+				local start, stop
+				stop = #chat
+				start = math.max( stop - CHAT_BUFFER_SIZE, 1 )
+				for i = start, stop do
+					local e = chat[i]
+					self:AddMessage( e, false, true )
 				end
 			end
 		end
-		
-		-- break when we have enough messages
-		if #entries >= CHAT_BUFFER_SIZE then
-			break
-		end
-	end
-
-	-- TODO: disable chatbox refreshes until this is done
-	-- (check to see if its spammed.)
-	for i = #entries, 1, -1 do
-		self:AddMessage( entries[i] )
 	end
 	
+	self:UpdateShown()
 end
 
 -------------------------------------------------------------------------------
@@ -1075,16 +1105,9 @@ end
 --                      {r, g, b, a}, range = 0-1, pass nil to not change.
 --
 function Method:SetColors( bg, edge, bar )
-	if self.frame_index == 1 then
-		if bg then self.db.profile.frame.color.bg = bg end
-		if edge then self.db.profile.frame.color.edge = edge end
-		if bar then self.db.profile.frame.color.bar = bar end
-	else
-		if bg then self.db.char.frames[self.frame_index].color.bg = bg end
-		if edge then self.db.char.frames[self.frame_index].color.edge = edge end
-		if bar then self.db.char.frames[self.frame_index].color.bar = bar end
-	end
-	
+	if bg then   self.frameopts.color.bg   = bg   end
+	if edge then self.frameopts.color.edge = edge end
+	if bar then  self.frameopts.color.bar  = bar  end
 	self:ApplyColorOptions()
 end
 
@@ -1093,9 +1116,9 @@ end
 --
 function Method:SetListenAll( listen_all )
 	listen_all = not not listen_all
-	if Main.db.char.frames[self.frame_index].listen_all == listen_all then return end
+	if self.charopts.listen_all == listen_all then return end
 	
-	Main.db.char.frames[self.frame_index].listen_all = listen_all
+	self.charopts.listen_all = listen_all
 	
 	self:RefreshChat()
 	self:UpdateProbe()
@@ -1107,8 +1130,8 @@ end
 function Method:ShowHidden( showhidden )
 	
 	showhidden = not not showhidden
-	if Main.db.char.frames[self.frame_index].showhidden == showhidden then return end
-	Main.db.char.frames[self.frame_index].showhidden = showhidden
+	if self.charopts.showhidden == showhidden then return end
+	self.charopts.showhidden = showhidden
 	
 	self:RefreshChat() 
 	
@@ -1129,6 +1152,7 @@ function Method:UpdateResizeShow()
 		self.resize_thumb:Hide()
 	end
 end
+
 -------------------------------------------------------------------------------
 function Method:StartDragging()
 	self.dragging = true
@@ -1146,20 +1170,32 @@ end
 
 -------------------------------------------------------------------------------
 function Method:CombatHide( combat )
-	if combat then
-		if Main.db.char.frames[self.frame_index].combathide then
-			self:Close( true )
-		end
-	else
-		if not Main.db.char.frames[self.frame_index].hidden then
-			self:Open( true )
-		end
+	self:UpdateShown()
+	
+	if not combat and self.fadein_after_combat then
+		self.fade_time = GetTime()
 	end
 end
 
 -------------------------------------------------------------------------------
 function Method:OpenConfig()
 	Main.OpenFrameConfig( self )
+end
+
+-------------------------------------------------------------------------------
+function Method:CopyText()
+	local text = ""
+	
+	for i = 1, self.chatbox:GetNumMessages() - self.chatbox:GetScrollOffset() do
+		local msg = self.chatbox:GetMessageInfo( i )
+		if text ~= "" then text = text .. "\n" end
+		text = text .. msg
+	end
+	
+	-- filter out some things (icons)
+	text = text:gsub( "|T.-|t", "" )
+	
+	Main.CopyFrame.Show( text )
 end
 
 -------------------------------------------------------------------------------
@@ -1176,7 +1212,7 @@ function Me.OnLoad( self )
 	-- initial settings
 	self:EnableMouse( true )
 	self:SetClampedToScreen( true )
-	CreateEdges( self )
+	Me.CraftEdges( self, 2 )
 	
 	hooksecurefunc( self.chatbox, "RefreshDisplay", function()
 		Me.OnChatboxRefresh( self )
@@ -1201,7 +1237,7 @@ function Me.OnUpdate( self )
 	
 	local picked = nil
 	
-	if Main.active_frame == self 
+	if Main.active_frame == self or self.snooper
 	   and self.show_highlight
 	   and not (self.auto_fade > 0 and GetTime() > self.fade_time + self.auto_fade) then
 		-- do some picking
@@ -1218,7 +1254,7 @@ function Me.OnMouseDown( self, button )
 	local active = Main.active_frame == self
 	
 	
-	if not active then
+	if not active and not self.snooper then
 		Main.SetActiveFrame( self )
 	end
 	
@@ -1228,13 +1264,13 @@ function Me.OnMouseDown( self, button )
 		faded = true
 	end
 	
-	if active and GetTime() > self.clickblock + CLICKBLOCK_TIME and not faded then
+	if (active or self.snooper) and GetTime() > self.clickblock + CLICKBLOCK_TIME and not faded then
 		local p = PickTextRegion( self, false )
 		if p then
 			if button == "LeftButton" then
 				Main.HighlightEntry( p.entry, not p.entry.h )
 			elseif button == "RightButton" then
-				if IsShiftKeyDown() then
+				if IsShiftKeyDown() and not self.snooper then
 					self:TogglePlayer( p.entry.s )
 				end
 			end
@@ -1255,6 +1291,13 @@ end
 function Me.OnChatboxScroll( self, delta )
 	
 	local reps = IsShiftKeyDown() and 5 or 1
+	
+	-- for the snooper, shift is used to activate the mouse sometimes
+	-- if so, ignore the shift modifier in here.
+	if self.snooper and self.frameopts.shift_mouse then
+		reps = 1
+	end
+	
 	if delta > 0 then
 		if IsAltKeyDown() then
 			self.chatbox:ScrollToTop()
@@ -1311,7 +1354,7 @@ function Me.OnChatboxHyperlinkClick( self, link, text, button )
 		
 		local name, lineid, chatType, chatTarget = strsplit(":", namelink);
 		
-		if IsShiftKeyDown() and button == "RightButton" then
+		if IsShiftKeyDown() and button == "RightButton" and not self.snooper then
 			self:TogglePlayer( name )
 			return
 		end
@@ -1346,18 +1389,28 @@ end
 function Me.TogglePlayerClicked( self, button )
 	if button == "LeftButton" then 
 		local name = Main.GetProbed()
-		if name then 
+		if name and not self.snooper then 
 			self:TogglePlayer( name, true )
+		else
+			if self.snooper then
+				Main.Snoop2.ShowMenu()
+			else
+				self:ShowMenu()
+			end
 		end
 	elseif button == "RightButton" then
-		self:ShowMenu()
+		if self.snooper then
+			Main.Snoop2.ShowMenu()
+		else
+			self:ShowMenu()
+		end
 	end
 end
 
 -------------------------------------------------------------------------------
 function Me.ShowHiddenClicked( self, button )
 	if button == "LeftButton" then
-		self:ShowHidden( not Main.db.char.frames[self.frame_index].showhidden )
+		self:ShowHidden( not self.charopts.showhidden )
 	end
 end
 
@@ -1371,13 +1424,16 @@ end
 -------------------------------------------------------------------------------
 function Me.BarMouseDown( self )
 	self.fade_time = GetTime()
-	Main.SelectFrame( self )
+	
+	if not self.snooper then
+		Main.SelectFrame( self )
+	end
 end
 
 function Me.BarMouseUp( self ) end
 
 function Me.BarDragStart( self )
-	if not SplitOptions(self).locked then
+	if not self.frameopts.locked then
 		self:StartDragging()
 	end
 end
@@ -1418,6 +1474,30 @@ end
 -- Other static functions
 -------------------------------------------------------------------------------
 
+function Me.CraftEdges( frame, width )
+	if not frame.edges then
+		frame.edges = {}
+		for i = 1,4 do frame.edges[i] = frame:CreateTexture( "BORDER" ) end
+	end
+	
+	-- top
+	frame.edges[1]:SetPoint( "TOPLEFT",     frame, "TOPLEFT",  -width, width )
+	frame.edges[1]:SetPoint( "BOTTOMRIGHT", frame, "TOPRIGHT",  width, 0 )
+	-- bottom
+	frame.edges[2]:SetPoint( "TOPLEFT",     frame, "BOTTOMLEFT",  -width, 0 )
+	frame.edges[2]:SetPoint( "BOTTOMRIGHT", frame, "BOTTOMRIGHT",  width, -width )
+	-- left
+	frame.edges[3]:SetPoint( "TOPLEFT",     frame, "TOPLEFT",    -width, 0 )
+	frame.edges[3]:SetPoint( "BOTTOMRIGHT", frame, "BOTTOMLEFT", -0,     0 )
+	-- right
+	frame.edges[4]:SetPoint( "TOPLEFT",     frame, "TOPRIGHT",     0,     0 )
+	frame.edges[4]:SetPoint( "BOTTOMRIGHT", frame, "BOTTOMRIGHT",  width, 0 )
+	
+	for _, edge in pairs( frame.edges ) do
+		edge:Show()
+	end
+end
+
 -------------------------------------------------------------------------------
 -- Initialize a section in the database for a new frame
 --
@@ -1426,30 +1506,45 @@ function Me.InitOptions( index )
 	-- don't initialize things that you don't want in the
 	-- primary frame's options
 	
-	local data = {
-		players    = {};
-		groups     = {};
-		listen_all = true;
-		filter     = {}; -- filled in below
-		showhidden = true;
-		layout     = {
-			anchor   = {};
-			width    = 200;
-			height   = 300;
-		};
-		hidden       = false;
-		color        = {};
-		combathide   = true;
-		readmark     = true;
-	}
-	
-	for k,v in pairs( DEFAULT_LISTEN_EVENTS ) do
-		data.filter[v] = true
+	if not Main.db.char.frames[index] then
+		-- initial creation.
+		Main.db.char.frames[index] = {
+			players    = {};
+			groups     = {};
+			listen_all = true;
+			filter     = {}; -- filled in below
+			showhidden = true;
+			layout     = {
+				anchor   = {};
+				width    = 200;
+				height   = 300;
+			};
+			hidden       = false;
+			color        = {};
+			font         = {};
+			readmark     = true;
+		}
+		for k,v in pairs( DEFAULT_LISTEN_EVENTS ) do
+			Main.db.char.frames[index].filter[v] = true
+		end
 	end
 	
-	data.players[ UnitName("player") ] = 1
+	-- we also want to make sure that all tables are there so errors don't happen
+	local data = Main.db.char.frames[index]
+	data.players = data.players or {}
+	data.groups  = data.groups or {}
+	data.filter  = data.filter or {}
+	data.layout  = data.layout or {
+		anchor        = {};
+		width         = 200;
+		height        = 300;
+	}
+	data.color = data.color or {}
+	data.font  = data.font or {}
 	
-	Main.db.char.frames[index] = data
+	-- we might want to make an option for this.
+	data.players[ UnitName("player") ] = 1
+	data.players[ "Guild" ] = 1
 end
 
 -------------------------------------------------------------------------------

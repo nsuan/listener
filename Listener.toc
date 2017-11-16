@@ -14,13 +14,13 @@ sharedmedia.lua
 locale\index.xml
 
 listener.lua
+filter_menu.lua
 config_frame.lua
 config.lua
 keywords.lua
-filter_menu.lua
 raid_roster.lua
 minimapbutton.lua
-snoop.lua
+snoop2.lua
 probe.lua
 names.lua
 names_trp3.lua

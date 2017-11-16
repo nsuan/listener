@@ -12,21 +12,6 @@ local g_current_name = nil
 local g_update_time  = 0
 
 -------------------------------------------------------------------------------
-local MESSAGE_PREFIXES = {
-	PARTY           = "[P] ";
-	PARTY_LEADER    = "[P] ";
-	RAID            = "[R] ";
-	RAID_LEADER     = "[R] ";
-	INSTANCE        = "[I] ";
-	INSTANCE_LEADER = "[I] ";
-	OFFICER         = "[O] ";
-	GUILD           = "[G] ";
-	RAID_WARNING    = "[RW] ";
-	WHISPER         = "[W From] ";
-	WHISPER_INFORM  = "[W To] ";
-}
-
--------------------------------------------------------------------------------
 function Me.Setup()
 	local frame = CreateFrame( "Frame", "ListenerSnoopFrame", UIParent )
 	Me.frame = frame
@@ -160,7 +145,7 @@ function Me.SetText( name )
 			end
 			
 			stamp = timecolor .. stamp
-			
+			-------
 			if text ~= "" then
 				text = "|n" .. text
 			end

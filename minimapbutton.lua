@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- LISTENER by Tammya-MoonGuard (2016)
+-- LISTENER by Tammya-MoonGuard (2017)
 -------------------------------------------------------------------------------
 
 local Main = ListenerAddon
@@ -85,29 +85,12 @@ local function InitializeFramesMenu( self, level, menuList )
 		info.isTitle = true
 		info.notCheckable = true
 		UIDropDownMenu_AddButton( info, level )
-		--[[
-		info = UIDropDownMenu_CreateInfo()
-		info.text = "Open All"
-		info.func = FramesMenuAction_OpenAll
-		info.notCheckable = true
-		UIDropDownMenu_AddButton( info, level )
-		
-		info = UIDropDownMenu_CreateInfo()
-		info.text = "Close All"
-		info.func = FramesMenuAction_CloseAll
-		info.notCheckable = true
-		UIDropDownMenu_AddButton( info, level )
-		
-		info = UIDropDownMenu_CreateInfo()
-		info.notClickable = true
-		info.disabled = true
-		UIDropDownMenu_AddButton( info, level )
-		]]
+
 		local frames = {}
 		
 		-- populate with everything but first frame
 		for _, f in pairs( Main.frames ) do
-			if f ~= Main.frames[1] then
+			if f.frame_index > 2 then
 				table.insert( frames, f )
 			end
 		end
@@ -120,7 +103,7 @@ local function InitializeFramesMenu( self, level, menuList )
 		table.insert( frames, 1, Main.frames[1] )
 		
 		for _, f in ipairs( frames ) do
-			local name = Main.db.char.frames[f.frame_index].name
+			local name = f.charopts.name
 			if f.frame_index == 1 then name = "Main" end
 			
 			info = UIDropDownMenu_CreateInfo()
@@ -147,12 +130,11 @@ local function InitializeOptionsMenu( self, level, menuList )
 		info.notCheckable = true
 		UIDropDownMenu_AddButton( info, level )
 		
-		Main.Snoop.SetupFilterMenu()
 		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Snooper"]
 		info.notCheckable     = true
 		info.hasArrow         = true
-		info.menuList         = "FILTERS"
+		info.menuList         = "SNOOPER"
 		info.keepShownOnClick = true
 		UIDropDownMenu_AddButton( info, level )
 		
@@ -164,28 +146,21 @@ local function InitializeOptionsMenu( self, level, menuList )
 		info.notCheckable = true
 		UIDropDownMenu_AddButton( info, level )
 	elseif menuList and menuList:find("FILTERS") then
-		Main.Snoop.PopulateFilterSubMenu( level, menuList )
+		Main.PopulateFilterMenu( level, menuList )
+	elseif menuList and menuList:find( "SNOOPER" ) then
+		Main.Snoop2.PopulateMenu( level, menuList )
 	end
 end
 
 -------------------------------------------------------------------------------
 function Me.ShowMenu( menu )
-	if not Me.menu then
-		Me.menu = CreateFrame( "Button", "ListenerMinimapMenu", UIParent, "UIDropDownMenuTemplate" )
-		Me.menu.displayMode = "MENU"
-	end
-	
+
 	local menus = {
 		FRAMES  = InitializeFramesMenu;
 		OPTIONS = InitializeOptionsMenu;
 	}
-	 
-	UIDropDownMenu_Initialize( ListenerMinimapMenu, menus[menu] )
-	UIDropDownMenu_JustifyText( ListenerMinimapMenu, "LEFT" )
 	
-	local x,y = GetCursorPosition()
-	local scale = UIParent:GetEffectiveScale()
-	ToggleDropDownMenu( 1, nil, Me.menu, "UIParent", x / scale, y / scale )
+	Main.ShowMenu( menus[menu] )
 end
 
 -------------------------------------------------------------------------------
@@ -213,7 +188,7 @@ function Me.OnEnter( frame )
 		window_count = window_count + 1
 	end
 	
-	if window_count == 1 then
+	if window_count < 3 then
 		GameTooltip:AddLine( L["|cff00ff00Left-click|r to toggle window."], 1, 1, 1 )
 	else
 		GameTooltip:AddLine( L["|cff00ff00Left-click|r to toggle windows."], 1, 1, 1 )

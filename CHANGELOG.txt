@@ -18,6 +18,8 @@ Removed custom chat colors in preference to default chat colors. If you liked it
 Name shortener is now toggleable in the options.
 URL detector. So you can click on links to copy them.
 Keywords feature, to highlight specific things and notify you when they appear, such as your name.
+The snooper has been redone to be more like an actual Listener window, and you can give it a load of customization.
+Added a feature for copying text from the window. Sometimes you want to share your sweet suicide emotes with friends.
 
 ## 1.5.8
 Compatibility update.

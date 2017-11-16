@@ -4,9 +4,7 @@
 local Main = ListenerAddon
 local L    = Main.Locale
 
-local g_callback_checked -- returns true if an option item is checked
-local g_callback_onclick -- 
-local g_items = {}
+local g_register = {}
 
 -------------------------------------------------------------------------------
 -- Chat channel names that are ignored.
@@ -41,15 +39,15 @@ local FILTER_OPTIONS = {
 -- @param caption Text that will be displayed for the option.
 -- @param filters Events that this option will control. e.g. {"RAID","RAID_LEADER"}
 --
-local function AddFilterOption( level, caption, filters, checked, onclick )
+local function AddFilterOption( level, caption, filters, id )
 	info = UIDropDownMenu_CreateInfo()
 	info.text             = caption
 	info.notCheckable     = false
 	info.isNotRadio       = true
-	info.checked          = g_callback_checked( filters[1] )
-	if g_callback_onclick then
+	info.checked          = g_register[id].checked( filters[1] )
+	if g_register[id].onclick then
 		info.func = function( self, a1, a2, checked )
-			g_callback_onclick( filters, checked )
+			g_register[id].onclick( filters, checked )
 		end
 	end
 	info.keepShownOnClick = true
@@ -62,17 +60,43 @@ end
 --                argument passed is the first filter item.
 -- @param oncheck Callback for when an item is clicked. function( filters, checked )
 --
-function Main.SetupFilterMenu( items, checked, onclick )
-	g_items = items
-	g_callback_checked = checked
-	g_callback_onclick = onclick
+function Main.RegisterFilterMenu( name, items, checked, onclick )
+	g_register[name] = {
+		items = items;
+		checked = checked;
+		onclick = onclick;
+	}
 end
 
 -------------------------------------------------------------------------------
-function Main.PopulateFilterSubMenu( level, menuList )
+local function GetHexCode( color )
+	return string.format( "ff%2x%2x%2x", color[1]*255, color[2]*255, color[3]*255 )
+end
 
-	if menuList == "FILTERS" then
-		for _,item in ipairs( g_items ) do
+local ENTRY_CHAT_REMAP = { ROLL = "SYSTEM", OFFLINE = "SYSTEM", ONLINE = "SYSTEM" }
+function GetColorCode( event )
+	local info
+	if event:sub(1,1) == "#" then
+		local index = GetChannelName( event:sub(2) )
+		info = ChatTypeInfo[ "CHANNEL" .. index ]
+		if not info then info = ChatTypeInfo.CHANNEL end
+	else
+		local t = ENTRY_CHAT_REMAP[event] or event
+		info = ChatTypeInfo[t]
+		if not info then return "" end
+	end
+	return "|c" .. GetHexCode( {info.r, info.g, info.b} )
+end
+
+-------------------------------------------------------------------------------
+function Main.PopulateFilterMenu( level, menuList )
+
+	local id = menuList:match( "FILTERS_([^_]+)" )
+	local submenu = menuList:match( "FILTERS_[^_]+_(%S+)" )
+	if not id then return end
+
+	if not submenu then
+		for _,item in ipairs( g_register[id].items ) do
 			if item == "Channel" then
 				
 				info = UIDropDownMenu_CreateInfo()
@@ -80,7 +104,7 @@ function Main.PopulateFilterSubMenu( level, menuList )
 				info.notCheckable     = true
 				info.hasArrow         = true
 				info.keepShownOnClick = true
-				info.menuList         = "FILTERS_CHANNELS"
+				info.menuList         = "FILTERS_" .. id .. "_CHANNELS"
 				UIDropDownMenu_AddButton( info, level )
 				
 			elseif item == "Misc" then
@@ -90,14 +114,16 @@ function Main.PopulateFilterSubMenu( level, menuList )
 				info.notCheckable     = true
 				info.hasArrow         = true
 				info.keepShownOnClick = true
-				info.menuList         = "FILTERS_MISC"
+				info.menuList         = "FILTERS_" .. id .. "_MISC"
 				UIDropDownMenu_AddButton( info, level )
 				
 			elseif FILTER_OPTIONS[item] then
-				AddFilterOption( level, L[item], FILTER_OPTIONS[item], checked, onclick )
+				
+				AddFilterOption( level, GetColorCode( FILTER_OPTIONS[item][1] ) .. L[item], 
+				                 FILTER_OPTIONS[item], id )
 			end
 		end
-	elseif menuList == "FILTERS_CHANNELS" then
+	elseif submenu == "CHANNELS" then
 		-- add all channels
 		local channels = { GetChannelList() }
 		for i = 1, #channels, 2 do
@@ -106,17 +132,15 @@ function Main.PopulateFilterSubMenu( level, menuList )
 			name = name:lower()
 			if not IGNORED_CHANNELS[name] then
 				local event = "#" .. name:upper()
-				AddFilterOption( level, "#" .. name, { event }, checked, onclick )
+				AddFilterOption( level, GetColorCode( event ) .. "#" .. name, { event }, id )
 			end
 		end
-	elseif menuList == "FILTERS_MISC" then
-		AddFilterOption( level, L["Joined/Left"], { "CHANNEL_JOIN", "CHANNEL_LEAVE" }, checked, onclick )
-		AddFilterOption( level, L["Online/Offline"], { "ONLINE", "OFFLINE" }, checked, onclick )
-		AddFilterOption( level, L["Guild Announce"], { "GUILD_ACHIEVEMENT" }, checked, onclick )
-		AddFilterOption( level, L["Guild MOTD"], { "GUILD_ACHIEVEMENT" }, checked, onclick )
-		
+	elseif submenu == "MISC" then
+		AddFilterOption( level, GetColorCode( "CHANNEL" ) .. L["Joined/Left"], { "CHANNEL_JOIN", "CHANNEL_LEAVE" }, id )
+		AddFilterOption( level, GetColorCode( "SYSTEM" ) .. L["Online/Offline"], { "ONLINE", "OFFLINE" }, id )
+		AddFilterOption( level, GetColorCode( "GUILD_ACHIEVEMENT" ) .. L["Guild Announce"], { "GUILD_ACHIEVEMENT", "GUILD_ITEM_LOOTED" }, id )
+		AddFilterOption( level, GetColorCode( "GUILD" ) .. L["Guild MOTD"], { "GUILD_MOTD" }, id )
 	end
-	
 	
 	-- todo: automatically clean up channels that the player has left
 end

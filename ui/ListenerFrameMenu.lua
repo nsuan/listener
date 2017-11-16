@@ -6,11 +6,18 @@ local Method = Me.methods
 Me.menu        = nil
 Me.menu_parent = nil
 
--------------------------------------------------------------------------------
-local function SplitOptions()
-	if Me.menu_parent.frame_index == 1 then return Main.db.profile.frame end
-	return Main.db.char.frames[Me.menu_parent.frame_index]
-end
+Main.RegisterFilterMenu( "MAIN",
+	{ "Public", "Party", "Raid", "Whisper", "Instance", "Guild", "Officer", "Rolls", "Channel", "Misc" }, 
+	function( filter )
+		return Me.menu_parent:HasEvent( filter )
+	end,
+	function( filters, checked )
+		if checked then
+			Me.menu_parent:AddEvents( unpack( filters ))
+		else
+			Me.menu_parent:RemoveEvents( unpack( filters ))
+		end
+	end)
 
 -------------------------------------------------------------------------------
 local function InclusionClicked( self, arg1, arg2, checked )
@@ -19,22 +26,21 @@ end
 
 -------------------------------------------------------------------------------
 local function SoundClicked( self, arg1, arg2, checked )
-	local index = Me.menu_parent.frame_index
-	Main.db.char.frames[index].sound = checked
+	Me.menu_parent.charopts.sound = checked
 end
 
 -------------------------------------------------------------------------------
 local function AutoPopupClicked( self, arg1, arg2, checked )
-	if Me.menu_parent.frame_index == 1 then
-		Main.db.profile.frame.auto_popup = checked
-	else
-		Main.db.char.frames[Me.menu_parent.frame_index].auto_popup = checked
-	end
+	Me.menu_parent.frameopts.auto_popup = checked
 end
 
 -------------------------------------------------------------------------------
 local function LockClicked( self, arg1, arg2, checked )
-	SplitOptions().locked = checked
+	Me.menu_parent.frameopts.locked = checked
+end
+
+local function CopyClicked()
+	Me.menu_parent:CopyText()
 end
 
 -------------------------------------------------------------------------------
@@ -65,15 +71,15 @@ StaticPopupDialogs["LISTENER_RENAMEFRAME"] = {
 	whileDead    = true;
 	timeout      = 0;
 	OnShow = function( self )
-		self.editBox:SetText( Main.db.char.frames[g_rename_frame_index].name )
+		self.editBox:SetText( Main.frames[g_rename_frame_index].charopts.name )
 	end;
 	OnAccept = function( self )
 		local name = self.editBox:GetText()
 		if name == "" then return end
 		
-		local o = Main.db.char.frames[g_rename_frame_index]
+		local o = Main.frames[g_rename_frame_index]
 		if o then
-			o.name = name
+			o.charopts.name = name
 		end
 	end;
 }
@@ -163,7 +169,7 @@ end
 -------------------------------------------------------------------------------
 local function PlayerMenuClicked( self, player, arg2, checked )
 	local f = Me.menu_parent.players[player.name]
-	local listenall = Main.db.char.frames[Me.menu_parent.frame_index].listen_all
+	local listenall = Me.menu_parent.charopts.listen_all
 	
 	-- filter is a tristate: include,exclude,or default (listenall)
 	-- change order w/ listenall: n -> 0 -> 1
@@ -206,24 +212,26 @@ local function PopulatePlayersMenu( level )
 	else
 		for key, list in ipairs( g_player_list ) do
 		
-			-- take first letter of first and last entries
-			-- e.g. "A..F"
-			local letter1, letter2 = list[1].icname:match( "^[%z\1-\127\194-\244][\128-\191]*" ):upper(),
-			                         list[#list].icname:match( "^[%z\1-\127\194-\244][\128-\191]*" ):upper()
-			local name
-			if letter1 == letter2 then
-				name = letter1
-			else
-				name = letter1 .. ".." .. letter2
+			if #list > 0 then
+				-- take first letter of first and last entries
+				-- e.g. "A..F"
+				local letter1, letter2 = list[1].icname:match( "^[%z\1-\127\194-\244][\128-\191]*" ):upper(),
+										 list[#list].icname:match( "^[%z\1-\127\194-\244][\128-\191]*" ):upper()
+				local name
+				if letter1 == letter2 then
+					name = letter1
+				else
+					name = letter1 .. ".." .. letter2
+				end
+				
+				info = UIDropDownMenu_CreateInfo()
+				info.text             = name
+				info.notCheckable     = true
+				info.hasArrow         = true
+				info.menuList         = "PLAYERS" .. key
+				info.keepShownOnClick = true
+				UIDropDownMenu_AddButton( info, level )
 			end
-			
-			info = UIDropDownMenu_CreateInfo()
-			info.text             = name
-			info.notCheckable     = true
-			info.hasArrow         = true
-			info.menuList         = "PLAYERS" .. key
-			info.keepShownOnClick = true
-			UIDropDownMenu_AddButton( info, level )
 		end
 	end
 end
@@ -240,7 +248,7 @@ end
 -------------------------------------------------------------------------------
 local function RaidGroupClicked( self, group )
 	local f = Me.menu_parent.groups[group]
-	local listenall = Main.db.char.frames[Me.menu_parent.frame_index].listen_all
+	local listenall = Me.menu_parent.charopts.listen_all
 	
 	if not f then
 		f = listenall and 0 or 1
@@ -274,12 +282,12 @@ local function InitializeMenu( self, level, menuList )
 	local info
 	if level == 1 then
 	
-		if Me.menu_parent.frame_index ~= 1 then
+		if Me.menu_parent.frame_index > 2 then
 			
 			info = UIDropDownMenu_CreateInfo()
-			info.text             = "|cFFECCD35" .. Main.db.char.frames[Me.menu_parent.frame_index].name
+			info.text             = "|cFFECCD35" .. Me.menu_parent.charopts.name
 			info.notCheckable     = true
-			info.tooltipTitle     = Main.db.char.frames[Me.menu_parent.frame_index].name
+			info.tooltipTitle     = Me.menu_parent.charopts.name
 			info.tooltipText      = L["Click to rename this window."]
 			info.tooltipOnButton  = true
 			info.func             = RenameClicked
@@ -290,11 +298,11 @@ local function InitializeMenu( self, level, menuList )
 		info.text             = L["Inclusion"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
-		info.checked          = Main.db.char.frames[Me.menu_parent.frame_index].listen_all
+		info.checked          = Me.menu_parent.charopts.listen_all
 		info.func             = InclusionClicked
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Inclusion mode."]
-		info.tooltipText      = L["Default to include players rather than exclude them."]
+		info.tooltipText      = L["Default to include players rather than exclude them. Typically you turn this off in crowded areas."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
 		
@@ -302,7 +310,7 @@ local function InitializeMenu( self, level, menuList )
 		info.text             = L["Notify"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
-		info.checked          = Main.db.char.frames[Me.menu_parent.frame_index].sound
+		info.checked          = Me.menu_parent.charopts.sound
 		info.func             = SoundClicked
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Enable notifications."]
@@ -314,10 +322,10 @@ local function InitializeMenu( self, level, menuList )
 		info.text             = L["Auto-Popup"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
-		info.checked          = SplitOptions().auto_popup
+		info.checked          = Me.menu_parent.frameopts.auto_popup
 		info.func             = AutoPopupClicked
 		info.keepShownOnClick = true
-		info.tooltipTitle     = L["Auto-Popup."]
+		info.tooltipTitle     = L["Auto-popup."]
 		info.tooltipText      = L["Reopen window automatically upon receiving new messages."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
@@ -326,32 +334,29 @@ local function InitializeMenu( self, level, menuList )
 		info.text             = L["Lock"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
-		info.checked          = SplitOptions().locked
+		info.checked          = Me.menu_parent.frameopts.locked
 		info.func             = LockClicked
 		info.keepShownOnClick = true
-		info.tooltipTitle     = L["Lock Window."]
+		info.tooltipTitle     = L["Lock window."]
 		info.tooltipText      = L["Disables dragging via the menu bar."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
 		
-		Main.SetupFilterMenu(
-			{ "Public", "Party", "Raid", "Whisper", "Instance", "Guild", "Officer", "Rolls", "Channel", "Misc" }, 
-			function( filter )
-				return Me.menu_parent:HasEvent( filter )
-			end,
-			function( filters, checked )
-				if checked then
-					Me.menu_parent:AddEvents( unpack( filters ))
-				else
-					Me.menu_parent:RemoveEvents( unpack( filters ))
-				end
-			end)
-			
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = L["Copy Text"]
+		info.notCheckable     = true
+		info.checked          = Me.menu_parent.frameopts.locked
+		info.func             = CopyClicked
+		info.tooltipTitle     = L["Copy text."]
+		info.tooltipText      = L["Opens a window to copy text."]
+		info.tooltipOnButton  = true
+		UIDropDownMenu_AddButton( info, level )
+		
 		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Filter"]
 		info.notCheckable     = true
 		info.hasArrow         = true
-		info.menuList         = "FILTERS"
+		info.menuList         = "FILTERS_MAIN"
 		info.tooltipTitle     = L["Display filter."]
 		info.tooltipText      = L["Selects which chat types to display."]
 		info.tooltipOnButton  = true
@@ -405,7 +410,7 @@ local function InitializeMenu( self, level, menuList )
 		end
 		UIDropDownMenu_AddButton( info, level )
 		
-		if Me.menu_parent.frame_index ~= 1 then
+		if Me.menu_parent.frame_index > 2 then
 			info = UIDropDownMenu_CreateInfo()
 			info.text             = L["Delete Window"]
 			info.notCheckable     = true
@@ -421,7 +426,7 @@ local function InitializeMenu( self, level, menuList )
 	
 	elseif menuList and menuList:find( "FILTERS" ) then
 		
-		Main.PopulateFilterSubMenu( level, menuList )
+		Main.PopulateFilterMenu( level, menuList )
 		
 	elseif menuList == "PLAYERS" then
 		PopulatePlayersMenu( level )
@@ -436,6 +441,8 @@ end
 -------------------------------------------------------------------------------
 function Method:ShowMenu()
 	if not Me.menu then
+	
+			
 		Me.menu = CreateFrame( "Button", "ListenerFrameMenu", UIParent, "UIDropDownMenuTemplate" )
 		Me.menu.displayMode = "MENU"
 	end

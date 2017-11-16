@@ -3,4 +3,5 @@
   <Include file="ui\ListenerBarButton.xml"/>
   <Include file="ui\ListenerTextButton.xml"/>
   <Include file="ui\ListenerFrame.xml"/>
+  <Include file="ui\CopyFrame.xml"/>
 </Ui>

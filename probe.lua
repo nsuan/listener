@@ -64,7 +64,10 @@ function Main.OnProbeChanged()
 	-- update snooper
 	-- update active window
 	
-	Main.active_frame:UpdateProbe()
+	for _,f in pairs( Main.frames ) do
+		f:UpdateProbe()
+	end
+	--Main.active_frame:UpdateProbe()
 end
 
 -------------------------------------------------------------------------------

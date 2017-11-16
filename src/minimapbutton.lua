@@ -139,6 +139,20 @@ local function InitializeOptionsMenu( self, level, menuList )
 		UIDropDownMenu_AddButton( info, level )
 		
 		info = UIDropDownMenu_CreateInfo()
+		info.text             = L["DM Tags"]
+		info.notCheckable     = false
+		info.isNotRadio       = true
+		info.checked          = Main.db.char.dmtags
+		info.func             = function( self, a1, a2, checked )
+			Main.DMTags.Enable( checked )
+		end
+		info.keepShownOnClick = true
+		info.tooltipTitle     = L["Enable DM tags."]
+		info.tooltipText      = L["This is a helper feature for dungeon masters. It tags your unit frames with whoever has unmarked messages."]
+		info.tooltipOnButton  = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
 		info.text = L["Settings"]
 		info.func = function()
 			Main.OpenConfig()

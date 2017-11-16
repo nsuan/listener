@@ -207,6 +207,12 @@ local DB_DEFAULTS = {
 			color = {};
 		};
 		
+		dmtags = {
+			font = {
+				size = 12; 
+				face = "Accidental Presidency";
+			};
+		};
 	};
 }
  

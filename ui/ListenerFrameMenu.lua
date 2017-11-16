@@ -104,7 +104,7 @@ local function IteratePlayers()
 		while true do
 			index = index + 1
 			if index == 0 then
-				return Main:FullName( 'player' )
+				return Main.FullName( 'player' )
 			end
 			
 			local unit = raidparty .. index
@@ -113,7 +113,7 @@ local function IteratePlayers()
 			end
 			
 			if not UnitIsUnit( unit, "player" ) then
-				return Main:FullName( unit )
+				return Main.FullName( unit )
 			end
 		end
 	end

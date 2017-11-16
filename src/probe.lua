@@ -31,7 +31,7 @@ function Main.UpdateProbe()
 	
 	if not UnitIsPlayer( unit ) then unit = nil end
 	if unit then 
-		unitname = Main:FullName( unit )
+		unitname = Main.FullName( unit )
 		unitguid = UnitGUID( unit )
 	end
 

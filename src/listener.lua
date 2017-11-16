@@ -309,7 +309,7 @@ function Main:CheckPoke( msg, sender )
 	if loc == "enUS" then
 		if msg:find( " you" ) then
 			--if ListenerFrame:IsShown() and self.player_list[sender] then return end
-			if Main:FullName('target') == sender then return end
+			if Main.FullName('target') == sender then return end
 			if msg:find( "orders you to open fire." ) then return end
 			if msg:find( "asks you to wait." ) then return end
 			if msg:find( "tells you to attack" ) then return end
@@ -546,7 +546,7 @@ local function LanguageFilter( message, sender, event, language )
 	return message
 end
 
-function Main:FullName( unit )
+function Main.FullName( unit )
 	local n, r = UnitName( unit )
 	if r and r ~= "" then return n .. "-" .. r end
 	return n
@@ -681,7 +681,7 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 	
 	-- if the player's target emotes, then beep+flash
 	if Main.db.profile.sound.target
-       and Main:FullName("target") == sender
+       and Main.FullName("target") == sender
 	   and not isplayer then
 		
 		Main:PlayMessageBeep()
@@ -1022,6 +1022,8 @@ end
 
 -------------------------------------------------------------------------------
 function Main:OnRaidRosterUpdate()
+	Main.DMTags.roster_dirty = true
+	
 	if IsInRaid() then
 		Main.UpdateRaidRoster()
 		for _, frame in pairs( Main.frames ) do
@@ -1132,6 +1134,7 @@ function Main:OnEnable()
 	Main:ApplyConfig()
 
 	Main.Snoop2.Setup()
+	Main.DMTags.Setup()
 	
 	Main.Init_OnEnabled()
 	Main.SetupProbe()

@@ -8,24 +8,25 @@
 ## Version: 1.6.0
 embeds.xml
 
-init.lua
-sharedmedia.lua
+src\init.lua
+src\sharedmedia.lua
 
 locale\index.xml
 
-listener.lua
-filter_menu.lua
-config_frame.lua
-config.lua
-keywords.lua
-raid_roster.lua
-minimapbutton.lua
-snoop2.lua
-probe.lua
-names.lua
-names_trp3.lua
-names_mrp.lua
-names_xrp.lua
-help.lua
+src\listener.lua
+src\filter_menu.lua
+src\config_frame.lua
+src\config.lua
+src\dmtags.lua
+src\keywords.lua
+src\raid_roster.lua
+src\minimapbutton.lua
+src\snoop2.lua
+src\probe.lua
+src\names.lua
+src\names_trp3.lua
+src\names_mrp.lua
+src\names_xrp.lua
+src\help.lua
 
 ui.xml

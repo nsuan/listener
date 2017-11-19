@@ -1,5 +1,5 @@
 ## 2.0.0
-Major updates!
+Major updates! Please report any issues using the Issue Tracker on the CurseForge page!
 Optimizations. Lots of little things so that it might use less memory and be easier on your computer!
 Redid interface. More intuitive, less cryptic.
 Better cross-realm support. Mainly support for linked realms.

@@ -1,22 +1,33 @@
----
--- snooper version 2.0
----
+-------------------------------------------------------------------------------
+-- LISTENER by Tammya-MoonGuard (2017)
+--
+-- The Snooper module.
+-------------------------------------------------------------------------------
 
-local Main = ListenerAddon
-local L    = Main.Locale
+local Main        = ListenerAddon
+local L           = Main.Locale
 local SharedMedia = LibStub("LibSharedMedia-3.0")
 
-Main.Snoop2 = {}
-local Me = Main.Snoop2
-
-local g_current_name = nil
-local g_update_time  = 0
+Main.Snoop2       = {}
+local Me          = Main.Snoop2
 
 -------------------------------------------------------------------------------
+-- The name of the current player that's being snooped.
+--
+local g_current_name = nil
+
+-------------------------------------------------------------------------------
+-- The time since the last refresh (to throttle updates).
+--
+local g_update_time = 0
+
+-------------------------------------------------------------------------------
+-- Setup the Snooper.
+--
 function Me.Setup()
 
 	Main.RegisterFilterMenu( "SNOOPER",
-		{ "Public", "Party", "Raid", "Instance", 
+		{ "Public", "Party", "Raid", "Raid Warning", "Instance", 
 		  "Guild", "Officer", "Rolls", "Whisper", "Channel" },
 		function( filter )
 			return Main.frames[2].charopts.filter[filter]
@@ -52,23 +63,32 @@ function Me.Setup()
 end
 
 -------------------------------------------------------------------------------
+-- Load/reload the Snooper configuration.
+--
 function Me.LoadConfig()
-	local self = Main.frames[2]
+	local snooper = Main.frames[2]
 	
 	Me.UpdateMouseLock()
 	
-	self:UpdateResizeShow()
-	self:RefreshChat()
+	snooper:UpdateResizeShow()
+	snooper:RefreshChat()
 end
 
 -------------------------------------------------------------------------------
+-- This enables/disables mouse interaction according to options and the shift
+-- key.
+--
 function Me.UpdateMouseLock()
-	local self = Main.frames[2]
-	self:EnableMouse( self.frameopts.enable_mouse or (self.frameopts.shift_mouse and IsShiftKeyDown()) )
-	self.chatbox:EnableMouseWheel( self.frameopts.enable_scroll or (self.frameopts.shift_mouse and IsShiftKeyDown()) )
+	local snooper = Main.frames[2]
+	snooper:EnableMouse( snooper.frameopts.enable_mouse or (snooper.frameopts.shift_mouse and IsShiftKeyDown()) )
+	snooper.chatbox:EnableMouseWheel( snooper.frameopts.enable_scroll or (snooper.frameopts.shift_mouse and IsShiftKeyDown()) )
 end
 
 -------------------------------------------------------------------------------
+-- Periodic update function.
+--
+-- @param self The snooper frame (Main.frames[2]).
+--
 function Me.OnUpdate( self )
 	
 	if self.frameopts.hidecombat and InCombatLockdown() then return end
@@ -109,7 +129,7 @@ function Me.OnUpdate( self )
 	
 	if self.frameopts.hideempty and not self.charopts.hidden then
 		if name then
-			if self.chatid > 0 then
+			if self.chatbox:GetNumMessages() > 0 then
 				if not (InCombatLockdown() and self.frameopts.combathide) then
 					self:Open( true )
 				end
@@ -123,6 +143,8 @@ function Me.OnUpdate( self )
 end
 
 -------------------------------------------------------------------------------
+-- Updates showing the resize thumb according to options.
+--
 function Me:UpdateResizeShow()
 	if not self.frameopts.locked then
 		self.resize_thumb:Show()
@@ -132,6 +154,11 @@ function Me:UpdateResizeShow()
 end
 
 -------------------------------------------------------------------------------
+-- Prefixes for messages within the snooper.
+--
+-- The snooper has its own message formatting functions for special timestamps
+-- (and it's meant to only show one player, so some things may be omitted).
+--
 local MESSAGE_PREFIXES = {
 	PARTY           = "[P] ";
 	PARTY_LEADER    = "[P] ";
@@ -146,8 +173,10 @@ local MESSAGE_PREFIXES = {
 	WHISPER         = L["[W From] "];
 	WHISPER_INFORM  = L["[W To] "];
 }
+
 -------------------------------------------------------------------------------
 -- Normal "name: text"
+--
 local function MsgFormatNormal( e, name )
 	local prefix = MESSAGE_PREFIXES[e.e] or ""
 	if e.e == "CHANNEL" then
@@ -158,6 +187,7 @@ end
 
 -------------------------------------------------------------------------------
 -- No separator between name and text.
+--
 local function MsgFormatEmote( e, name )
 	if Main.db.profile.trp_emotes and e.m:sub(1,3) == "|| " then
 		return e.m:sub( 4 )
@@ -167,12 +197,15 @@ end
 
 -------------------------------------------------------------------------------
 -- <name> <msg> - name is substituted
+--
 local function MsgFormatTextEmote( e, name )
 	local msg = e.m:gsub( e.s, name )
 	return msg
 end
 
 -------------------------------------------------------------------------------
+-- Function table for formatting events.
+--
 local MSG_FORMAT_FUNCTIONS = { 
 	SAY                  = MsgFormatNormal;
 	PARTY                = MsgFormatNormal;
@@ -194,6 +227,8 @@ local MSG_FORMAT_FUNCTIONS = {
 }
 
 -------------------------------------------------------------------------------
+-- If any events are missing, this will default them to MsgFormatNormal.
+--
 setmetatable( MSG_FORMAT_FUNCTIONS, {
 	__index = function( table, key ) 
 		return MsgFormatNormal
@@ -201,7 +236,7 @@ setmetatable( MSG_FORMAT_FUNCTIONS, {
 })
 
 -------------------------------------------------------------------------------
--- function override for formatting chat messages.
+-- Function override for formatting chat messages. The snooper is special.
 --
 function Me:FormatChatMessage( e )
 	
@@ -251,6 +286,9 @@ function Me:FormatChatMessage( e )
 	return string.format( "%s%s", stamp, MSG_FORMAT_FUNCTIONS[e.e]( e, name ) )
 end
 
+-------------------------------------------------------------------------------
+-- Open the snooper menu. (From clicking the titlebar button.)
+--
 function Me.ShowMenu()
 	Main.ShowMenu( function( self, level, menuList )
 		if level == 1 then
@@ -261,6 +299,9 @@ function Me.ShowMenu()
 end
 
 -------------------------------------------------------------------------------
+-- This may be called from two places. Just above, and within the minimap
+-- menu.
+--
 function Me.PopulateMenu( level, menuList )
 	local info
 	

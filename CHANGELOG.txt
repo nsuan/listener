@@ -1,4 +1,4 @@
-## 1.6.0
+## 2.0.0
 Major updates!
 Optimizations. Lots of little things so that it might use less memory and be easier on your computer!
 Redid interface. More intuitive, less cryptic.

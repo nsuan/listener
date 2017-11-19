@@ -1,3 +1,9 @@
+-------------------------------------------------------------------------------
+-- LISTENER by Tammya-MoonGuard (2017)
+--
+-- This is for the configuration panel per-frame, when you open the frame
+-- menu and click settings.
+-------------------------------------------------------------------------------
 
 local Main = ListenerAddon
 local L    = Main.Locale
@@ -6,12 +12,9 @@ local AceConfig       = LibStub("AceConfig-3.0")
 local AceConfigDialog = LibStub("AceConfigDialog-3.0")
 local SharedMedia     = LibStub("LibSharedMedia-3.0")
 
--- todo;
---anchor (point, frame, relativePoint, offsetX, offsetY)
---width
---height
-
 -------------------------------------------------------------------------------
+-- Values for the anchor settings in Layout.
+--
 local ANCHOR_VALUES = {
 	TOPLEFT     = "Top Left";
 	TOP         = "Top";
@@ -25,25 +28,45 @@ local ANCHOR_VALUES = {
 };
 
 -------------------------------------------------------------------------------
+-- Helper function for the font list; returns the key for a valu.
+--
 local function FindValueKey( table, value ) 
 	for k,v in pairs( table ) do
 		if v == value then return k end
 	end
 end
 
+-------------------------------------------------------------------------------
+-- Values for the font outline options.
+--
 local OUTLINE_VALUES = { "None", "Thin Outline", "Thick Outline" }
 
+-------------------------------------------------------------------------------
+-- Cached font list value.
+--
+-- This is a bit strange that we're doing this. Might be a better idea to
+-- just use SharedMedia directly.
+--
 local g_font_list
 
+-------------------------------------------------------------------------------
+-- Okay, now an important thing to consider for most of this program is that
+-- the configuration frame operates on only one frame at a time.
+--
+-- This value here points to that frame, and can be used as a shortcut.
+--
 local g_frame  -- the current frame
-local g_main   -- if this is frame 1
 
-local function ApplyOptionsAll()
-	for _, frame in pairs( Main.frames ) do
-		frame:ApplyOptions()
-	end
-end
+-------------------------------------------------------------------------------
+-- And this value is true if g_frame.frame_index == 1, i.e. g_frame is "Main".
+--
+local g_main
 
+-------------------------------------------------------------------------------
+-- This little helper function applies options to frames.
+-- If it's the main frame, then all frames are updated, since other custom
+-- frames may inherit options from the main frame.
+--
 local function ApplyOptionsAllIfMain()
 	if g_main then
 		for _, frame in pairs( Main.frames ) do
@@ -54,10 +77,20 @@ local function ApplyOptionsAllIfMain()
 	end	
 end
 
+-------------------------------------------------------------------------------
+-- Validate if an anchor name exists.
+-- Currently this isn't used, since sometimes you might enter an invalid
+-- name that will become a real frame later.
+--
 local function ValidateAnchorName( info, val )
 	return true
 end
 
+-------------------------------------------------------------------------------
+-- And here, a simple validator to make sure that something is a number.
+-- They can even enter hexcodes if they're nuts. (But they'll probably be
+-- converted to decimal right after.)
+--
 local function ValidateNumber( info, val )
 	local a = tonumber(val)
 	if not a then
@@ -67,7 +100,16 @@ local function ValidateNumber( info, val )
 end
 
 -------------------------------------------------------------------------------
--- Creates a color option block.
+-- This creates a color option block, to be assigned directly to an
+-- entry in the options table.
+--
+-- @param order The value for the 'order' key, i.e. where in the options it
+--              will appear.
+-- @param name  The name of the option. This argument should be localized
+--              before passing it.
+-- @param desc  The tooltip for this option. This should also be localized.
+-- @param color The entry in the color block in the database that this option
+--              will control, e.g. "edge".
 --
 local function ColorOption( order, name, desc, color )	
 	return {
@@ -97,15 +139,17 @@ local function ColorOption( order, name, desc, color )
 end
 
 -------------------------------------------------------------------------------
+-- And here we have the Ace3 options table.
+--
 local OPTIONS = {
 	type = "group";
 	args = {
 		font = {
-			order=9;
-			type = "group";
-			name = L["Font"];
+			order  = 9;
+			type   = "group";
+			name   = L["Font"];
 			inline = true;
-			args = {
+			args   = {
 				desc1 = {
 					order = 0;
 					type = "description";
@@ -341,6 +385,22 @@ local OPTIONS = {
 			end;
 		};
 		
+		history_size = {
+			order = 51;
+			name  = L["History Size"];
+			desc  = L["Number of messages that will be shown in the window when the chat is refreshed. Larger numbers may cause the game to pause when the chatboxes are refreshed (i.e. when you adjust filters and such)."];
+			type  = "range";
+			min   = 10;
+			max   = 300;
+			step  = 1;
+			set = function( info, val )
+				g_frame.frameopts.start_messages = val
+			end;
+			get = function( info )
+				return g_frame.frameopts.start_messages
+			end;
+		};
+		
 		-- layout settings
 		layout = {
 			name = L["Layout"];
@@ -438,12 +498,6 @@ local OPTIONS = {
 					end;
 				};
 				
-		--[[		separator1 = {
-					order = 22;
-					type  = "description";
-					name  = "";
-				};]]
-				
 				width = {
 					order = 30;
 					name  = L["Width"];
@@ -480,23 +534,51 @@ local OPTIONS = {
 	};
 }
 
+-------------------------------------------------------------------------------
+-- This is for hiding options for certain frame types.
+-- Anything listed in these blocks will be hidden via the "hidden" key.
+--
 local hidden_opts = {
+	---------------------------------------------------------------------------
+	-- Options listed in this block will be hidden when configuring the main
+	-- window. (Frame #1)
 	main = {
 		OPTIONS.args.color.args.reset;
 		OPTIONS.args.font.args.reset;
 		OPTIONS.args.timestamp_brackets;
 		OPTIONS.args.hideempty;
+		OPTIONS.args.shift_mouse;
+		OPTIONS.args.name_colors;
 	};
+	
+	---------------------------------------------------------------------------
+	-- Options listed in this block will be hidden when configuring the snooper
+	-- window. (Frame #2)
 	snooper = {
+	
+		-- Snooper does not support auto_fade.
 		OPTIONS.args.auto_fade;
+		
+		-- Readmark doesn't make sense in the snooper.
 		OPTIONS.args.readmark;
 	};
+	
+	---------------------------------------------------------------------------
+	-- Options listed in this block will be hidden when configuring custom
+	-- frames. (Frame #3+)
 	other = {
 		OPTIONS.args.timestamp_brackets;
 		OPTIONS.args.hideempty;
+		OPTIONS.args.shift_mouse;
+		OPTIONS.args.name_colors;
 	};
 }
 
+-------------------------------------------------------------------------------
+-- Resets the "hidden" values and then sets them according to the table above.
+--
+-- @param name "main", "snooper" or "other"
+--
 local function HideOptions( name )
 	for _, v in pairs( hidden_opts ) do
 		for _, v2 in pairs( v ) do
@@ -511,6 +593,7 @@ end
 
 -------------------------------------------------------------------------------
 -- Open the configuration panel for a frame.
+--
 local g_init
 function Main.OpenFrameConfig( frame )
 	if not g_init then
@@ -536,6 +619,8 @@ function Main.OpenFrameConfig( frame )
 end
 
 -------------------------------------------------------------------------------
+-- Close the configuration panel, but only if the frame matches.
+--
 function Main.CloseFrameConfig( frame )
 	if frame == g_frame then
 		AceConfigDialog:Close( "Listener Frame Settings" )

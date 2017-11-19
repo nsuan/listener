@@ -1,18 +1,32 @@
 -------------------------------------------------------------------------------
 -- LISTENER by Tammya-MoonGuard (2017)
+--
+-- This little module controls the help tags that appear when you first
+-- load Listener.
 -------------------------------------------------------------------------------
- 
--- the amazing help interface
 
 local Main = ListenerAddon
 local L    = Main.Locale
 
-local g_help_list = {}
-
+-------------------------------------------------------------------------------
+-- Called when the user clicks a help note.
+--
 function Main.HelpNote_OnClose( self )
+
+	-- mark as "read", so that it won't show on the next load.
 	Main.db.global.help[ self.id ] = true
 end
 
+-------------------------------------------------------------------------------
+-- Setup a new help note.
+--
+-- @param note The HelpNote frame being set up.
+-- @param id   The unique identifier for this help note, which corresponds
+--             to whatever data associated to it in the database.
+--             e.g. "snooper" for the snooper help note.
+-- @param text The text attached to this help note.
+--             Ideally a localized string.
+--
 function Main.HelpNote_Setup( note, id, text ) 
 	note.id = id
 	note:SetPoint( "CENTER", 0, 50 )
@@ -47,23 +61,25 @@ local function AddHelp( frame, id, onload )
 end
 
 -------------------------------------------------------------------------------
+-- Called during initialization. The frames that the help notes attach to
+-- must be created by now.
+--
 function Main.Help_Init()
 	
-	-- see locale for text
+	--
+	-- see locale for help text, they're stored under help_<id>
+	--
 	
 	AddHelp( ListenerFrame1, "listenerframe" ) 
-	AddHelp( ListenerSnoopFrame, "snooper", function()
-		Main.Snoop.Unlock()
+	AddHelp( ListenerFrame2, "snooper", function()
 	end)
 end
 
 -------------------------------------------------------------------------------
--- Reset and show help notes again.
+-- Reset which help notes have been acknowledged, and they will be shown on
+-- next load.
 --
 function Main.Help_Reset()
 	Main.db.global.help = {}
 end
 
-Main.AddLoadCall( function()
-	Main.Help_Init()
-end)

@@ -1,3 +1,8 @@
+-------------------------------------------------------------------------------
+-- LISTENER by Tammya-MoonGuard (2017)
+--
+-- The almighty Listener window.
+-------------------------------------------------------------------------------
 
 local Main = ListenerAddon
 local L    = Main.Locale
@@ -6,18 +11,34 @@ Main.Frame = {}
 local Me          = ListenerAddon.Frame
 local SharedMedia = LibStub("LibSharedMedia-3.0")
 
+-------------------------------------------------------------------------------
+-- For chatbox:SetMaxLines()
+--
 local CHAT_BUFFER_SIZE = 300
+
+-------------------------------------------------------------------------------
+-- When the frame scrolls, clicks are locked for this many seconds. This is to
+-- prevent clicking on something else accidentally when the frame scrolls.
+--
 local CLICKBLOCK_TIME  = 0.4
+
+-------------------------------------------------------------------------------
+-- The duration of the fading animation when a frame auto_fades out.
+--
 local FADEOUT_DURATION = 1
 
+-------------------------------------------------------------------------------
+-- When a new frame is created, the filter is loaded with this.
+--
 local DEFAULT_LISTEN_EVENTS = {
-	"SAY", "EMOTE", "TEXT_EMOTE", "YELL", 
+	"SAY", "EMOTE", "TEXT_EMOTE", "YELL",
 	"PARTY", "PARTY_LEADER", "RAID", "RAID_LEADER", "RAID_WARNING",
 	"ROLL"
 }
 
 -------------------------------------------------------------------------------
--- Events that should not make a notification.
+-- Chat events that should not make a notification.
+--
 local SKIP_BEEP = {
 	ONLINE            = true;
 	OFFLINE           = true;
@@ -74,9 +95,6 @@ local function SetupMembers( self )
 	-- this is to be overridden by SetFrameIndex
 	self.listen_events = {}
 	
-	-- ordered list of chat history entries that should appear in the frame
-	self.chat_buffer = {}
-	
 	-- the uppermost unread message ID
 	-- nil if the window has no "unread" messages
 	self.top_unread_id = nil
@@ -88,10 +106,6 @@ local function SetupMembers( self )
 	
 	-- textures used for the tab strips on the left side of the window
 	self.tab_texes = {}
-	
-	-- for keeping track of line IDs in the chatbox
-	-- (new id = chatid+1)
-	self.chatid    = 0
 	
 	-- this is a list of things that we can pick from with the mouse
 	self.pick_regions = {
@@ -243,6 +257,8 @@ end
 -------------------------------------------------------------------------------
 local Method = {}
 Me.methods = Method
+
+Method.EntryFilter = EntryFilter
 
 -------------------------------------------------------------------------------
 -- Link this frame to the database.
@@ -801,20 +817,13 @@ function Method:AddMessage( e, beep, from_refresh )
 	
 	self.fade_time = GetTime()
 	
-	self.chatid = self.chatid + 1
-	
-	table.insert( self.chat_buffer, { e = e, c = self.chatid } ) 
-	while #self.chat_buffer > CHAT_BUFFER_SIZE do 
-		table.remove( self.chat_buffer, 1 )
-	end
-	
 	local hidden = not self:ListeningTo( e.s )
 	
 	if e.r and not e.p and not hidden then -- not read and not from the player and not hidden
 		if self:IsShown() then
 			if beep and self.charopts.sound and not SKIP_BEEP[e.e] then
-				Main:PlayMessageBeep() 
-				Main:FlashClient()
+				Main.PlayMessageBeep() 
+				Main.FlashClient()
 			end
 			
 		end
@@ -826,12 +835,12 @@ function Method:AddMessage( e, beep, from_refresh )
 	
 	local color = GetEntryColor( e )
 	
-	self.chatbox:AddMessage( self:FormatChatMessage( e ), color[1], color[2], color[3], self.chatid )
+	self.chatbox:AddMessage( self:FormatChatMessage( e ), color[1], color[2], color[3], nil, nil, nil, e )
 	
 	-- autopopup/hideempty popup
 	if not self:IsShown() and not from_refresh then
 		if self.frameopts.auto_popup then
-			if self.charopts.combathide and InCombatLockdown() then
+			if self.frameopts.combathide and InCombatLockdown() then
 				-- if we're in combat, just clear the hidden flag
 				-- so that it opens when we exit combat
 				self.charopts.hidden = false
@@ -943,11 +952,8 @@ function Method:UpdateHighlight()
 		return a:GetTop() < b:GetTop()
 	end)
 	
-	-- this is some voodoo that i dont understand
-	local offset = math.max( self.chatid - CHAT_BUFFER_SIZE, 0 )
-	local chat_index_start = self.chatid - self.chatbox:GetScrollOffset() - offset
-	local chat_index = chat_index_start
-	local count = 0
+	local bottom = self.chatbox:GetNumMessages() - self.chatbox:GetScrollOffset()
+	local index = bottom
 	
 	local top_edge = self.chatbox:GetTop() + 1 -- that one pixel
 	
@@ -959,11 +965,15 @@ function Method:UpdateHighlight()
 	-- we'll build the pick_regions table in here too!
 	local pick_regions = {}
 	
+	local count = 0
+	
 	for k,v in ipairs( regions ) do
-		local e = self.chat_buffer[chat_index]
+		if index < 1 then break end
+		
+		local _,_,_,_,_,_,_,e = self.chatbox:GetMessageInfo( index )
+		index = index - 1
 		
 		if not e then break end
-		e = e.e
 		
 		if v:GetBottom() < top_edge then -- within the chatbox only
 		
@@ -977,7 +987,6 @@ function Method:UpdateHighlight()
 			end
 			
 			local targeted = (Main.GetProbed() == e.s) and (Main.db.profile.frame.color.tab_target[4] > 0)
-			
 
 			if tabsize > 0 and ((targeted or e.p) and not self.snooper) or e.h then
 				-- setup block
@@ -1006,14 +1015,11 @@ function Method:UpdateHighlight()
 				tex:Show()	
 			end
 		end
-
-		chat_index = chat_index - 1
 	end
 	
 	self.pick_regions = pick_regions
 	
-	local e = self.chat_buffer[chat_index_start]
-	if e then e = e.e end
+	local _,_,_,_,_,_,_,e = self.chatbox:GetMessageInfo( bottom )
 	if e and (self.baseopts.color.readmark[4] > 0) and self.frameopts.readmark then
 		UpdateReadmark( self, first_unread_region, e.id )
 	else
@@ -1030,14 +1036,14 @@ function Method:UpdateShown()
 	if self:IsShown() then
 		if self.charopts.hidden 
 		   or (self.frameopts.combathide and InCombatLockdown()) 
-		   or (self.chatid == 0 and self.frameopts.hideempty) then
+		   or (self.chatbox:GetNumMessages() == 0 and self.frameopts.hideempty) then
 		   
 			self:Hide()
 		end
 	else
 		if not self.charopts.hidden
 		   and not (self.frameopts.combathide and InCombatLockdown()) 
-		   and not (self.chatid == 0 and self.frameopts.hideempty) then
+		   and not (self.chatbox:GetNumMessages() == 0 and self.frameopts.hideempty) then
 			self:Show()
 		end
 	end
@@ -1046,8 +1052,6 @@ end
 -------------------------------------------------------------------------------
 function Method:RefreshChat()
 	self.chatbox:Clear()
-	self.chat_buffer = {}
-	self.chatid = 0
 	self:CheckUnread()
 	
 	if not self.snooper then
@@ -1055,6 +1059,7 @@ function Method:RefreshChat()
 		
 		local listen_all = self.charopts.listen_all
 		local showhidden = self.charopts.showhidden
+		local start_messages = self.frameopts.start_messages or self.baseopts.start_messages
 		
 		-- go through the chat list and populate entries
 		for i = Main.next_lineid-1, Main.first_lineid, -1 do
@@ -1069,7 +1074,7 @@ function Method:RefreshChat()
 			end
 			
 			-- break when we have enough messages
-			if #entries >= CHAT_BUFFER_SIZE then
+			if #entries >= start_messages then
 				break
 			end
 		end
@@ -1086,7 +1091,7 @@ function Method:RefreshChat()
 			if chat then
 				local start, stop
 				stop = #chat
-				start = math.max( stop - CHAT_BUFFER_SIZE, 1 )
+				start = math.max( stop - (self.frameopts.start_messages or self.baseopts.start_messages), 1 )
 				for i = start, stop do
 					local e = chat[i]
 					self:AddMessage( e, false, true )
@@ -1193,7 +1198,7 @@ function Method:CopyText()
 	end
 	
 	-- filter out some things (icons)
-	text = text:gsub( "|T.-|t", "" )
+	text = text:gsub( "|T.-|t%s*", "" )
 	
 	Main.CopyFrame.Show( text )
 end
@@ -1210,6 +1215,7 @@ function Me.OnLoad( self )
 	SetupMembers( self )
 	
 	-- initial settings
+	self.chatbox:SetMaxLines( CHAT_BUFFER_SIZE )
 	self:EnableMouse( true )
 	self:SetClampedToScreen( true )
 	Me.CraftEdges( self, 2 )
@@ -1231,17 +1237,68 @@ function Me.OnLeave( self )
 	self:UpdateResizeShow()
 end
 
+local function DoPainting( self, pid )
+	if not self.painting then return end
+	
+	local step = 1
+	if pid < self.painting_id then
+		step = -1
+	end
+	
+	local showhidden = self.charopts.showhidden
+	
+	local found = false
+	for id = self.painting_id, pid, step do
+		local e = Main.chatlist[id]
+		if e and e.h ~= self.painting_on 
+		   and EntryFilter( self, e )
+		   and (showhidden or self:ListeningTo( e.s )) then
+			found = true
+			Main.HighlightEntry( e, self.painting_on )
+		end
+	end
+	
+	self.painting_id = pid
+end
+
 -------------------------------------------------------------------------------
 function Me.OnUpdate( self )
 	self:UpdateVisibility()
 	
 	local picked = nil
 	
-	if Main.active_frame == self or self.snooper
-	   and self.show_highlight
+	if (Main.active_frame == self or self.snooper)
+	   and (self.show_highlight or self.painting)
 	   and not (self.auto_fade > 0 and GetTime() > self.fade_time + self.auto_fade) then
 		-- do some picking
 		picked = PickTextRegion( self, true )
+		
+		if self.painting and GetTime() > self.clickblock + CLICKBLOCK_TIME then
+			if picked and picked.entry  then
+				DoPainting( self, picked.entry.id )
+			else
+				local x,y = GetCursorPosition()
+				local scale = UIParent:GetEffectiveScale()
+				x = x / scale
+				y = y / scale
+				if x >= self.chatbox:GetLeft() and x <= self.chatbox:GetRight() then
+					local p
+					local top = self.pick_regions[#self.pick_regions]
+					if top then top = top.region:GetTop() end
+					
+					if y <= self.chatbox:GetBottom() then
+						p = self.pick_regions[1]
+					elseif y >= top then
+						p = self.pick_regions[#self.pick_regions]
+					end
+					
+					if p and p.entry then
+						DoPainting( self, p.entry.id )
+					end
+				end
+			end
+		
+		end
 	else
 		if self.chatbox.highlight:IsShown() then
 			self.chatbox.highlight:Hide()
@@ -1252,7 +1309,6 @@ end
 -------------------------------------------------------------------------------
 function Me.OnMouseDown( self, button )
 	local active = Main.active_frame == self
-	
 	
 	if not active and not self.snooper then
 		Main.SetActiveFrame( self )
@@ -1267,11 +1323,19 @@ function Me.OnMouseDown( self, button )
 	if (active or self.snooper) and GetTime() > self.clickblock + CLICKBLOCK_TIME and not faded then
 		local p = PickTextRegion( self, false )
 		if p then
-			if button == "LeftButton" then
+		
+			local tabsize = self.frameopts.tab_size or self.baseopts.tab_size
+			
+			if button == "LeftButton" and tabsize > 0 then
+				self.painting    = true
+				self.painting_on = not p.entry.h
+				if not self.painting_on then self.painting_on = nil end
+				self.painting_id = p.entry.id
+				
 				Main.HighlightEntry( p.entry, not p.entry.h )
 			elseif button == "RightButton" then
 				if IsShiftKeyDown() and not self.snooper then
-					self:TogglePlayer( p.entry.s )
+					self:TogglePlayer( p.entry.s, true )
 				end
 			end
 		end
@@ -1282,7 +1346,7 @@ end
 
 -------------------------------------------------------------------------------
 function Me.OnMouseUp( self )
-
+	self.painting = false
 end
 
 -------------------------------------------------------------------------------
@@ -1355,7 +1419,7 @@ function Me.OnChatboxHyperlinkClick( self, link, text, button )
 		local name, lineid, chatType, chatTarget = strsplit(":", namelink);
 		
 		if IsShiftKeyDown() and button == "RightButton" and not self.snooper then
-			self:TogglePlayer( name )
+			self:TogglePlayer( name, true )
 			return
 		end
 	end
@@ -1381,21 +1445,34 @@ function Me.OnChatboxRefresh( self )
 	end
 
 	-- this should only be called when the scroll actually changes
-	self:SetClickBlock()
+	if self.chatbox:GetScrollOffset() == 0 then
+		self:SetClickBlock()
+	end
 	self:UpdateHighlight()
 end
 
 -------------------------------------------------------------------------------
 function Me.TogglePlayerClicked( self, button )
-	if button == "LeftButton" then 
-		local name = Main.GetProbed()
-		if name and not self.snooper then 
-			self:TogglePlayer( name, true )
+	if button == "LeftButton" then
+		
+		-- shift-click for normal windows toggles listen_all
+		-- snooper doesn't have that feature
+		if IsShiftKeyDown() and not self.snooper then
+			
+			self:SetListenAll( not self.charopts.listen_all )
 		else
-			if self.snooper then
-				Main.Snoop2.ShowMenu()
+			-- if you aren't targeting anyone, then left click
+			-- opens the menu, otherwise it toggles the player
+			--
+			local name = Main.GetProbed()
+			if name and not self.snooper then 
+				self:TogglePlayer( name, true )
 			else
-				self:ShowMenu()
+				if self.snooper then
+					Main.Snoop2.ShowMenu()
+				else
+					self:ShowMenu()
+				end
 			end
 		end
 	elseif button == "RightButton" then
@@ -1433,7 +1510,7 @@ end
 function Me.BarMouseUp( self ) end
 
 function Me.BarDragStart( self )
-	if not self.frameopts.locked then
+	if (not self.frameopts.locked) or IsShiftKeyDown() then
 		self:StartDragging()
 	end
 end

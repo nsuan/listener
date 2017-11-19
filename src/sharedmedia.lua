@@ -1,3 +1,8 @@
+-------------------------------------------------------------------------------
+-- LISTENER by Tammya-MoonGuard (2017)
+--
+-- This registers the custom files for LibSharedMedia.
+-------------------------------------------------------------------------------
 
 local SharedMedia = LibStub( "LibSharedMedia-3.0" )
 

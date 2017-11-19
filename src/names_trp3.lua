@@ -1,9 +1,19 @@
--- TRP3 name resolver
+-------------------------------------------------------------------------------
+-- LISTENER by Tammya-MoonGuard (2017)
+--
+-- This is the name resolver for Total RP 3.
+-------------------------------------------------------------------------------
 
 local Main = ListenerAddon
-local L = Main.Locale
+local L    = Main.Locale
 
 -------------------------------------------------------------------------------
+-- Helper function to access the TRP profile database.
+--
+-- Returns a struct of profile data.
+--
+-- @param name Ingame name. Realm is optional.
+--
 local function GetTRPCharacterInfo( name )
 	
 	local char, realm = TRP3_API.utils.str.unitIDToInfo( name )
@@ -21,6 +31,8 @@ local function GetTRPCharacterInfo( name )
 end
 
 -------------------------------------------------------------------------------
+-- The name resolver.
+--
 local function Resolve( name )
 	local firstname, lastname, title, icon, color = name, "", "", nil, nil
 	
@@ -51,8 +63,12 @@ local function Resolve( name )
 	return firstname, lastname, icon, color
 end
 
--- check again after everything loads
+-------------------------------------------------------------------------------
+-- Register function.
+--
 local function Init()
+	
+	-- if this exists, they're using TRP3.
 	if TRP3_API then
 		return Resolve
 	end

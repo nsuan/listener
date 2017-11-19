@@ -1,9 +1,17 @@
--- mrp name resolver
+-------------------------------------------------------------------------------
+-- LISTENER by Tammya-MoonGuard (2017)
+--
+-- This is the name resolver for MyRolePlay users.
+-------------------------------------------------------------------------------
 
 local Main = ListenerAddon
-local L = Main.Locale
+local L    = Main.Locale
 
 -------------------------------------------------------------------------------
+-- Try and get a result from a certain name.
+-- 
+-- We try with fullname (name-realm) and then normal name.
+--
 local function TryGet( name )
 	if msp.char[name] and msp.char[name].supported 
 	   and mrp.DisplayChat.NA( msp.char[name].field.NA ) ~= "" then
@@ -17,6 +25,8 @@ local function TryGet( name )
 end
  
 -------------------------------------------------------------------------------
+-- The name resolver function.
+--
 local function Resolve( name )
 	local firstname, color
 	
@@ -41,8 +51,11 @@ local function Resolve( name )
 end
 
 -------------------------------------------------------------------------------
--- check again after everything loads
+-- Register function.
+--
 local function Init()
+
+	-- check if the person is using MyRolePlay
 	if mrp then
 		return Resolve
 	end

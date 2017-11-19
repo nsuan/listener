@@ -1,9 +1,30 @@
--- interface for getting IC names
+-------------------------------------------------------------------------------
+-- LISTENER by Tammya-MoonGuard (2017)
+--
+-- This is the simple interface for getting IC names from ingame names.
+-------------------------------------------------------------------------------
 
 local Main = ListenerAddon
-local L = Main.Locale
+local L    = Main.Locale
 
+-------------------------------------------------------------------------------
+-- This is where the name resolver submodules register themselves.
+-- Ideally there will only be one module that registers unless the user is 
+-- doing something wonky like loading multiple RP addons.
+--
+-- What's registered is a function that checks for the RP addon and then
+-- returns a function to resolve names.
+--
 Main.name_resolvers = {}
+
+-------------------------------------------------------------------------------
+-- This is a table (built below) that contains common titles, used for
+-- filtering out player titles.
+--
+-- The MSP doesn't have different slots for title, first name and last name,
+-- so this is necessary to cut out titles if someone is using a non TRP
+-- addon.
+--
 Main.titles = {}
 
 do
@@ -20,15 +41,32 @@ do
 	end
 end
 
+-------------------------------------------------------------------------------
+-- Okay, during addon load, despite this addon having RP addons as optional
+-- dependencies, it seems that they still load after this in some cases.
+--
+-- Because of that, we look for a name resolver during runtime rather than
+-- at load time. Once we find one, it's cached in here.
+--
 local g_resolver
+
+--------------------------------------------------------------------------------
+-- This is a simple cache to speed things up!
+--
 local g_cache = {}
 
 -------------------------------------------------------------------------------
-function Main:SetNameResolver( func )
+-- Sets the name resolver directly. Currently not directly used by anything
+-- within Listener.
+--
+function Main.SetNameResolver( func )
 	g_resolver = func
 end
 
 -------------------------------------------------------------------------------
+-- Returns a character's class color from a guid. This might be the only
+-- function in Listener that depends on a guid.
+--
 local function GetCharacterClassColor( guid )
 	if not guid then
 		return nil -- unknown player guid
@@ -42,6 +80,9 @@ local function GetCharacterClassColor( guid )
 end
 
 -------------------------------------------------------------------------------
+-- Searches through the name resolver registry for a valid name resolver
+-- and then sets g_resolver.
+--
 local function FindResolver()
 	if g_resolver then return g_resolver end
 	for k,v in ipairs( Main.name_resolvers ) do
@@ -66,8 +107,8 @@ end
 -------------------------------------------------------------------------------
 -- Gets a character's IC name for chat formatting.
 --
--- @param name Full name of player, including realm if off server.
--- @param get_full Get full name regardless of options.
+-- @param name     Full name of player, including realm if off server.
+-- @param get_full Get full name (first+last) regardless of options.
 -- 
 -- @returns name (string), icon (texture path), color (aarrggbb hexstring)
 --
@@ -76,8 +117,10 @@ function Main.GetICName( name, get_full )
 	-- the simple cache here is to prevent a lot of load when refreshing chat frames
 	-- that's when they add a ton of messages and a lot of them could very well
 	-- be spamming this function for the same result over and over.
-	
+	--
 	if not get_full then
+		-- note that get_full isn't cached. That might change in the future if
+		-- we actually start doing lots of calls of that.
 		local c = g_cache[name]
 		if c and GetTime() < c.t + 5 then
 			return unpack( c.r )

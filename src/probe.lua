@@ -1,18 +1,36 @@
+-------------------------------------------------------------------------------
+-- LISTENER by Tammya-MoonGuard (2017)
 --
 -- The Probe is a module that tracks who is targeted or moused over.
---
+-------------------------------------------------------------------------------
 
 local Main = ListenerAddon
 
+-------------------------------------------------------------------------------
+-- The current target and guid that's being targeted. May be nil for no target.
+--
 local g_probe_target = nil
 local g_probe_guid   = nil
+
+-------------------------------------------------------------------------------
+-- This is set to the time when a probe target is found, used for keeping the
+-- target for a small moment after the user is targeting nothing.
+--
 local g_probe_time   = 0
+
+-------------------------------------------------------------------------------
+-- A dummy frame for OnUpdate.
+--
 local g_probe_frame
 
+-------------------------------------------------------------------------------
 -- Time until the probe is reset when not touching anyone.
+--
 local PROBE_TIMEOUT = 0.5
 
 -------------------------------------------------------------------------------
+-- Returns who the current probe target is, and their guid.
+--
 function Main.GetProbed()
 	return g_probe_target, g_probe_guid
 end
@@ -60,6 +78,7 @@ end
 -------------------------------------------------------------------------------
 -- Put anything in here that you want to change when the probed target
 -- changes.
+--
 function Main.OnProbeChanged()
 	-- update snooper
 	-- update active window
@@ -67,10 +86,11 @@ function Main.OnProbeChanged()
 	for _,f in pairs( Main.frames ) do
 		f:UpdateProbe()
 	end
-	--Main.active_frame:UpdateProbe()
 end
 
 -------------------------------------------------------------------------------
+-- Setup function.
+--
 function Main.SetupProbe()
 	if g_probe_frame then error( "Tried to recreate probe frame." ) end
 	g_probe_frame = CreateFrame("Frame")

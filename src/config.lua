@@ -1,5 +1,10 @@
 -------------------------------------------------------------------------------
--- LISTENER by Tammya-MoonGuard (2016)
+-- LISTENER by Tammya-MoonGuard (2017)
+--
+-- The configuration module.
+--
+-- In here you'll find the default database table and the main
+-- configuration options.
 -------------------------------------------------------------------------------
 
 local Main = ListenerAddon
@@ -9,15 +14,31 @@ local AceConfig       = LibStub("AceConfig-3.0")
 local AceConfigDialog = LibStub("AceConfigDialog-3.0")
 local SharedMedia     = LibStub("LibSharedMedia-3.0")
 
+--
+-- This version number is used for future compatibility. It's saved globally
+-- and then the idea is that when the database upgrades or changes in the
+-- future, some importing operations can be done on the older data if
+-- an older version is recognized.
+--
+-- As of now it's not used for that and is still VERSION 1.
+--
+-- Database patches are done within CreateDB, you can see a comment there.
+--
 local VERSION = 1
 
+-- List of fonts for font picker options.
 local g_font_list = {}
-local g_init = nil
  
 -------------------------------------------------------------------------------
+-- These functions are for converting a hex string into a color value.
+-- 
+-- It accepts a few formats, such as "rgb", "rgba", "rrggbb", or "rrggbbaa"
+-- and it's output is { r, g, b } or { r, g, b, a } if using an alpha value.
+--
 local function ToNumber2( expr )
 	return tonumber( expr ) or 0
 end
+
 -------------------------------------------------------------------------------
 local function Hexc( hex )
 	if hex:len() == 3 then
@@ -39,175 +60,410 @@ end
 -- For other frames, they're character based, and are entirely stored in the CHAR.
 
 -------------------------------------------------------------------------------
+-- The default structure of the saved data.
+--
+-- AFAIK whenever you set a value to nil in the database, it will refer to any
+-- value found in this table on the next reload.
+--
 local DB_DEFAULTS = {
 	
+	---------------------------------------------------------------------------
+	-- Global variables (for all characters on all realms).
+	--
 	global = {
+	
+		-- See VERSION above.
 		version = nil;
+		
+		-- Help notes that have been acknowledged (see help.lua).
 		help    = {};
 	};
 	
+	---------------------------------------------------------------------------
+	-- Per-realm variables.
+	--
 	realm = {
+		-- This is a table which maps player names to guids. Index is normal
+		-- Name for same-realm or Name-Realm
 		guids = {};
 	};
 	
+	---------------------------------------------------------------------------
+	-- Per-character variables.
+	--
 	char = {
+	
+		-----------------------------------------------------------------------
+		-- It's a little messy here, but the gist of it here is that a lot of
+		-- the frame variables can be overwritten in here. Some options are 
+		-- strictly per-character, while others are profile based with
+		-- character overrides.
+		--
+		-- For the profile based options, the main frame and the snooper frame
+		-- (frames 1 and 2) are always using the profile options. Other frames
+		-- are per-character and their overrides use per-character options,
+		-- here, to save options.
+		--
 		frames = {
 			-------------------------------------------------------------------
-			-- frames[1] is the primary frame, frames[2..x] are subframes
-			-- contents:
-			--   players    = {}    player filter list
-			--	 listen_all = true  inclusion mode
-			--   filter     = {}    events that are included (should use default value table)
-			--    [event_type] = true/false
-			--    [#channel]   = true/false
-			--  showhidden = false  show hidden players
-			--  layout              position/size (uses profile entry for primary frame)
-			--    point  = {}       anchor point info
-			--    width  = x        size
-			--    height = y        size
-			--  hidden = false      frame is hidden
-			--  sound = true        play a sound on new message
-			--  tab_size (inherit)
-			--  combathide          hide during combat
-			--  readmark = true     show readmark
-			--  
-			--  color_bg   = {color} background color
-			--  color_edge = {color} edge color
-			--  color_bar  = {color} bar color
+			-- Two frames should always be defined in here (after initial setup)
+			-- The primary frame [1] and the snooper [2].
+			-- [3..x] are custom frames.
+			--
+			-- Options here that are purely character options are:
+			--   players    - The player filter list.
+			--   listen_all - The inclusion mode option.
+			--   filter     - Chat events that are shown in this frame.
+			--                Entries are uppercase event names or channel
+			--                names prefixed by #. e.g. "SAY" or "#TEST"
+			--   showhidden - Show excluded players as faded instead of hidden.
+			--   hidden     - The window is closed.
+			--   sound      - The "notify" option. Plays a sound on message.
+			
+			--
+			-- Some options are split, but they're not overrides. For example
+			-- combathide is stored in profile.frame for frame 1, 
+			-- profile.snoop for frame 2, and then here, in the per-character
+			-- variables for custom frames.
+			--   combathide - Hide during combat.
+			--   readmark   - Show readmark.
+			--   layout     - Window position/size.
+			--   locked     - Window cannot be moved.
+			--   auto_popup - Open window on new message.
+			
+			-- As for overrides, see profile.frame, and the options that
+			-- can be overriden are noted as such.
 		};
 		
-		-- events that the snooper is listening to
-		snoop_filter = {
-			SAY  = true, EMOTE       = true, TEXT_EMOTE   = true, 
-			YELL = true, PARTY       = true, PARTY_LEADER = true, 
-			RAID = true, RAID_LEADER = true, RAID_WARNING = true,
-			ROLL = true
-		};
+		-- If DM Tags are enabled.
+		dmtags = false;
 	};
 	
+	---------------------------------------------------------------------------
+	-- Per-profile variables.
+	--
 	profile = {
 	
-		-- for minimap lib
+		--------------------------------------------
+		-- Savedata for the minimap button library.
 		minimapicon = {
+		
+			-- If the button is shown or not.
 			hide = false;
 		};
 		
-		-- general settings
-		addgrouped       = true;  -- add player's party automatically (todo)
-		flashclient      = true;  -- flash taskbar on message
-		beeptime         = 3;     -- time needed between emotes to play another sound
-		rpconnect        = true;  -- rpconnect support
+		-------------------------------------------------------------
+		-- Flash the taskbar when a notification is received 
+		-- (whenever a sound plays).
+		flashclient      = true;
 		
+		-------------------------------------------------------------
+		-- Time that needs to pass before another beep is 
+		-- made. This is a time of no messages being
+		-- received.
+		--
+		-- In other words, if you keep receiving messages
+		-- every 1 second, and the threshold is 3, then
+		-- you'll only hear the first beep and then you won't
+		-- hear another one until the messages stop coming
+		-- for at least 3 seconds.
+		--
+		beeptime         = 3;
+		
+		-------------------------------------------------------------
+		-- RPConnect is an addon that's meant for cross-realm RP, 
+		-- and with this switch the messages that are translated by 
+		-- the relay bots will be parsed and then associated with 
+		-- the opposite faction player that they're supposed to be 
+		-- coming from. In other words, you can select a Horde
+		-- player as Alliance and see their messages in the snooper
+		-- if they are using raid chat through RPConnect
+		--
+		-- Currently there's no UI option to turn this off.
+		--
+		rpconnect        = true;
+		
+		-------------------------------------------------------------
+		-- By default names are shortened, which is a feature in
+		-- the names module to try and keep names to a minimum and
+		-- maximum length. A name like "Sato Whisperfur" will include
+		-- the whole name, since the first name is so short, but
+		-- a name like "Rennae Fricke" will only use the first name
+		-- since it's longer than four characters.
+		--
 		shorten_names    = true;
+		
+		-------------------------------------------------------------
+		-- Option to strip titles. There's no UI setting for this
+		-- but what it does is causes the names module to cut away
+		-- commonly used titles. This is necessary because the
+		-- Mary Sue protocol does not have a separate title field
+		-- and it'll show as part of the character's name when using
+		-- MRP or XRP.
+		--
 		strip_titles     = true;
 		
+		-------------------------------------------------------------
+		-- This option adds URL detection, and URLs will be turned
+		-- into clickable links.
+		--
 		convert_links    = true;
-		trp_emotes       = true; -- allow trp style pipe emotes
 		
+		-------------------------------------------------------------
+		-- This option adds NPC emote detection, which is "| "
+		-- prefixing an /e message. TRP has this feature to remove
+		-- the character's name before the message.
+		--
+		trp_emotes       = true;
+		
+		-------------------------------------------------------------
+		-- The keywords module adds a chat filter that highlights
+		-- certain terms and also makes a notification when they're
+		-- found.
+		--
+		-- Some substitutions are allowed, such as <firstname>,
+		-- <lastname>, and <oocname> (all are set by default)
+		--
+		-- keywords_color is the color they are highlighted with.
+		--
 		keywords_enable  = true;
 		keywords_string  = "<firstname>, <lastname>, <oocname>";
 		keywords_color   = Hexc "75F754";
 		
-		-- notification settings
+		-------------------------------------------------------------
+		-- Notification settings.
+		--
 		sound = {
-			msg    = true; -- play sound on filtered emote (this is moved inside of the frame settings)
+		
+			---------------------------------------------------------
+			-- Play a sound when target emotes. This means that if
+			-- you're targeting someone ("target" unit is them), then
+			-- a notification will occur whenever you receive a
+			-- chat event from them.
+			--
+			-- This might change to use the snooper filter.
+			--
 			target = true; -- play sound when target emotes
-			poke   = true; -- play sound when someone emotes at you
+			
+			---------------------------------------------------------
+			-- Enable /poke notifications. This is a special sound
+			-- whenever someone directs a stock emote at you, such
+			-- as /wave, /poke, /hi, etc. It works by looking for
+			-- "you" in the message.
+			--
+			poke   = true;
 		};
 		
-		-- profile frame settings (see note above)
+		-----------------------------------------------------------------------
+		-- Profile frame settings. (See note above!)
 		frame = {
 		
-			-- anchor and size
-			-- subframes inherit this or can define it themselves
+			---------------------------------------------------------
+			-- Split option.
+			-- Anchor and size. Subframes define their own layout.
+			--
 			layout = {
+				-- anchor contains everything for a SetPoint call.
+				-- { point, region, relativePoint, x, y }
+				-- region is a string for a frame's name.
 				anchor = {};
+				
+				-- width and height are pixel size.
 				width  = 350;
 				height = 400;
 			};
 			
-			-- can drag
+			---------------------------------------------------------
+			-- Inherited option.
+			--
+			-- Otherwise known as History Size, this is the number
+			-- of messages that populate the message frame when
+			-- refresh chat is called.
+			--
+			-- For this snooper, this is ideally much less since
+			-- it refreshes a lot more often. 
+			-- (But it probably doesn't matter).
+			--
+			start_messages = 120;
+			
+			---------------------------------------------------------
+			-- Split option.
+			--
+			-- Hide during combat.
+			--
+			combathide = true;
+			
+			---------------------------------------------------------
+			-- Split option.
+			--
+			-- Window can be dragged.
+			--
 			locked = false;
 			
-			-- enable timestamps
+			---------------------------------------------------------
+			-- Global option.
+			--
+			-- Timestamp format. 
+			--  [0] = None
+			--  [1] = HH:MM:SS
+			--  [2] = HH:MM
+			--  [3] = HH:MM (12-hour)
+			--  [4] = MM:SS
+			--  [5] = MM
+			--
 			timestamps = 0;
 			
-			-- time that text is kept visible
-			time_visible = 0;
-			
-			-- this is time_visible's successor
-			-- the entire window just fades.
+			---------------------------------------------------------
+			-- Inherited option.
+			--
+			-- This is the number of seconds of inactivity before 
+			-- a window fades down to auto_fade_opacity.
+			--
 			auto_fade = 0;
 			
-			-- automatically show on new message
+			---------------------------------------------------------
+			-- Split option.
+			--
+			-- Automatically open window when a new message is
+			-- added.
 			auto_popup = false;
 			
-			-- shared between all windows:
-			
-			-- show trp icons; zoom is for removing border
+			---------------------------------------------------------
+			-- Global option.
+			--
+			-- Show TRP3 icons if using that addon. Zoom changes
+			-- the texture coordinates to cut off the icon borders.
+			--
 			show_icons = true;
 			zoom_icons = true;
 			
-			-- pixel width of the tabs next to messages
+			---------------------------------------------------------
+			-- Global option.
+			--
+			-- Pixel width of the tabs next to messages, the feature
+			-- that has replaced full highlighting.
+			--
 			tab_size = 2;
 			
-			-- pixel size of edges around frames
+			---------------------------------------------------------
+			-- Global option.
+			--
+			-- Pixel width of the edges that surround Listener frames.
+			--
 			edge_size = 2;
 			
-			-- opacity for faded windows (percent)
+			---------------------------------------------------------
+			-- Global option
+			--
+			-- Opacity for windows that have faded out due to
+			-- inactivity/auto fade duration.
+			--
 			auto_fade_opacity = 20;
 			
+			---------------------------------------------------------
+			-- Inherited option.
+			--
+			-- Font style for this frame.
+			--
 			font = {
-				size = 12; -- except for this - this is custom per window
-				face = "Arial Narrow";
-				outline = 1;
-				shadow = true;
+				size = 12;              -- Size/height.
+				face = "Arial Narrow";  -- Face/family (SharedMedia name).
+				outline = 1;            -- 1 = None, 2 = Thin, 3 = Thick.
+				shadow = true;          -- Text shadow.
 			};
 			
-			-- shared between all windows
+			---------------------------------------------------------
+			-- Global option.
+			--
+			-- Font style for the title bars.
+			--
 			barfont = {
 				size = 14;
 				face = "Accidental Presidency";
 			};
 			
+			---------------------------------------------------------
+			-- Color settings (mixed global/inherited)
+			--
 			color = {
-				-- these are default values when
-				-- new windows are created
-				bg       = Hexc "090f17ff";
-				edge     = Hexc "1F344E80";
-				bar      = Hexc "1F344Eff";
+				-----------------------------------------------------
+				-- Inherited options.
+				--
+				-- The colors of the window.
+				--
+				bg       = Hexc "090f17ff"; -- Background behind chatbox.
+				edge     = Hexc "1F344E80"; -- The border color.
+				bar      = Hexc "1F344Eff"; -- The titlebar color.
 			
-				-- the following are used globally 
-				-- and aren't configured per-frame
+				-----------------------------------------------------
+				-- Global option.
+				--
+				-- The color of the readmark. (default red)
+				--
 				readmark = Hexc "BF060FC0";
 				
-				tab_self   = Hexc "29D24EFF";
-				tab_target = Hexc "BF060FFF";
-				tab_marked = Hexc "D3DA37FF";
+				-----------------------------------------------------
+				-- Global options.
+				--
+				-- The tab colors.
+				--
+				tab_self   = Hexc "29D24EFF"; -- Self/own messages. (default green)
+				tab_target = Hexc "BF060FFF"; -- Target messages. (default red)
+				tab_marked = Hexc "D3DA37FF"; -- Marked messages. (default yellow)
 			};
 		};
 		
-		-- snooper settings, this is also a frame.
+		-------------------------------------------------------------
+		-- Snooper settings. The snooper has a bunch of options that
+		-- are specific to it, but is otherwise just a normal frame.
+		--
 		snoop = {
 		
+			---------------------------------------------------------
+			-- Layout struct.
 			layout = {
 				anchor = {};
 				width  = 350;
 				height = 400;
 			};
 			
+			---------------------------------------------------------
+			-- Inherited options and their default settings for the
+			-- snooper.
+			--
 			locked             = false;
 			auto_fade          = 0;
 			tab_size           = 0;
-			timestamp_brackets = true;
-			shift_mouse        = true;
-			name_colors        = true;
+			
+			-- The snooper gets refreshed a lot so a lower
+			-- start_messages value can help performance.
+			start_messages     = 50;
 			
 			font  = {};
 			color = {};
+			
+			---------------------------------------------------------
+			-- Snooper specific options.
+			--
+			
+			-- Wrap timestamps in square brackets for style.
+			timestamp_brackets = true;
+			
+			-- Enable mouse when holding shift.
+			shift_mouse        = true;
+			
+			-- Color names. (/e messages include the character name.)
+			name_colors        = true;
+			
 		};
 		
+		-------------------------------------------------------------
+		-- Options for the DM Tags module.
+		--
 		dmtags = {
+		
+			---------------------------------------------------------
+			-- Font for the tags.
 			font = {
 				size = 12; 
 				face = "Accidental Presidency";
@@ -217,15 +473,17 @@ local DB_DEFAULTS = {
 }
  
 -------------------------------------------------------------------------------
+-- Simple helper function to return the key for a unique value in a table.
+--
 local function FindValueKey( table, value ) 
 	for k,v in pairs( table ) do
 		if v == value then return k end
 	end
 end
 
-local outline_values = { "None", "Thin Outline", "Thick Outline" }
-
 -------------------------------------------------------------------------------
+-- Apply options for all chat.
+--
 local function FrameSettingsChanged()
 	Main.Frame.ApplyGlobalOptions()
 	for _, frame in pairs( Main.frames ) do
@@ -234,6 +492,8 @@ local function FrameSettingsChanged()
 end
 
 -------------------------------------------------------------------------------
+-- Refresh all windows.
+--
 local function RefreshAllChat()
 	for _, frame in pairs( Main.frames ) do
 		frame:RefreshChat()
@@ -241,6 +501,9 @@ local function RefreshAllChat()
 	end
 end
 
+-------------------------------------------------------------------------------
+-- Creates an option to adjust a color. Used for tabs/readmark (global).
+--
 local function FrameColorOption( order, name, desc, color )
 	return {
 		order = order;
@@ -259,9 +522,12 @@ local function FrameColorOption( order, name, desc, color )
 end
 
 -------------------------------------------------------------------------------
+-- The main options table.
+--
+-- Most of the things in here are fairly self explanatory.
+--
 Main.config_options = {
 	type = "group";
-	
 	args = { 
 		
 		mmicon = {
@@ -305,8 +571,8 @@ Main.config_options = {
 					name = L["Poke Sound"];
 					desc = L["Play a sound when a person directs a stock emote at you. (e.g. /poke)"];
 					type = "toggle";
-					set = function( info, val ) Main.db.profile.notify_poke = val end;
-					get = function( info ) return Main.db.profile.notify_poke end;
+					set = function( info, val ) Main.db.profile.sound.poke = val end;
+					get = function( info ) return Main.db.profile.sound.poke end;
 				};
 				
 				flash1 = {
@@ -369,7 +635,7 @@ Main.config_options = {
 						keywords_desc = {
 							order = 91;
 							type  = "description";
-							name  = L["The keywords feature highlights things that appear in chat, such as your name. They also make a notification. Separate keywords with commas. Some substitutions are available:\n<firstname> - Your character's RP first name.\n<lastname> - Your character's RP last name.\n<oocname> - Your character's in-game name."];
+							name  = L["The keywords feature highlights things that appear in chat, such as your name. They also make a notification. Separate keywords with commas. Keywords are not case-sensitive. Some substitutions are available:\n<firstname> - Your character's RP first name.\n<lastname> - Your character's RP last name.\n<oocname> - Your character's in-game name."];
 						};
 						
 						keywords_enable = {
@@ -412,6 +678,48 @@ Main.config_options = {
 							end;
 							get = function( info )
 								return unpack( Main.db.profile.keywords_color )
+							end;
+						};
+					};
+				};
+				dmtags = {
+					order  = 101;
+					name   = L["DM Tags"];
+					type   = "group";
+					inline = true;
+					args   = {
+						desc = {
+							order = 1;
+							type = "description";
+							name = L["DM Tags are a feature (that you might not use) which mark your unit frames with the time since a player's last emote. They're toggleable in the minimap menu."];
+						};
+						fontface = {
+							order = 11;
+							name  = L["Font"];
+							desc  = L["Font for DM tags."];
+							type  = "select";
+							set   = function( info, val ) 
+								Main.db.profile.dmtags.font.face = g_font_list[val]
+								Main.DMTags.LoadConfig()
+							end;
+							get   = function( info ) 
+								return FindValueKey( g_font_list, Main.db.profile.dmtags.font.face ) 
+							end;
+						};
+						size = {
+							order = 12;
+							name  = L["Size"];
+							desc  = L["Font size for DM tags."];
+							type  = "range";
+							min   = 6;
+							max   = 32;
+							step  = 1;
+							set   = function( info, val )
+								Main.db.profile.dmtags.font.size = val;
+								Main.DMTags.LoadConfig()
+							end;
+							get   = function( info )
+								return Main.db.profile.dmtags.font.size
 							end;
 						};
 					};
@@ -572,16 +880,22 @@ Main.config_options = {
 }
   
 -------------------------------------------------------------------------------
+-- Create/initialize the database. This is called once at startup.
+-- Must be called before accessing Main.db.
+--
 function Main.CreateDB() 
 
 	local acedb = LibStub( "AceDB-3.0" )
- 
-  
 	Main.db = acedb:New( "ListenerAddonSaved", DB_DEFAULTS, true )
 	
+	-- this might be a bit much, but who cares, reload everything
+	-- when the profile is changed.
 	Main.db.RegisterCallback( Main, "OnProfileChanged", "ApplyConfig" )
 	Main.db.RegisterCallback( Main, "OnProfileCopied",  "ApplyConfig" )
 	Main.db.RegisterCallback( Main, "OnProfileReset",   "ApplyConfig" )
+	
+	-- important note for when the time comes:
+	-- database patching should iterate through all profiles as well.
 	
 	-- insert older database patches here: --
 	
@@ -591,6 +905,9 @@ function Main.CreateDB()
 end
 
 -------------------------------------------------------------------------------
+-- Initialize the configuration panel.
+--
+local g_init
 local function InitConfigPanel()
 	if g_init then return end
 	g_init = true
@@ -599,6 +916,7 @@ local function InitConfigPanel()
 	
 	g_font_list = SharedMedia:List( "font" ) 
 	options.args.frame.args.bar_fontface.values = g_font_list 
+	options.args.general.args.dmtags.args.fontface.values = g_font_list
 	options.args.profile = LibStub("AceDBOptions-3.0"):GetOptionsTable( Main.db )
 	options.args.profile.order = 500
 	 
@@ -606,7 +924,8 @@ local function InitConfigPanel()
 end
 
 -------------------------------------------------------------------------------
--- Open the configuration panel.
+-- Open the configuration panel, as done through the Settings button
+-- in the minimap menu.
 --
 function Main.OpenConfig()
 	InitConfigPanel()	
@@ -631,5 +950,9 @@ function Main:ApplyConfig( onload )
 		}
 	end
 	FrameSettingsChanged()
+	Main.DMTags.LoadConfig()
+	Main.Snoop2.LoadConfig()
+	
+	-- any other configuration loading things should go in here.
 end
  

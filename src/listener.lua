@@ -1,88 +1,141 @@
 -------------------------------------------------------------------------------
 -- LISTENER by Tammya-MoonGuard (2017)
+--
+-- This is the center that links everything together and is otherwise
+-- cluttered with anything that isn't stuffed into a module.
 -------------------------------------------------------------------------------
  
-local Main = ListenerAddon
-local L    = Main.Locale
+local Main        = ListenerAddon
+local L           = Main.Locale
 local SharedMedia = LibStub("LibSharedMedia-3.0")
 
-local PLAYER_HISTORY_SIZE = 75
+-------------------------------------------------------------------------------
+-- The max number of frames that are allowed to be created.
+--
 local MAX_FRAMES          = 50 -- hell YEAH lool
+
+-------------------------------------------------------------------------------
+-- The time the addon was loaded. This is mainly for the friend list loader.
+--
 local g_loadtime          = 0
-local NEW_MESSAGE_HOLD    = 3 -- grace period for messages to stay unread when
-                              -- removing them
+
+-------------------------------------------------------------------------------
+-- This is the grace period for message to stay unread when marking all
+-- messages as read. e.g. if a message is newer than this, then that
+-- function will skip it.
+--
+local NEW_MESSAGE_HOLD    = 3
+                             
+-------------------------------------------------------------------------------
+-- Channels that are ignored and not logged.
+--
 local IGNORED_CHANNELS = {
-	xtensionxtooltip2 = true
+	xtensionxtooltip2 = true -- Common addon channel.
 }
 
--- english is "%s rolls %d (%d-%d)";
+-------------------------------------------------------------------------------
+-- The following is some serious mojo to convert localized strings into
+-- matching patterns. A feeble attempt at providing message recognition that
+-- works on any client.
+--
+-- For roll results... English is "%s rolls %d (%d-%d)"
 local SYSTEM_ROLL_PATTERN = RANDOM_ROLL_RESULT 
 
+-- Convert to a pattern.
 SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%%s", "(%%S+)" )
 SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%%d", "(%%d+)" )
 SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%(%(%%d%+%)%-%(%%d%+%)%)", "%%((%%d+)%%-(%%d+)%%)" ) -- this is what we call voodoo?
 
+-- English is "|Hplayer:%s|h[%s]|h has come online."
 local SYSTEM_ONLINE_PATTERN = ERR_FRIEND_ONLINE_SS
 SYSTEM_ONLINE_PATTERN = SYSTEM_ONLINE_PATTERN:gsub( "|Hplayer:%%s|h%[%%s%]|h", "|Hplayer:([^|]+)|h%%[[^%%]]+%%]|h" )
 SYSTEM_ONLINE_PATTERN = SYSTEM_ONLINE_PATTERN:gsub( "%.", "%%." )
 
+-- English is "%s has gone offline."
 local SYSTEM_OFFLINE_PATTERN = ERR_FRIEND_OFFLINE_S
 SYSTEM_OFFLINE_PATTERN = SYSTEM_OFFLINE_PATTERN:gsub( "%%s", "(%%S+)" )
 SYSTEM_OFFLINE_PATTERN = SYSTEM_OFFLINE_PATTERN:gsub( "%.", "%%." )
 
---[[
- Chat history database:
-    Main.chat_history = {
-		[playername] = {
-			[max_messages] = {  -- previous message history
-				id = line id
-				t = time received (unixtime)
-				e = event type
-				m = message
-				r = message has been read
-				s = sender
-			}
-		}
-	}
-	Main.chatlist = { -- list of chat messages
-	  [lineid] = event reference
-	}
-]]
+-------------------------------------------------------------------------------
+-- Here's the layout of the chat history database.
+-- Main.chat_history = {
+--     [playername] = {
+--         [max_messages] = {  -- previous message history
+--             id = line id
+--             t = time received (unixtime)
+--             e = event type
+--             m = message
+--             r = message has not been read
+--             s = sender
+--         }
+--     }
+-- }
+-- Main.chatlist = { -- list of chat messages
+--     [lineid] = event reference
+-- }
+-------------------------------------------------------------------------------
 
---[[
-  Player Filter Data (player_list) = {
-    [playername] = 1   (show in window)
-	               0   (remove from window)
-				   nil (default setting)
-  }
-]]
-
--- new in 1.6.0
--- this table is indexed by entries
+-------------------------------------------------------------------------------
+-- This table is indexed by tables (chat entries).
+-- Anything in here is an unread message (e.r=true)
+--
 Main.unread_entries = {}
+
+-------------------------------------------------------------------------------
+-- A simple helper function to see if unread_entries has anything in it.
+--
 function Main.HasUnreadEntries()
 	for _,_ in pairs( Main.unread_entries ) do return true end
 end
 
-
+-------------------------------------------------------------------------------
+-- The realm the player is on, for building player-realm strings.
+-- This actually isn't safe here, and it's refetched after the addon is loaded.
+--
 Main.realm          = select(2,UnitFullName("player"))
+
+-------------------------------------------------------------------------------
+-- The first lineid in the chat history. This is 1 after the first load or
+-- after everything is cleared from the chat history (after a long logout)
+-- But otherwise the chat history is sort of like an endless buffer,
+-- so this marks the start of it so that code doesn't have to iterate all
+-- the way to 1 and waste time because there are no entries before this.
+--
 Main.first_lineid   = 1
+
+-------------------------------------------------------------------------------
+-- Where the next chat history entry can be written to.
+--
 Main.next_lineid    = 1
+
+-------------------------------------------------------------------------------
+-- This is the list of listener windows.
+-- Frame 1 is the main frame.
+-- Frame 2 is the snooper.
+-- Frames 3+ are custom frames.
+--
 Main.frames         = {}
--- frame 1 is the main frame
--- frame 2 is the snooper
--- frame 3+ are custom frames.
+
+-------------------------------------------------------------------------------
+-- The currently active frame.
+--
+-- This should never be nil once everything is setup.
+--
 Main.active_frame   = nil
 
-local g_frame_creation_id = 0
- 
--------------------------------------------------------------------------------		  
+-------------------------------------------------------------------------------
+-- Called by Ace3, not used for anything right now.
 function Main:OnInitialize() 
-	SLASH_LISTENER1 = "/listener"
-	SLASH_LISTENER2 = "/lr"
+	
 end
 
 -------------------------------------------------------------------------------
+-- This function cleans up the chat history. Done on load or reload.
+--
+-- Any chat entries that are deemed "old" are removed. If all chat history
+-- is removed for a player, then the filter for that player is reset.
+-- (And that part is done by CleanPlayerList)
+--
 local function CleanChatHistory()
 	ListenerChatHistory = ListenerChatHistory or {}
 	Main.chatlist = {}
@@ -103,7 +156,7 @@ local function CleanChatHistory()
 	local expiry = 60*30 -- 30 mins
 	
 	-- we want to find the highest lineid so we can continue
-	-- (it should reset overnight!)
+	-- (it should reset overnight! :)
 	local max_lineid = 0
 	local min_lineid = nil
 	
@@ -146,7 +199,7 @@ end
 -------------------------------------------------------------------------------
 -- Reset player filters with no chat history.
 --
--- This is to be called before the frames are created.
+-- This is to be called BEFORE the frames are created.
 --
 local function CleanPlayerList()
 
@@ -164,21 +217,24 @@ local function CleanPlayerList()
 end
 
 -------------------------------------------------------------------------------
--- Scan friends list and add them to the filter.
+-- Scan friends list and add them to MAIN's filter.
 --
 local function AddFriendsList()
 	for i = 1, GetNumFriends() do
 		local name = GetFriendInfo( i )
-		if name and name ~= "Unknown" then
+		
+		-- name may or may not be a localized string. /shrug
+		
+		if name and name ~= UNKNOWN then
 			Main.frames[1].players[name] = 1
 		end
 	end
 end
 
 -------------------------------------------------------------------------------
--- Prepare showing a tooltip for a frame.
+-- Hook the GameTooltip to a frame and prepare it for adding text.
 --
-function Main:StartTooltip( frame )
+function Main.StartTooltip( frame )
 	-- Section the screen into 6 sextants and define the tooltip 
 	-- anchor position based on which sextant the cursor is in.
 	-- Code taken from WeakAuras.
@@ -193,8 +249,11 @@ function Main:StartTooltip( frame )
     GameTooltip:SetOwner( frame, "ANCHOR_NONE" )
     GameTooltip:SetPoint( tooltip_vertical..horizontal, frame, anchor_vertical..horizontal )
 	GameTooltip:ClearLines()
-	
 end
+
+-- The tooltip functions here are no longer used. To be repurposed later
+-- if they are required again.
+--[[
 
 -------------------------------------------------------------------------------
 local function FrameTooltip_Start( self )
@@ -224,8 +283,11 @@ function Main:SetupTooltip( frame, func )
 	frame:SetScript( "OnLeave", FrameTooltip_End ) 
 	frame.RefreshTooltip = FrameTooltip_Refresh
 end	
+--]]
 
 -------------------------------------------------------------------------------
+-- Setup function for setting the localized strings for the key bindings text.
+--
 function Main.SetupBindingText()
 	_G["BINDING_NAME_LISTENER_TOGGLEFILTER"] = L["Toggle Player Filter"]
 	_G["BINDING_NAME_LISTENER_MARKUNREAD"]   = L["Mark Messages as Read"]
@@ -233,6 +295,8 @@ function Main.SetupBindingText()
 end
 
 -------------------------------------------------------------------------------
+-- Callback for when a keyboard modifier changes.
+--
 function Main:OnModifierChanged( evt, key, state )
 
 	if key == "LSHIFT" or key == "RSHIFT" then
@@ -255,11 +319,8 @@ function Main:OnModifierChanged( evt, key, state )
 end
 
 -------------------------------------------------------------------------------
---function Main:OnProbeUpdate()
---	self:ProbePlayer()
---end
-
--------------------------------------------------------------------------------
+-- FRIENDLIST_UPDATE event.
+--
 function Main:OnFriendlistUpdate()
 	-- if this event occurs 30 seconds within load time, then we
 	-- wanna update our initial friends list adding
@@ -273,6 +334,8 @@ function Main:OnFriendlistUpdate()
 end
 
 -------------------------------------------------------------------------------
+-- Flash the taskbar icon, if this feature is enabled in the settings.
+--
 function Main:FlashClient()
 	if Main.db.profile.flashclient then
 		FlashClientIcon()
@@ -280,18 +343,22 @@ function Main:FlashClient()
 end
 
 -------------------------------------------------------------------------------
+-- Play the message beep.
+--
 local g_message_beep_cd = 0
-function Main:PlayMessageBeep()
+function Main.PlayMessageBeep()
 
 	-- we want to only play a beep if a beep hasn't tried to play in the last X seconds
 	-- in other words, if there is a constant stream of spam, no beeps will play
-	
+	--
 	-- we moved the flash client bit outside so that if someone is tabbed out
 	-- they arent going to miss a message because of this
+	--
 	if GetTime() < g_message_beep_cd + Main.db.profile.beeptime then
 		g_message_beep_cd = GetTime()
 		return
 	end
+	
 	g_message_beep_cd = GetTime()
 	
 	PlaySoundFile( SharedMedia:Fetch( "sound", "ListenerBeep" ), "Master" )
@@ -300,23 +367,30 @@ end
 -------------------------------------------------------------------------------
 -- Check if someone has used a text emote on us and then act accordingly.
 -- 
--- @param msg Contents of text emote.
+-- @param msg    Contents of text emote.
+-- @param sender Sender of the event. If this matches the targeted unit, then
+--               we ignore it. (Because the player is already paying attention
+--               to them.)
 --
-function Main:CheckPoke( msg, sender )
+function Main.CheckPoke( msg, sender )
 	if not Main.db.profile.sound.poke then return end
 	
 	local loc = GetLocale()
 	if loc == "enUS" then
+		-- Currently only supporting english.
 		if msg:find( " you" ) then
-			--if ListenerFrame:IsShown() and self.player_list[sender] then return end
 			if Main.FullName('target') == sender then return end
-			if msg:find( "orders you to open fire." ) then return end
-			if msg:find( "asks you to wait." ) then return end
-			if msg:find( "tells you to attack" ) then return end
+			
+			-- There are a handful of emotes that contain " you" regardless
+			-- of who they're targeting. We filter those out.
+			
+			if msg:find( "orders you to open fire."   ) then return end
+			if msg:find( "asks you to wait."          ) then return end
+			if msg:find( "tells you to attack"        ) then return end
 			if msg:find( "motions for you to follow." ) then return end
-		
+			
 			PlaySoundFile( SharedMedia:Fetch( "sound", "ListenerPoke" ), "Master" )
-			Main:FlashClient()
+			Main.FlashClient()
 		end
 	end
 end
@@ -325,24 +399,26 @@ end
 -- Hook for DiceMaster4 roll messages.
 --
 function Main:OnDiceMasterRoll( event, sender, message )
-	self:AddChatHistory( sender, "ROLL", message )
+	Main.AddChatHistory( sender, "ROLL", message )
 end
 
 -------------------------------------------------------------------------------
--- Hook for system messages (player rolls)
+-- Hook for system messages. (CHAT_MSG_SYSTEM)
 --
 function Main:OnSystemMsg( event, message )
 
 	do
+		-- check our special patterns to split this event
+		-- into sub events
 		local sender = message:match( SYSTEM_ONLINE_PATTERN )
 		if sender then
-			self:AddChatHistory( sender, "ONLINE", L["has come online."] )
+			Main.AddChatHistory( sender, "ONLINE", L["has come online."] )
 			return
 		end
 		
 		local sender = message:match( SYSTEM_OFFLINE_PATTERN ) 
 		if sender then
-			self:AddChatHistory( sender, "OFFLINE", L["has gone offline."] )
+			Main.AddChatHistory( sender, "OFFLINE", L["has gone offline."] )
 			return
 		end
 	end
@@ -354,19 +430,33 @@ function Main:OnSystemMsg( event, message )
 		
 		if sender then
 			-- this is a roll message
-			self:AddChatHistory( sender, "ROLL", message )
-			
+			Main.AddChatHistory( sender, "ROLL", message )
 			return
 		end
 	end
 end
 
+-------------------------------------------------------------------------------
+-- Hook for when the guild MOTD changes.
+--
 function Main:OnGuildMOTD( event, message )
-	print( "MOTDLOAD", GetGuildRosterMOTD()) 
-	Main:AddChatHistory( "Guild", "GUILD_MOTD", message )
+	Main.AddChatHistory( "Guild", "GUILD_MOTD", message )
 end
 
-function Main:OnChatMsgTextEmote( event, message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
+-------------------------------------------------------------------------------
+-- Hook for CHAT_MSG_TEXT_EMOTE.
+--
+-- This is handled a little bit specially from a normal chat message event.
+--
+-- First of all, for some dumb reason the sender doesn't contain the player's
+-- realm, so we have to search for that in the actual text.
+--
+-- Secondly, we call our poke detection in here.
+--
+function Main:OnChatMsgTextEmote( event, message, sender, language, 
+                                  a4, a5, a6, a7, a8, a9, a10, a11, 
+								  guid, a13, a14 )
+								  
 	if guid ~= UnitGUID( "player" ) then
 		local realm = message:match( sender .. "%-([A-Za-z0-9']+)" )
 		if realm ~= nil then
@@ -377,26 +467,37 @@ function Main:OnChatMsgTextEmote( event, message, sender, language, a4, a5, a6, 
 		end
 	end
 	
-	Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
+	-- something to consider is that chat event filters might
+	-- remove this message, for whatever reason, and it might still
+	-- make a poke sound.
+	if guid ~= UnitGUID( "player" ) then
+		Main.CheckPoke( message, sender )
+	end
+	
+	-- and then when that's all good and done, we forward it to the normal
+	-- chat routines.
+	Main:OnChatMsg( event, message, sender, language, 
+	                a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
 		
 end
   
 -------------------------------------------------------------------------------
-function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
+-- The main chat event handler.
+--
+function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, 
+                         a9, a10, a11, guid, a13, a14 )
+						 
 	local filters = ChatFrame_GetMessageEventFilters( event )
 	event = event:sub( 10 )
-	if event == "TEXT_EMOTE" then
-		if guid ~= UnitGUID( "player" ) then
-			Main:CheckPoke( message, sender )
-		end
-	end
 	
 	if event:find( "CHANNEL" ) and IGNORED_CHANNELS[a9:lower()] then
 		-- this channel is ignored and not logged.
 		return
 	end	
 	
-	if filters then 
+	if filters then -- in a rare case with very little addons, the filter
+	                -- list may actually be nil
+					
 		local skipfilters = false
 
 		if message:sub(1,3) == "|| " then
@@ -429,37 +530,12 @@ function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, a
 		end
 	end
 	
-	Main:AddChatHistory( sender, event, message, language, guid, a9 )
+	Main.AddChatHistory( sender, event, message, language, guid, a9 )
 end
 
 -------------------------------------------------------------------------------
-local function GetTRPCharacterInfo( name )
-	
-	local char, realm = TRP3_API.utils.str.unitIDToInfo( name )
-	if not realm then
-		realm = TRP3_API.globals.player_realm_id
-	end
-	name = TRP3_API.utils.str.unitInfoToID( char, realm )
-	
-	if name == TRP3_API.globals.player_id then
-		return TRP3_API.profile.getData("player");
-	elseif TRP3_API.register.isUnitIDKnown( name ) then
-		return TRP3_API.register.getUnitIDCurrentProfile( name ) or {};
-	end
-	return {};
-end
-
--------------------------------------------------------------------------------
-local function GetCharacterClassColor( guid )
-	  
-	local _, cls = GetPlayerInfoByGUID( guid )
-	if cls and RAID_CLASS_COLORS[cls] then
-		local c = RAID_CLASS_COLORS[cls]
-		return ("|cff%.2x%.2x%.2x"):format(c.r*255, c.g*255, c.b*255)
-	end
-end
-
--------------------------------------------------------------------------------
+-- Hook for when entering combat. PLAYER_REGEN_DISABLED
+--
 function Main:OnEnterCombat()
 	for _, frame in pairs(Main.frames) do
 		frame:CombatHide( true )
@@ -467,6 +543,8 @@ function Main:OnEnterCombat()
 end
 
 -------------------------------------------------------------------------------
+-- Hook for exiting combat. PLAYER_REGEN_ENABLED
+--
 function Main:OnLeaveCombat()
 	for _, frame in pairs( Main.frames ) do
 		frame:CombatHide( false )
@@ -474,6 +552,10 @@ function Main:OnLeaveCombat()
 end
 
 -------------------------------------------------------------------------------
+-- Entries in here will be substituted by textures.
+--
+-- e.g. {circle} or {rt2} will become a texture code for circle.
+--
 local RAID_TARGETS = { 
 	star     = 1; rt1 = 1;
 	circle   = 2; rt2 = 2;
@@ -503,6 +585,9 @@ end
 -------------------------------------------------------------------------------
 -- Language Filter routine.
 --
+-- The language filter is an experimental (and hidden) feature that filters
+-- out player text when they are speaking a language that you "don't know".
+--
 -- @param message  Message to process.
 -- @param sender   Name of sender.
 -- @param event    Chat event type, e.g. "SAY"
@@ -512,10 +597,12 @@ local function LanguageFilter( message, sender, event, language )
 	local langdef = language -- langdef is language or default language
 	if not langdef or langdef == "" then langdef = GetDefaultLanguage() end
 	
-	
 	if Main.LanguageFilter.known[langdef] then
 		-- mark this sender as understandable, they've spoken in our languages
 		Main.LanguageFilter.emotes[sender] = true
+		
+		-- maybe we should reset this if they again speak in a language
+		-- that we don't know..?
 	end
 	
 	if event == "SAY" and not Main.LanguageFilter.known[langdef] then
@@ -546,12 +633,20 @@ local function LanguageFilter( message, sender, event, language )
 	return message
 end
 
+-------------------------------------------------------------------------------
+-- Returns the full name for a unit. Full name in this case is just the
+-- ingame name if they are on the same realm, or name-realm if they are
+-- on a different realm.
+--
 function Main.FullName( unit )
 	local n, r = UnitName( unit )
 	if r and r ~= "" then return n .. "-" .. r end
 	return n
 end
 
+-------------------------------------------------------------------------------
+-- Substitute URLs found within a message with hyperlink codes.
+--
 local function Linkify( msg )
 	msg = " " .. msg .. " "
 	
@@ -578,16 +673,26 @@ local function Linkify( msg )
 end
 
 -------------------------------------------------------------------------------
-function Main:AddChatHistory( sender, event, message, language, guid, channel )
+-- This adds a chat event into the chat history.
+--
+-- A lot of stuff happens in here . . .
+function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	
+	-- discard empty messages (unless the event doesn't have a message).
 	if message == "" and (event ~= "CHANNEL_JOIN" and event ~= "CHANNEL_LEAVE") then return end
+	
+	-- Strip realm if they're on the same realm.
 	sender = Ambiguate( sender, "all" )
 	
+	-- Update the guidmap. Right now, this is basically just used to
+	-- get a character's class color if we otherwise don't have a color
+	-- for them.
 	if guid then
 		Main.guidmap[sender] = guid
 	end
 	
-	self.chat_history[sender] = self.chat_history[sender] or {}
+	-- Create an entry in the chat history table if we don't have one yet.
+	Main.chat_history[sender] = Main.chat_history[sender] or {}
 	
 	local isplayer = sender == UnitName("player")
 	
@@ -599,23 +704,25 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 		message = LanguageFilter( message, sender, event, language )
 	end
 	
+	-- Append language identifier.
 	if language and language ~= GetDefaultLanguage() and language ~= "" then
 		message = string.format( "[%s] %s", language, message )
 	end
-	---------------------------------------------------------------------------
 	
 	---------------------------------------------------------------------------
 	-- RPConnect splitter
 	---------------------------------------------------------------------------
-	if Main.db.profile.rpconnect and event == "PARTY" or event == "RAID" or event == "RAID_LEADER" then
+	if Main.db.profile.rpconnect and event == "PARTY" 
+	   or event == "RAID" or event == "RAID_LEADER" then
+	   
 		local name = message:match( "^<%[(.+)%]" )
 		if name and not UnitName( name ) then
-			-- we found the RP Connect pattern for a relayed message
-			-- crop the message and change the sender
+			-- We found the RP Connect pattern for a relayed message.
+			-- Crop the message and change the sender.
 			message = message:sub( #name+6 )
 			sender = name
 			event = "RAID"
-			self.chat_history[sender] = self.chat_history[sender] or {}
+			Main.chat_history[sender] = Main.chat_history[sender] or {}
 		end
 	end
 	---------------------------------------------------------------------------
@@ -625,6 +732,9 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 	end
 	
 	message = SubRaidTargets( message )
+	
+	-- We need to do a little work for the GUILD_ITEM_LOOTED and 
+	-- GUILD_ACHIEVEMENT events.
 	
 	if event == "GUILD_ITEM_LOOTED" then
 		-- cut off that little $s player marker
@@ -638,6 +748,7 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 		message = message:gsub( "%%s%s+", "" )
 	end
 	
+	-- Our new chat entry.
 	local entry = {
 		id = Main.next_lineid;
 		t  = time();
@@ -660,18 +771,15 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
 		entry.r = nil -- yells/motd dont cause unread messages
 	end
 	
+	-- save in the global list
 	Main.chatlist[entry.id] = entry
 	Main.next_lineid = Main.next_lineid + 1
 	
-	table.insert( self.chat_history[sender], entry )
-	
-	-- not worth the performance loss.
---	while #self.chat_history[sender] > PLAYER_HISTORY_SIZE do
---		table.remove( self.chat_history[sender], 1 )
---	end
+	-- and then in the per-player history
+	table.insert( Main.chat_history[sender], entry )
 	
 	if entry.r then
-		self.unread_entries[entry] = true
+		Main.unread_entries[entry] = true
 	end
 	
 	if entry.p then
@@ -684,10 +792,11 @@ function Main:AddChatHistory( sender, event, message, language, guid, channel )
        and Main.FullName("target") == sender
 	   and not isplayer then
 		
-		Main:PlayMessageBeep()
-		Main:FlashClient()
+		Main.PlayMessageBeep()
+		Main.FlashClient()
 	end
  
+	-- and then finally, add to the listener windows.
 	for _,frame in pairs( Main.frames ) do
 		frame:TryAddMessage( entry, true )
 	end
@@ -909,7 +1018,9 @@ end
 function Main.MarkMessagesRead( e )
 	local time = time()
 	for _, frame in pairs( Main.frames ) do
-		if frame:ShowsEntry( e ) then
+		
+		-- skip for snooper.
+		if frame.frame_index ~= 2 and frame:ShowsEntry( e ) then
 			-- this frame is listening to this event, so we clear all
 			-- unread messages that this frame is listening to.
 			
@@ -924,10 +1035,8 @@ function Main.MarkMessagesRead( e )
 	
 	-- and update the frames
 	for _, frame in pairs( Main.frames ) do
-		if frame:ShowsEntry( e ) then
-			frame:CheckUnread()
-			frame:UpdateHighlight()
-		end
+		frame:CheckUnread()
+		frame:UpdateHighlight()
 	end
 end
 
@@ -955,6 +1064,8 @@ function Main.MarkAllRead()
 end
 
 function Main.HighlightEntry( entry, highlight )
+	if not highlight then highlight = nil end
+	
 	local unread = entry.r
 	entry.h = highlight
 	entry.r = nil
@@ -1003,7 +1114,10 @@ function Main:ListPlayers()
 	Main.Print( list, true )
 end
 ]]
+
 -------------------------------------------------------------------------------
+-- Print a chat messages with the Listener prefix.
+--
 function Main.Print( text, hideprefix )
 	text = tostring( text )
 	
@@ -1012,6 +1126,10 @@ function Main.Print( text, hideprefix )
 end
 
 -------------------------------------------------------------------------------
+-- Callback for event when you join a new group.
+--
+-- Here we reset the groups filter.
+--
 function Main:OnGroupJoined()
 	Main.UpdateRaidRoster()
 	
@@ -1021,6 +1139,10 @@ function Main:OnGroupJoined()
 end
 
 -------------------------------------------------------------------------------
+-- Callback for event when the raid roster changes.
+--
+-- Here we update DM tags, and recache the group numbers for players.
+--
 function Main:OnRaidRosterUpdate()
 	Main.DMTags.roster_dirty = true
 	
@@ -1041,9 +1163,14 @@ function Main:OnRaidRosterUpdate()
 end
 
 -------------------------------------------------------------------------------
+-- Open up a context menu.
+--
+-- @param initialize The function that will populate the menu.
+--
 function Main.ShowMenu( initialize )
 	if not Main.context_menu then
-		Main.context_menu = CreateFrame( "Button", "ListenerContextMenu", UIParent, "UIDropDownMenuTemplate" )
+		Main.context_menu = CreateFrame( "Button", "ListenerContextMenu", 
+		                                 UIParent, "UIDropDownMenuTemplate" )
 		Main.context_menu.displayMode = "MENU"
 	end
 	
@@ -1056,11 +1183,17 @@ function Main.ShowMenu( initialize )
 end
 
 -------------------------------------------------------------------------------
+-- Here's a hacky little thing that gets the MOTD.
+--
+-- From initial testing, trying to read the motd might give you something blank
+-- even if the GUILD_MOTD event has already fired (if it even did), so the
+-- safe way to get it is to simply poll the function until you get a result.
+--
 local g_motd_tries = 0
 local function TryGetMOTD()
 	local motd = GetGuildRosterMOTD()
 	if motd and motd ~= "" then
-		Main:AddChatHistory( "Guild", "GUILD_MOTD", motd )
+		Main.AddChatHistory( "Guild", "GUILD_MOTD", motd )
 		return
 	else
 		g_motd_tries = g_motd_tries + 1
@@ -1075,14 +1208,30 @@ local function TryGetMOTD()
 end
 
 -------------------------------------------------------------------------------
+-- This fires when your channel list updates, and we use it to just refresh
+-- the frames so they have the right channel number.
+--
+function Main:OnChannelUIUpdate()
+	for _, frame in pairs( Main.frames ) do
+		frame:RefreshChat()
+	end
+end
+
+-------------------------------------------------------------------------------
+-- The Ace3 callback when the addon is fully loaded.
+--
 function Main:OnEnable()
-	Main.realm = select(2,UnitFullName("player"))
+	SLASH_LISTENER1 = "/listener"
+	SLASH_LISTENER2 = "/lr"
+	
+	Main.realm = select( 2, UnitFullName("player") )
 	Main.SetupBindingText()
 
 	CleanChatHistory() 
-	Main.Setup()
 	Main.CreateDB()
 	CleanPlayerList()
+	
+	Main.MinimapButton.Setup()
 	Main.MinimapButton.OnLoad()
 	
 	if Main.next_lineid == 1 then
@@ -1095,48 +1244,49 @@ function Main:OnEnable()
 	
 	AddFriendsList()
 	g_loadtime = GetTime()
-	self:RegisterEvent( "FRIENDLIST_UPDATE", "OnFriendlistUpdate" )
+	Main:RegisterEvent( "FRIENDLIST_UPDATE", "OnFriendlistUpdate" )
 
-	self:RegisterEvent( "CHAT_MSG_SAY", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_EMOTE", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_TEXT_EMOTE", "OnChatMsgTextEmote" )
-	self:RegisterEvent( "CHAT_MSG_WHISPER", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_WHISPER_INFORM", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_PARTY", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_PARTY_LEADER", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_RAID", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_RAID_LEADER", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_RAID_WARNING", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_YELL", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_GUILD", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_OFFICER", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_CHANNEL", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_CHANNEL_JOIN", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_CHANNEL_LEAVE", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_INSTANCE_CHAT", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_INSTANCE_CHAT_LEADER", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_GUILD_ITEM_LOOTED", "OnChatMsg" )
-	self:RegisterEvent( "CHAT_MSG_GUILD_ACHIEVEMENT", "OnChatMsg" )
-	self:RegisterEvent( "GUILD_MOTD", "OnGuildMOTD" )
-	self:RegisterEvent( "CHAT_MSG_SYSTEM", "OnSystemMsg" )
-	self:RegisterMessage( "DiceMaster4_Roll", "OnDiceMasterRoll" )
+	Main:RegisterEvent( "CHAT_MSG_SAY",                  "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_EMOTE",                "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_TEXT_EMOTE",           "OnChatMsgTextEmote" )
+	Main:RegisterEvent( "CHAT_MSG_WHISPER",              "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_WHISPER_INFORM",       "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_PARTY",                "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_PARTY_LEADER",         "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_RAID",                 "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_RAID_LEADER",          "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_RAID_WARNING",         "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_YELL",                 "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_GUILD",                "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_OFFICER",              "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_CHANNEL",              "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_CHANNEL_JOIN",         "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_CHANNEL_LEAVE",        "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_INSTANCE_CHAT",        "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_INSTANCE_CHAT_LEADER", "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_GUILD_ITEM_LOOTED",    "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_GUILD_ACHIEVEMENT",    "OnChatMsg" )
+	Main:RegisterEvent( "GUILD_MOTD",                    "OnGuildMOTD" )
+	Main:RegisterEvent( "CHAT_MSG_SYSTEM",               "OnSystemMsg" )
+	Main:RegisterMessage( "DiceMaster4_Roll",            "OnDiceMasterRoll" )
 	
-	self:RegisterEvent( "PLAYER_REGEN_DISABLED", "OnEnterCombat" )
-	self:RegisterEvent( "PLAYER_REGEN_ENABLED", "OnLeaveCombat" )
+	Main:RegisterEvent( "PLAYER_REGEN_DISABLED", "OnEnterCombat" )
+	Main:RegisterEvent( "PLAYER_REGEN_ENABLED",  "OnLeaveCombat" )
 	
-	self:RegisterEvent( "MODIFIER_STATE_CHANGED", "OnModifierChanged" )
+	Main:RegisterEvent( "MODIFIER_STATE_CHANGED", "OnModifierChanged" )
 	
-	self:RegisterEvent( "GROUP_JOINED", "OnGroupJoined" )
-	self:RegisterEvent( "GROUP_ROSTER_UPDATE", "OnRaidRosterUpdate" )
+	Main:RegisterEvent( "GROUP_JOINED",        "OnGroupJoined" )
+	Main:RegisterEvent( "GROUP_ROSTER_UPDATE", "OnRaidRosterUpdate" )
 	
-	Main.Print( L["Version:"] .. " " .. self.version )
+	Main:RegisterEvent( "CHANNEL_UI_UPDATE", "OnChannelUIUpdate" )
 	
-	Main:ApplyConfig()
-
+	Main.Print( L["Version:"] .. " " .. Main.version )
+	
 	Main.Snoop2.Setup()
 	Main.DMTags.Setup()
 	
-	Main.Init_OnEnabled()
+	Main:ApplyConfig()
+	
 	Main.SetupProbe()
 	
 	for _, frame in pairs( Main.frames ) do
@@ -1148,4 +1298,6 @@ function Main:OnEnable()
 	Main.InitKeywords()
 	
 	C_Timer.After( 1, TryGetMOTD )
+	
+	Main.Help_Init()
 end

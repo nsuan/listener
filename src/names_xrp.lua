@@ -1,9 +1,15 @@
--- xrp name resolver
+-------------------------------------------------------------------------------
+-- LISTENER by Tammya-MoonGuard (2017)
+--
+-- This is the name resolver for XRP users.
+-------------------------------------------------------------------------------
 
 local Main = ListenerAddon
-local L = Main.Locale
+local L    = Main.Locale
  
 -------------------------------------------------------------------------------
+-- This one is actually really small isn't it? Cool!
+--
 local function Resolve( name )
 
 	local color = nil
@@ -22,12 +28,14 @@ local function Resolve( name )
 	return name
 end
 
--- check again after everything loads
+-------------------------------------------------------------------------------
+-- Our register function.
+--
 local function Init()
+	-- xrp exists if they're using XRP.
 	if xrp then
 		return Resolve
 	end
 end
 
 table.insert( Main.name_resolvers, Init )
- 

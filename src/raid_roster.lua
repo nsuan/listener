@@ -1,17 +1,19 @@
-
+-------------------------------------------------------------------------------
+-- LISTENER by Tammya-MoonGuard (2017)
 --
--- a little module for converting player names into raid groups
---
+-- Here's a simple module for resolving raid group numbers from player names.
+-------------------------------------------------------------------------------
 
 local Main = ListenerAddon
 
 --
 -- raid_groups[name] = group number
--- for cross realm, will contain keys for both name and name-realm
--- and will break if the same base name exists :)
 --
 Main.raid_groups = {}
 
+-------------------------------------------------------------------------------
+-- Rebuild the raid_groups map.
+--
 function Main.UpdateRaidRoster()
 	Main.raid_groups = {}
 	if not IsInRaid() then return end

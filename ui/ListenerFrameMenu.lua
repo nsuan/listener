@@ -1,3 +1,9 @@
+-------------------------------------------------------------------------------
+-- LISTENER by Tammya-MoonGuard (2017)
+--
+-- Here we control the context menu for Listener windows.
+-------------------------------------------------------------------------------
+
 local Main   = ListenerAddon
 local L      = Main.Locale
 local Me     = Main.Frame
@@ -7,7 +13,7 @@ Me.menu        = nil
 Me.menu_parent = nil
 
 Main.RegisterFilterMenu( "MAIN",
-	{ "Public", "Party", "Raid", "Whisper", "Instance", "Guild", "Officer", "Rolls", "Channel", "Misc" }, 
+	{ "Public", "Party", "Raid", "Raid Warning", "Whisper", "Instance", "Guild", "Officer", "Rolls", "Channel", "Misc" }, 
 	function( filter )
 		return Me.menu_parent:HasEvent( filter )
 	end,

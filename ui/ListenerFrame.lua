@@ -839,7 +839,7 @@ function Method:AddMessage( e, beep, from_refresh )
 	
 	-- autopopup/hideempty popup
 	if not self:IsShown() and not from_refresh then
-		if self.frameopts.auto_popup then
+		if self.frameopts.auto_popup and not hidden then
 			if self.frameopts.combathide and InCombatLockdown() then
 				-- if we're in combat, just clear the hidden flag
 				-- so that it opens when we exit combat

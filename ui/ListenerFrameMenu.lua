@@ -88,6 +88,23 @@ StaticPopupDialogs["LISTENER_RENAMEFRAME"] = {
 			o.charopts.name = name
 		end
 	end;
+	EditBoxOnEscapePressed = function(self)
+		self:GetParent():Hide();
+	end;
+	EditBoxOnEnterPressed = function(self, data)
+		local parent = self:GetParent();
+		local name = self:GetText();
+		self:SetText("");
+		
+		if name ~= "" then 
+			local o = Main.frames[g_rename_frame_index]
+			if o then
+				o.charopts.name = name
+			end
+		end
+		
+		parent:Hide();
+	end;
 }
 
 -------------------------------------------------------------------------------

@@ -994,11 +994,25 @@ StaticPopupDialogs["LISTENER_NEWFRAME"] = {
 	OnAccept = function( self )
 		local name = self.editBox:GetText()
 		if name == "" then return end
-		
 		local frame = Main.AddWindow()
 		if not frame then return end
 		frame.charopts.name = name
+	end;
+	EditBoxOnEscapePressed = function(self)
+		self:GetParent():Hide();
+	end;
+	EditBoxOnEnterPressed = function(self, data)
+		local parent = self:GetParent();
+		local name = self:GetText();
+		self:SetText("");
 		
+		if name ~= "" then 
+			local frame = Main.AddWindow()
+			if not frame then return end
+			frame.charopts.name = name
+		end
+		
+		parent:Hide();
 	end;
 }
 

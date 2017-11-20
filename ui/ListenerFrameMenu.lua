@@ -222,6 +222,10 @@ local function PopulatePlayersSubmenu( level, menuList )
 		info.func             = PlayerMenuClicked
 		info.notCheckable     = true
 		info.keepShownOnClick = true
+		
+		info.tooltipTitle     = L["Click to toggle."]
+		info.tooltipText      = L["Green = Include (show this player).\nRed = Exclude (hide this player).\nWhite = Default (inherit upper filter)."]
+		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
 	end
 end
@@ -296,6 +300,11 @@ local function PopulateRaidGroupsMenu( level )
 		info.notCheckable     = true
 		info.func             = RaidGroupClicked
 		info.keepShownOnClick = true
+		
+		info.tooltipTitle     = L["Click to toggle."]
+		info.tooltipText      = L["Green = Include (show this group).\nRed = Exclude (hide this group).\nWhite = Default (inherit upper filter)."]
+		info.tooltipOnButton  = true
+		
 		UIDropDownMenu_AddButton( info, level )
 	end
 end

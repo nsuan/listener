@@ -289,6 +289,9 @@ function Method:SetFrameIndex( index )
 	-- char options exist only at the character level and are
 	-- initialized when the frame is created
 	self.charopts = Main.db.char.frames[index]
+	
+	-- to set the title.
+	self:UpdateProbe()
 end
 
 -------------------------------------------------------------------------------
@@ -779,7 +782,8 @@ end
 function Method:UpdateProbe()
 	if self.snooper then return end -- the snooper does not have this.
 
-	local title = "—"
+	local title = self.charopts.name
+	if self.frame_index == 1 then title = "Listener" end
 	local on = false
 	
 	local target, guid = Main:GetProbed()
@@ -789,16 +793,18 @@ function Method:UpdateProbe()
 		on = self:ListeningTo( target )
 		
 		local name, icon, color = Main.GetICName( target )
-		title = " " .. name
+		title = name
 		
 	end
 	
 	self.bar2.title:SetText( title )
 	
-	if on then
-		self.bar2.toggle_button:Show()
+	if on or not target then
+		self.bar2.title.text:SetAlpha( 1.0 )
+	--	self.bar2.toggle_button:Show()
 	else
-		self.bar2.toggle_button:Hide()
+		self.bar2.title.text:SetAlpha( 0.5 )
+	--	self.bar2.toggle_button:Hide()
 	end
 	
 	if Main.db.profile.frame.color.tab_target[4] > 0 then
@@ -818,6 +824,10 @@ function Method:AddMessage( e, beep, from_refresh )
 	self.fade_time = GetTime()
 	
 	local hidden = not self:ListeningTo( e.s )
+	
+	if hidden and not self.bar2.hidden_button:IsShown() then
+		self.bar2.hidden_button:Show()
+	end
 	
 	if e.r and not e.p and not hidden then -- not read and not from the player and not hidden
 		if self:IsShown() then
@@ -864,6 +874,10 @@ end
 function Method:TryAddMessage( e, beep )
 	if self.charopts.showhidden or self:ListeningTo( e.s ) then
 		self:AddMessage( e, beep )
+	else
+		if EntryFilter( self, e ) then
+			self.bar2.hidden_button:Show()
+		end
 	end
 end
 
@@ -1060,6 +1074,7 @@ function Method:RefreshChat()
 		local listen_all = self.charopts.listen_all
 		local showhidden = self.charopts.showhidden
 		local start_messages = self.frameopts.start_messages or self.baseopts.start_messages
+		local hashidden = false
 		
 		-- go through the chat list and populate entries
 		for i = Main.next_lineid-1, Main.first_lineid, -1 do
@@ -1069,6 +1084,8 @@ function Method:RefreshChat()
 					
 					if showhidden or self:ListeningTo( entry.s ) then
 						table.insert( entries, entry )
+					else
+						hashidden = true
 					end
 				end
 			end
@@ -1077,6 +1094,12 @@ function Method:RefreshChat()
 			if #entries >= start_messages then
 				break
 			end
+		end
+		
+		if hashidden then
+			self.bar2.hidden_button:Show()
+		else
+			self.bar2.hidden_button:Hide()
 		end
 
 		-- TODO: disable chatbox refreshes until this is done
@@ -1505,19 +1528,23 @@ function Me.BarMouseDown( self )
 	if not self.snooper then
 		Main.SelectFrame( self )
 	end
-end
-
-function Me.BarMouseUp( self ) end
-
-function Me.BarDragStart( self )
+	
 	if (not self.frameopts.locked) or IsShiftKeyDown() then
 		self:StartDragging()
 	end
 end
 
-function Me.BarDragStop( self )
+function Me.BarMouseUp( self ) 
 	self:StopDragging()
 	self.fade_time = GetTime()
+end
+
+function Me.BarDragStart( self )
+	
+end
+
+function Me.BarDragStop( self )
+	
 end
 
 -------------------------------------------------------------------------------

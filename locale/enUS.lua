@@ -56,20 +56,19 @@ end
 --L["Already listening: "]  =              -- When trying to add a player.
 
 -------------------------------------------------------------------------------
-L.help_listenerframe = tidystring [[
+L.help_listenerframe2 = tidystring [[
 	This is a Listener window. They're like an advanced chatbox. You can filter
 	out players by holding shift and right-clicking them. Right click the upper
-	left corner to open a menu for settings and such. The eye button toggles
-	showing hidden players or not. If you close this window, you can open it
-	again by clicking the minimap button. You may also right-click the minimap
-	button to access the configuration.	See the Curse.com page for more instructions.
+	left corner to open a menu for settings and such. If you close this window,
+	you can open it again by clicking the minimap button. You may also right-click 
+	the minimap	button to access the main configuration. See the Curse.com page for
+	more instructions.
 ]]
 
 -------------------------------------------------------------------------------
-L.help_snooper = tidystring [[
-	This is the "snooper" display. When you mouseover or target someone, their
+L.help_snooper2 = tidystring [[
+	This is the "Snooper" display. When you mouseover or target someone, their
 	recent chat history will show up in here. It's for helping keep track of
-	what a player is saying. Move and drag this to where you want and then right
-	click to lock it in place. You can adjust the settings by right clicking the
-	minimap button and going to Snooper.
+	what a player is saying. You can adjust the settings by clicking the top
+	left corner, or right-clicking the minimap button and going to Snooper.
 ]]

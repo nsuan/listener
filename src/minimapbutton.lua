@@ -64,7 +64,7 @@ function Me.OnClick( frame, button )
 			wc = wc + 1
 		end
 		
-		if wc == 1 or IsShiftKeyDown() then
+		if wc <= 2 or IsShiftKeyDown() then
 			Main.frames[1]:Toggle()
 		else
 			Me.ShowMenu( "FRAMES" )
@@ -139,14 +139,6 @@ local function InitializeOptionsMenu( self, level, menuList )
 		UIDropDownMenu_AddButton( info, level )
 		
 		info = UIDropDownMenu_CreateInfo()
-		info.text             = L["Snooper"]
-		info.notCheckable     = true
-		info.hasArrow         = true
-		info.menuList         = "SNOOPER"
-		info.keepShownOnClick = true
-		UIDropDownMenu_AddButton( info, level )
-		
-		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["DM Tags"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
@@ -158,6 +150,14 @@ local function InitializeOptionsMenu( self, level, menuList )
 		info.tooltipTitle     = L["Enable DM tags."]
 		info.tooltipText      = L["This is a helper feature for dungeon masters. It tags your unit frames with whoever has unmarked messages."]
 		info.tooltipOnButton  = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = L["Snooper"]
+		info.notCheckable     = true
+		info.hasArrow         = true
+		info.menuList         = "SNOOPER"
+		info.keepShownOnClick = true
 		UIDropDownMenu_AddButton( info, level )
 		
 		info = UIDropDownMenu_CreateInfo()

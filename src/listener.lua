@@ -1305,6 +1305,7 @@ function Main:OnEnable()
 	
 	for _, frame in pairs( Main.frames ) do
 		frame:RefreshChat()
+		frame:UpdateProbe()
 	end
 	
 	C_Timer.After( 3, function() Main:OnRaidRosterUpdate() end )

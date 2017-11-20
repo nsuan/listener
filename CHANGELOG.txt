@@ -1,52 +1,103 @@
+## 2.0.1
+This is just some tweaks for version 2.0 to help make things feel more intuitive.
+
+Listener Windows are easier to drag. Before they were a bit of a pain, and when you dragged the Snooper window it could potentially get stuck on your mouse.
+
+Help notes have been reset, to remind you of what you need to know when you first load. 
+
+Some other minor things have been moved around. 
+
+More tooltips have been added.
+
+The "eye" button hides itself if you aren't using filters for a window.
+
+
 ## 2.0.0
 Major updates! Please report any issues using the Issue Tracker on the CurseForge page!
+
 Optimizations. Lots of little things so that it might use less memory and be easier on your computer!
+
 Redid interface. More intuitive, less cryptic.
+
 Better cross-realm support. Mainly support for linked realms.
+
 Ability to create new instances. Right click the upper left corner of the windows for options.
+
 Better customization. Configuation can be accessed by right clicking the minimap button.
+
 Custom channel support, to better facilitate RP that's done in channels.
+
 Support for other chat channels as well, such as guild/officer. More flexibility in that regard, especially so you can see your communicator in the main window.
+
 Removed hiding player name feature. Sorry, this was an obscure, early feature that was only meant to be a workaround.
+
 Removed message highlighting in favor of a single red line. So modern...
+
 Added tabs to the left hand side to mark things. Player text coloring has been removed to favor this (a green tab).
+
 Mouseover highlighting has been turned into mouseover/target highlighting, and instead uses a red tab.
+
 You can now click on messages to mark them, with a yellow tab. This is mainly meant for DMs to better manage which messages they have acknowledged.
+
 Lightened old timestamps in snooper, so you can see them better.
+
 Raid group filters. For example, you can create a window to only listen to groups 3 and 4, who are off exploring a separate trail!~
+
 Removed custom chat colors in preference to default chat colors. If you liked it the other way, sorry!
+
 Name shortener is now toggleable in the options.
+
 URL detector. So you can click on links to copy them.
+
 Keywords feature, to highlight specific things and notify you when they appear, such as your name.
+
 The snooper has been redone to be more like an actual Listener window, and you can give it a load of customization.
+
 DM Tags to help manage messages as a dungeon master. Gist of it is that it adds time labels (colored by priority/oldest) to your unit frames which you can double click after you've acknowledge/responded to someone's message.
+
 Added a feature for copying text from the window. Sometimes you want to share your sweet suicide emotes with friends.
+
 
 ## 1.5.8
 Compatibility update.
+
 Minor fixes.
+
 
 ## 1.5.7
 Patch 7.3 compatiblity.
 
+
 ## 1.5.6
 Raid target substitution.
+
 
 ## 1.5.5
 Fixed a bug with snooper not updating immediately.
 
+
 ## 1.5.4
 Bugfix: Fixed bug reported by iodinesky regarding chat filters.
+
 Bugfix: Snooper window better supports color codes.
+
 Bugfix: Removed debug roll message.
+
 Bugfix: Fixed /roll bypassing conditions to make a notification.
+
 Enhancement: Shortened timestamp format by removing brackets.
+
 Optimization: Some snooper window optimizations.
+
 
 ## 1.5.3
 Bugfix: Fix option to toggle target emotes beeps. (and added separate option)
+
 Bugfix: Targeting yourself no longer causes a beep.
+
 
 ## 1.5.2
 Patch 7.2.5 support.
+
 Added tracking for player rolls.
+

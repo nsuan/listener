@@ -70,8 +70,8 @@ function Main.Help_Init()
 	-- see locale for help text, they're stored under help_<id>
 	--
 	
-	AddHelp( ListenerFrame1, "listenerframe" ) 
-	AddHelp( ListenerFrame2, "snooper", function()
+	AddHelp( ListenerFrame1, "listenerframe2" ) 
+	AddHelp( ListenerFrame2, "snooper2", function()
 	end)
 end
 

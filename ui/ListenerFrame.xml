@@ -1,4 +1,4 @@
-<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\..\FrameXML\UI.xsd">
+﻿<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\..\FrameXML\UI.xsd">
   <Script file="ListenerFrame.lua"/>
   <Script file="ListenerFrameMenu.lua"/>
   
@@ -97,7 +97,7 @@
               <OnLoad>
                 self.auto_size = true
                 self.auto_size_padding = 16
-                self:SetText( "—" )
+                self:SetText( "" )
                 self:RegisterForClicks( "LeftButtonUp", "RightButtonUp" )
               </OnLoad>
               <OnClick>

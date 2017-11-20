@@ -997,6 +997,7 @@ StaticPopupDialogs["LISTENER_NEWFRAME"] = {
 		local frame = Main.AddWindow()
 		if not frame then return end
 		frame.charopts.name = name
+		frame:UpdateProbe()
 	end;
 	EditBoxOnEscapePressed = function(self)
 		self:GetParent():Hide();
@@ -1010,6 +1011,7 @@ StaticPopupDialogs["LISTENER_NEWFRAME"] = {
 			local frame = Main.AddWindow()
 			if not frame then return end
 			frame.charopts.name = name
+			frame:UpdateProbe()
 		end
 		
 		parent:Hide();
@@ -1181,19 +1183,32 @@ end
 --
 -- @param initialize The function that will populate the menu.
 --
-function Main.ShowMenu( initialize )
+local g_menu_parent = nil
+local g_menu_id     = nil
+function Main.ToggleMenu( parent, menu_id, initialize, offset_x, offset_y )
 	if not Main.context_menu then
 		Main.context_menu = CreateFrame( "Button", "ListenerContextMenu", 
 		                                 UIParent, "UIDropDownMenuTemplate" )
 		Main.context_menu.displayMode = "MENU"
 	end
 	
+	PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON);
+	if UIDROPDOWNMENU_OPEN_MENU == Main.context_menu 
+	   and g_menu_parent == parent
+	   and g_menu_id == menu_id then
+	   
+		-- the menu is already open at the same parent, so we close it.
+		ToggleDropDownMenu( 1, nil, Main.context_menu )
+		return
+	end
+	
+	g_menu_parent = parent
+	g_menu_id     = menu_id
+	
 	UIDropDownMenu_Initialize( Main.context_menu, initialize )
 	UIDropDownMenu_JustifyText( Main.context_menu, "LEFT" )
 	
-	local x,y = GetCursorPosition()
-	local scale = UIParent:GetEffectiveScale()
-	ToggleDropDownMenu( 1, nil, Main.context_menu, "UIParent", x / scale, y / scale )
+	ToggleDropDownMenu( 1, nil, Main.context_menu, parent:GetName(), offset_x or 0, offset_y or 0 )
 end
 
 -------------------------------------------------------------------------------

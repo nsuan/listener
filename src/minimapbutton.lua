@@ -57,6 +57,7 @@ end
 -- Callback for when the minimap button is clicked.
 --
 function Me.OnClick( frame, button )
+	
 	GameTooltip:Hide()
 	if button == "LeftButton" then
 		local wc = 0
@@ -67,12 +68,12 @@ function Me.OnClick( frame, button )
 		if wc <= 2 or IsShiftKeyDown() then
 			Main.frames[1]:Toggle()
 		else
-			Me.ShowMenu( "FRAMES" )
+			Me.ShowMenu( frame, "FRAMES" )
 		end
 		
 	elseif button == "RightButton" then
 		
-		Me.ShowMenu( "OPTIONS" )
+		Me.ShowMenu( frame, "OPTIONS" )
 	end
 end
 
@@ -179,14 +180,14 @@ end
 --
 -- @param menu "FRAMES" or "OPTIONS"
 --
-function Me.ShowMenu( menu )
+function Me.ShowMenu( parent, menu )
 
 	local menus = {
 		FRAMES  = InitializeFramesMenu;
 		OPTIONS = InitializeOptionsMenu;
 	}
 	
-	Main.ShowMenu( menus[menu] )
+	Main.ToggleMenu( parent, "minimap_menu_" .. menu, menus[menu] )
 end
 
 -------------------------------------------------------------------------------

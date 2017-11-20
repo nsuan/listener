@@ -472,19 +472,30 @@ end
 
 -------------------------------------------------------------------------------
 function Method:ShowMenu()
-	if not Me.menu then
+--[[	if not Me.menu then
 	
 			
 		Me.menu = CreateFrame( "Button", "ListenerFrameMenu", UIParent, "UIDropDownMenuTemplate" )
 		Me.menu.displayMode = "MENU"
+	end]]
+	
+	Me.menu_parent = self
+	Main.ToggleMenu( self.bar2.title, "listener_window_menu", InitializeMenu )
+	--[[
+	PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON);
+	if Me.menu_parent == self and UIDROPDOWNMENU_OPEN_MENU == Me.menu then
+		ToggleDropDownMenu( 1, nil, Me.menu )
+		return
 	end
 	
 	Me.menu_parent = self
 	
+	
 	UIDropDownMenu_Initialize( ListenerFrameMenu, InitializeMenu )
 	UIDropDownMenu_JustifyText( ListenerFrameMenu, "LEFT" )
 	
+	
 	local x,y = GetCursorPosition()
 	local scale = UIParent:GetEffectiveScale()
-	ToggleDropDownMenu( 1, nil, Me.menu, "UIParent", x / scale, y / scale )
+	ToggleDropDownMenu( 1, nil, Me.menu, self:GetName() .. "Bar2TitleButton", 0, 0 )]]
 end

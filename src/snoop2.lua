@@ -290,12 +290,13 @@ end
 -- Open the snooper menu. (From clicking the titlebar button.)
 --
 function Me.ShowMenu()
-	Main.ShowMenu( function( self, level, menuList )
-		if level == 1 then
-			menuList = "SNOOPER"
-		end
-		Me.PopulateMenu( level, menuList )
-	end)
+	Main.ToggleMenu( ListenerFrame2Bar2TitleButton, "snooper_context",
+		function( self, level, menuList )
+			if level == 1 then
+				menuList = "SNOOPER"
+			end
+			Me.PopulateMenu( level, menuList )
+		end)
 end
 
 -------------------------------------------------------------------------------

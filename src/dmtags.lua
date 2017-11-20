@@ -153,7 +153,7 @@ function Me.OnClick( self, button )
 	if not self.player then return end
 	
 	if button == "RightButton" then
-		
+		PlaySound( SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON )
 		-- when the user right-clicks one of the tags
 		-- it sets highlight on all of the entries of the tag
 		
@@ -170,6 +170,7 @@ function Me.OnClick( self, button )
 					if e.t >= time - CUTOFF_TIME and e.t < time - 3 then
 						e.h = true -- mark as highlighted
 						e.r = nil  -- mark as read
+						Main.unread_entries[e] = nil
 					end
 				end
 			end

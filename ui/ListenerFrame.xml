@@ -86,7 +86,7 @@
         
         <Frames>
           <!-- Title text -->
-          <ListenerTextButton parentKey="title">
+          <ListenerTextButton parentKey="title" name="$parentTitleButton">
             <Size x="100"/>
             <Anchors>
               <Anchor point="TOP"/>
@@ -101,6 +101,7 @@
                 self:RegisterForClicks( "LeftButtonUp", "RightButtonUp" )
               </OnLoad>
               <OnClick>
+                
                 ListenerAddon.Frame.TogglePlayerClicked( self:GetParent():GetParent(), button )
               </OnClick>
             </Scripts>

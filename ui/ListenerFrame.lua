@@ -825,7 +825,7 @@ function Method:AddMessage( e, beep, from_refresh )
 	
 	local hidden = not self:ListeningTo( e.s )
 	
-	if hidden and not self.bar2.hidden_button:IsShown() then
+	if hidden and not self.bar2.hidden_button:IsShown() and not self.snooper then
 		self.bar2.hidden_button:Show()
 	end
 	
@@ -873,9 +873,14 @@ end
 --
 function Method:TryAddMessage( e, beep )
 	if self.charopts.showhidden or self:ListeningTo( e.s ) then
+		
+		if self.chatbox:GetScrollOffset() == 0 then
+			self:SetClickBlock()
+		end
+		
 		self:AddMessage( e, beep )
 	else
-		if EntryFilter( self, e ) then
+		if EntryFilter( self, e ) and not self.snooper then
 			self.bar2.hidden_button:Show()
 		end
 	end
@@ -1358,6 +1363,7 @@ function Me.OnMouseDown( self, button )
 				Main.HighlightEntry( p.entry, not p.entry.h )
 			elseif button == "RightButton" then
 				if IsShiftKeyDown() and not self.snooper then
+					PlaySound( SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON )
 					self:TogglePlayer( p.entry.s, true )
 				end
 			end
@@ -1442,6 +1448,7 @@ function Me.OnChatboxHyperlinkClick( self, link, text, button )
 		local name, lineid, chatType, chatTarget = strsplit(":", namelink);
 		
 		if IsShiftKeyDown() and button == "RightButton" and not self.snooper then
+			PlaySound( SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON )
 			self:TogglePlayer( name, true )
 			return
 		end
@@ -1468,9 +1475,7 @@ function Me.OnChatboxRefresh( self )
 	end
 
 	-- this should only be called when the scroll actually changes
-	if self.chatbox:GetScrollOffset() == 0 then
-		self:SetClickBlock()
-	end
+	
 	self:UpdateHighlight()
 end
 
@@ -1481,14 +1486,15 @@ function Me.TogglePlayerClicked( self, button )
 		-- shift-click for normal windows toggles listen_all
 		-- snooper doesn't have that feature
 		if IsShiftKeyDown() and not self.snooper then
-			
+			PlaySound( SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON )
 			self:SetListenAll( not self.charopts.listen_all )
 		else
 			-- if you aren't targeting anyone, then left click
 			-- opens the menu, otherwise it toggles the player
 			--
 			local name = Main.GetProbed()
-			if name and not self.snooper then 
+			if name and not self.snooper then
+				PlaySound( SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON )
 				self:TogglePlayer( name, true )
 			else
 				if self.snooper then
@@ -1510,6 +1516,7 @@ end
 -------------------------------------------------------------------------------
 function Me.ShowHiddenClicked( self, button )
 	if button == "LeftButton" then
+		PlaySound( SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON )
 		self:ShowHidden( not self.charopts.showhidden )
 	end
 end
@@ -1517,6 +1524,7 @@ end
 -------------------------------------------------------------------------------
 function Me.CloseClicked( self, button )
 	if button == "LeftButton" then
+		PlaySound( SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON )
 		self:Close()
 	end
 end

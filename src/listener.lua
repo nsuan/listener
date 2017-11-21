@@ -1036,7 +1036,7 @@ function Main.MarkMessagesRead( e )
 	for _, frame in pairs( Main.frames ) do
 		
 		-- skip for snooper.
-		if frame.frame_index ~= 2 and frame:ShowsEntry( e ) then
+		if frame.frame_index ~= 2 and frame:ShowsEntry( e ) and frame:IsShown() then
 			-- this frame is listening to this event, so we clear all
 			-- unread messages that this frame is listening to.
 			

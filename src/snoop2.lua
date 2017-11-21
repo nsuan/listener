@@ -189,8 +189,29 @@ end
 -- No separator between name and text.
 --
 local function MsgFormatEmote( e, name )
-	if Main.db.profile.trp_emotes and e.m:sub(1,3) == "|| " then
-		return e.m:sub( 4 )
+	-- If they prefix with a pipe, cut off the name and remove the pipes.
+	-- Note that this is specially different from the main window.
+	-- The name is implied in the snooper window, so we don't need 
+	-- to check against the trp_emotes option.
+	-- It's common to prefix with "|" or "||" in emotes to denote that your
+	-- emote should not consider the name before it.
+	--
+	-- And, pipes are doubled up, because they're wow's escape character.
+	--
+	if e.m:match( "^||" ) then
+		-- cut off pipes and trailing space.
+		return e.m:match( "^|+%s*(.*)" )
+	end
+	
+	-- 
+	if e.m:match( "^»" ) then
+		return e.m
+	end
+	if e.m:sub( 1,2 ) == ", " or e.m:sub( 1,2 ) == "'s" then
+		return name .. e.m
+	end
+	if e.m:match( "^%s*%p" ) then
+		return e.m
 	end
 	return name .. " " .. e.m
 end

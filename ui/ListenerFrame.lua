@@ -333,6 +333,9 @@ local function MsgFormatEmote( e, name )
 	if Main.db.profile.trp_emotes and e.m:sub(1,3) == "|| " then
 		return e.m:sub( 4 )
 	end
+	if e.m:sub( 1,2 ) == ", " or e.m:sub( 1,2 ) == "'s" then
+		return name .. e.m
+	end
 	return name .. " " .. e.m
 end
 
@@ -1116,13 +1119,22 @@ function Method:RefreshChat()
 	else
 		if self.snoop_player then
 			local chat = Main.chat_history[self.snoop_player]
+			
 			if chat then
-				local start, stop
-				stop = #chat
-				start = math.max( stop - (self.frameopts.start_messages or self.baseopts.start_messages), 1 )
-				for i = start, stop do
+				local entries = {}
+				local start_messages = self.frameopts.start_messages or self.baseopts.start_messages
+				for i = #chat, 1, -1 do
 					local e = chat[i]
-					self:AddMessage( e, false, true )
+					if EntryFilter( self, e ) then
+						table.insert( entries, e )
+					end
+					if #entries >= start_messages then
+						break
+					end
+				end
+				
+				for i = #entries, 1, -1 do
+					self:AddMessage( entries[i], false, true )
 				end
 			end
 		end

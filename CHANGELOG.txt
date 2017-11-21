@@ -1,3 +1,10 @@
+## 2.0.2
+Fixed bug in Snooper where message history would be cut short.
+
+Snooper should cut off the name in emotes starting with special characters.
+
+
+
 ## 2.0.1
 This is just some tweaks for version 2.0 to help make things feel more intuitive.
 

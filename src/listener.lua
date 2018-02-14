@@ -364,6 +364,10 @@ function Main.PlayMessageBeep()
 	PlaySoundFile( SharedMedia:Fetch( "sound", "ListenerBeep" ), "Master" )
 end
 
+function Main.SetMessageBeepCD()
+	g_message_beep_cd = GetTime()
+end
+
 -------------------------------------------------------------------------------
 -- Check if someone has used a text emote on us and then act accordingly.
 -- 
@@ -389,6 +393,7 @@ function Main.CheckPoke( msg, sender )
 			if msg:find( "tells you to attack"        ) then return end
 			if msg:find( "motions for you to follow." ) then return end
 			
+			Main.SetMessageBeepCD()
 			PlaySoundFile( SharedMedia:Fetch( "sound", "ListenerPoke" ), "Master" )
 			Main.FlashClient()
 		end
@@ -653,20 +658,21 @@ local function Linkify( msg )
 	local linkified = " |cFF0FBEF4|Hlrurl|h%1|h|r "
 	local links = {}
 	
-	local function getlink(t)
-		table.insert( links, t )
-		return "\001" .. #links .. "\001"
+	local function getlink(a,b,c)
+		table.insert( links, b )
+		return a .. "\001" .. #links .. "\001" .. c
 	end
 	
 	-- http://abc.com/aaa
-	msg = msg:gsub( "%s(https?://%S+)%s", getlink )
+	-- we also handle if its wrapped in ()
+	msg = msg:gsub( "([%s%(])(https?://[^%)%s]+)([%s%)])", getlink )
 	
 	-- abc.me/aaa
-	msg = msg:gsub( "%s([A-Za-z0-9-]+%.[A-Za-z0-9]+/%S*)%s", getlink )
+	msg = msg:gsub( "([%s%(])([A-Za-z0-9-%.]+[A-Za-z0-9-]+%.[A-Za-z0-9]+/[^%)%s]*)([%s%)])", getlink )
 	
 	-- and then insert them with formatting.
 	msg = msg:gsub( "\001(%d+)\001", function(i)
-		return " |cFF0FBEF4|Hlrurl|h" .. links[tonumber(i)] .. "|h|r "
+		return "|cFF0FBEF4|Hlrurl|h" .. links[tonumber(i)] .. "|h|r"
 	end)
 	
 	return msg:sub( 2, msg:len() - 1 )
@@ -694,7 +700,7 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	-- Create an entry in the chat history table if we don't have one yet.
 	Main.chat_history[sender] = Main.chat_history[sender] or {}
 	
-	local isplayer = sender == UnitName("player")
+	local isplayer = sender == UnitName("player") or event == "WHISPER_INFORM"
 	
 	---------------------------------------------------------------------------
 	-- Language Filter
@@ -713,16 +719,22 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	-- RPConnect splitter
 	---------------------------------------------------------------------------
 	if Main.db.profile.rpconnect and event == "PARTY" 
-	   or event == "RAID" or event == "RAID_LEADER" then
+	   or event == "RAID" or event == "RAID_LEADER" or event == "RAID_WARNING" then
 	   
-		local name = message:match( "^<%[(.+)%]" )
+		-- strip color codes because they can be inserted by chat filters
+		local m2 = message:gsub( "|c[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]", "" )
+		
+		local name = m2:match( "^<%[(.+)%]: " )
 		if name and not UnitName( name ) then
 			-- We found the RP Connect pattern for a relayed message.
 			-- Crop the message and change the sender.
-			message = message:sub( #name+6 )
-			sender = name
-			event = "RAID"
-			Main.chat_history[sender] = Main.chat_history[sender] or {}
+			m2 = message:match( "%[.+%]: (.*)" )
+			if m2 then
+				message = m2
+				sender  = name
+				event   = "RAID"
+				Main.chat_history[sender] = Main.chat_history[sender] or {}
+			end
 		end
 	end
 	---------------------------------------------------------------------------
@@ -739,7 +751,7 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	if event == "GUILD_ITEM_LOOTED" then
 		-- cut off that little $s player marker
 		-- hopefully this doesnt break things in other languages.
-		message = message:gsub( "$s%S+", "" )
+		message = message:gsub( "$s%s+", "" )
 	end
 	
 	if event == "GUILD_ACHIEVEMENT" then
@@ -759,7 +771,10 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	}
 	
 	if event:find( "CHANNEL" ) then
-		entry.c = channel:match("^%S+"):upper()
+		if not channel then return end
+		local c = channel:match("^%S+")
+		if not c then return end
+		entry.c = c:upper()
 	end
 	
 	if isplayer then
@@ -782,13 +797,16 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 		Main.unread_entries[entry] = true
 	end
 	
-	if entry.p then
+	-- we don't clear read messages if theyre just whispering.
+	if entry.p and event ~= "WHISPER_INFORM" then
 		-- player is posting...
 		Main.MarkMessagesRead( entry )
 	end
 	
 	-- if the player's target emotes, then beep+flash
 	if Main.db.profile.sound.target
+	   and not Main.Frame.SKIP_BEEP[entry.e]
+	   and Main.frames[2]:EntryFilter( entry ) -- snooper filter
        and Main.FullName("target") == sender
 	   and not isplayer then
 		
@@ -1036,12 +1054,12 @@ function Main.MarkMessagesRead( e )
 	for _, frame in pairs( Main.frames ) do
 		
 		-- skip for snooper.
-		if frame.frame_index ~= 2 and frame:ShowsEntry( e ) and frame:IsShown() then
+		if frame.frame_index ~= 2 and frame:EntryFilter( e ) and frame:IsShown() then
 			-- this frame is listening to this event, so we clear all
 			-- unread messages that this frame is listening to.
 			
 			for k,v in pairs( Main.unread_entries ) do
-				if time >= k.t + NEW_MESSAGE_HOLD and frame:ShowsEntry( k ) then
+				if time >= k.t + NEW_MESSAGE_HOLD and frame:EntryFilter( k ) then
 					k.r = nil
 					Main.unread_entries[k] = nil
 				end

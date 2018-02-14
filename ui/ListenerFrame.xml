@@ -76,6 +76,12 @@
           <OnMouseUp>
             ListenerAddon.Frame.BarMouseUp( self:GetParent() )
           </OnMouseUp>
+          <OnEnter>
+            self:GetParent():MouseOn()
+          </OnEnter>
+          <OnLeave>
+            self:GetParent():MouseOff()
+          </OnLeave>
           <OnDragStart>
             ListenerAddon.Frame.BarDragStart( self:GetParent() )
           </OnDragStart>
@@ -104,6 +110,12 @@
                 
                 ListenerAddon.Frame.TogglePlayerClicked( self:GetParent():GetParent(), button )
               </OnClick>
+              <OnEnter>
+                self:GetParent():GetParent():MouseOn()
+              </OnEnter>
+              <OnLeave>
+                self:GetParent():GetParent():MouseOff()
+              </OnLeave>
             </Scripts>
           </ListenerTextButton>
           
@@ -119,6 +131,12 @@
               <OnClick>
                 ListenerAddon.Frame.CloseClicked( self:GetParent():GetParent(), button )
               </OnClick>
+              <OnEnter>
+                self:GetParent():GetParent():MouseOn()
+              </OnEnter>
+              <OnLeave>
+                self:GetParent():GetParent():MouseOff()
+              </OnLeave>
             </Scripts>
           </ListenerBarButton>
           
@@ -134,28 +152,20 @@
               <OnClick>
                 ListenerAddon.Frame.ShowHiddenClicked( self:GetParent():GetParent(), button )
               </OnClick>
+              <OnEnter>
+                self:GetParent():GetParent():MouseOn()
+              </OnEnter>
+              <OnLeave>
+                self:GetParent():GetParent():MouseOff()
+              </OnLeave>
             </Scripts>
           </ListenerBarButton>
-          
-          <!-- Dummy button to show if player is filtered. -->
-          <ListenerBarButton parentKey="toggle_button" hidden="true">
-            <Anchors>
-              <Anchor point="TOPLEFT" x="0" y="0"/>
-            </Anchors>
-            <Scripts>
-              <OnLoad>
-                self:EnableMouse( false )
-                self:SetTexture( 1 )
-              </OnLoad>
-            </Scripts>
-          </ListenerBarButton>
-          
         </Frames>
       </Frame>
       
       <!-- The mark at the bottom of the chatbox to 
            show if the user is not scrolled all the way down. -->
-      <Frame name="$parentScrollmark" parentKey="scrollmark" hidden="true">
+      <Frame name="$parentScrollmark" parentKey="scrollmark" hidden="true" enableMouse="false">
         <Anchors>
           <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT"><Offset x="1" y="3"/></Anchor>
           <Anchor point="BOTTOMRIGHT" relativePoint="BOTTOMRIGHT"><Offset x="-1" y="1"/></Anchor>
@@ -180,14 +190,15 @@
 				<Scripts>
 					<OnMouseDown>
             ListenerAddon.Frame.ResizeThumb_OnMouseDown( self, button )
-            
 					</OnMouseDown>
 					<OnMouseUp>
             ListenerAddon.Frame.ResizeThumb_OnMouseUp( self, button )
-            
 					</OnMouseUp>
+          <OnEnter>
+            self:GetParent():MouseOn()
+          </OnEnter>
           <OnLeave>
-            ListenerAddon.Frame.ResizeThumb_OnLeave( self )
+            self:GetParent():MouseOff()
           </OnLeave>
 				</Scripts>
 				<NormalTexture file="Interface\ChatFrame\UI-ChatIM-SizeGrabber-Up"/>

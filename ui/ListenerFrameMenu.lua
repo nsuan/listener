@@ -43,6 +43,7 @@ end
 -------------------------------------------------------------------------------
 local function LockClicked( self, arg1, arg2, checked )
 	Me.menu_parent.frameopts.locked = checked
+	Me.menu_parent:UpdateResizeShow()
 end
 
 local function CopyClicked()

@@ -289,6 +289,29 @@ local DB_DEFAULTS = {
 			---------------------------------------------------------
 			-- Split option.
 			--
+			-- Enable mouse interaction in the window.
+			-- If false, user must hold shift.
+			--
+			enable_mouse = true;
+			
+			---------------------------------------------------------
+			-- Split option. (Currently hidden/snooper only)
+			--
+			-- Enable scrolling.
+			-- If false, user must hold shift.
+			--
+			enable_scroll = true;
+			
+			---------------------------------------------------------
+			-- Split option.
+			--
+			-- Show the readmark.
+			--
+			readmark = true;
+			
+			---------------------------------------------------------
+			-- Split option.
+			--
 			-- Hide during combat.
 			--
 			combathide = true;
@@ -442,6 +465,9 @@ local DB_DEFAULTS = {
 			font  = {};
 			color = {};
 			
+			enable_mouse       = false;
+			enable_scroll      = false;
+			
 			---------------------------------------------------------
 			-- Snooper specific options.
 			--
@@ -453,7 +479,7 @@ local DB_DEFAULTS = {
 			shift_mouse        = true;
 			
 			-- Color names. (/e messages include the character name.)
-			name_colors        = true;
+			name_colors        = false;
 			
 		};
 		

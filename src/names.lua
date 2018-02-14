@@ -33,7 +33,8 @@ do
 		"captain", "commander", "major", "admiral",
 		"pvt.", "ensign", "officer", "cadet",
 		"guard", "pfc", "dame", "knight", "sir",
-		"lady", "lord", "mister", "mistress", "master", "miss",
+		"lady", "lord", "mister", "mr", "mr.", 
+		"mistress", "mrs.", "mrs", "master", "miss",
 		"king", "queen", "baroness", "baron"
 	}
 	for _,v in pairs( titles ) do

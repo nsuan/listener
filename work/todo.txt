@@ -1,0 +1,59 @@
+kyphaz keywords bug					(fixed! needs testing.)
+normalize showing of resize thumb			(fixed!)
+allow more mouse options for other windows
+	add Enable Mouse feature for all windows
+	when shift is held, it enabkes mouse
+	there is no Enable Scroll option for normal windows (as that doesnt make sense)
+move console commands to separate file and clean them up (and fix them)
+merge the frame settings into the main settings panel
+separate taskbar flashing and sounds
+custom sounds (maybe next version)
+link bug (when posting two links, the latter doesnt work.)
+combat hide is broken
+
+merge the listener minimap menu together, having the "hide" values part of the frame dropdown menues only
+sylvia bug with channels
+tooltip for snooper>filter menu
+WINDOWS
+[ ] MAIN
+[ ] SNOOPER
+[ ] CUSTOM1	
+-------
+MAIN    >
+	OPTIONS
+	...
+	SETTINGS
+SNOOPER >
+	SNOOPER OPTIONS
+	...
+	SETTINGS
+CUSTOM1 >
+	OPTIONS
+	...
+	SETTINGS
+-------
+DM TAGS >
+	ENABLE
+	MARK ALL
+SETTINGS
+
+the poke sound should cancel beeps.								(fixed!)
+no beep for WHISPER_INFORM (and other messages that shouldnt beep according to the ignor filter (fixed!)
+sort target beep by snooper.									(fixed!)
+snooper shouldnt close when the mouse is focusing it.						(fixed!)
+check out why whispering didnt clear readmark. (this should be intended behavior, but check anyway) (fixed!)
+copy link needs to reset the character limit in the editbox					(fixed!)
+clickblock is set wehn messages are added to other windows?? (refreshing issue?)		(fixed!)
+
+rp connect should include RAID WARNING.								(fixed!)
+rp connect should be on the event level
+
+=========
+FUTURE VERSIONS
+temporary windows
+context menu for right clicking messages
+	create new window for this person
+	create new window for this channel
+	
+request: snooper only shows when you target
+snooper fades for some reason when changing main options (esp the tab size)

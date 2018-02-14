@@ -46,7 +46,10 @@ local SKIP_BEEP = {
 	CHANNEL_LEAVE     = true;
 	GUILD_ACHIEVEMENT = true;
 	GUILD_MOTD        = true;
+	WHISPER_INFORM    = true;
 }
+
+Me.SKIP_BEEP = SKIP_BEEP
 
 -------------------------------------------------------------------------------
 -- Prefix behind name for these types of messages.
@@ -804,10 +807,8 @@ function Method:UpdateProbe()
 	
 	if on or not target then
 		self.bar2.title.text:SetAlpha( 1.0 )
-	--	self.bar2.toggle_button:Show()
 	else
 		self.bar2.title.text:SetAlpha( 0.5 )
-	--	self.bar2.toggle_button:Hide()
 	end
 	
 	if Main.db.profile.frame.color.tab_target[4] > 0 then
@@ -822,9 +823,11 @@ end
 -- @param beep Enable playing a beep.
 --
 function Method:AddMessage( e, beep, from_refresh )
-	if not EntryFilter( self, e ) then return end
+	if not EntryFilter( self, e ) then return false end
 	
-	self.fade_time = GetTime()
+	if not self.refreshing then
+		self.fade_time = GetTime()
+	end
 	
 	local hidden = not self:ListeningTo( e.s )
 	
@@ -869,6 +872,8 @@ function Method:AddMessage( e, beep, from_refresh )
 			self:UpdateShown()
 		end
 	end
+	
+	return true
 end
 
 -------------------------------------------------------------------------------
@@ -877,11 +882,12 @@ end
 function Method:TryAddMessage( e, beep )
 	if self.charopts.showhidden or self:ListeningTo( e.s ) then
 		
-		if self.chatbox:GetScrollOffset() == 0 then
-			self:SetClickBlock()
+		if self:AddMessage( e, beep ) then
+			if self.chatbox:GetScrollOffset() == 0 then
+				self:SetClickBlock()
+			end
 		end
 		
-		self:AddMessage( e, beep )
 	else
 		if EntryFilter( self, e ) and not self.snooper then
 			self.bar2.hidden_button:Show()
@@ -1058,7 +1064,7 @@ function Method:UpdateShown()
 	if self:IsShown() then
 		if self.charopts.hidden 
 		   or (self.frameopts.combathide and InCombatLockdown()) 
-		   or (self.chatbox:GetNumMessages() == 0 and self.frameopts.hideempty) then
+		   or (self.chatbox:GetNumMessages() == 0 and self.frameopts.hideempty and not self.mouseon) then
 		   
 			self:Hide()
 		end
@@ -1073,6 +1079,7 @@ end
 
 -------------------------------------------------------------------------------
 function Method:RefreshChat()
+	self.refreshing = true
 	self.chatbox:Clear()
 	self:CheckUnread()
 	
@@ -1141,6 +1148,7 @@ function Method:RefreshChat()
 	end
 	
 	self:UpdateShown()
+	self.refreshing = false
 end
 
 -------------------------------------------------------------------------------
@@ -1191,7 +1199,12 @@ end
 -- Update the visibility of the resize thumb.
 --
 function Method:UpdateResizeShow()
-	if (self:IsMouseOver() and IsShiftKeyDown()) or self.doingSizing then
+	if not self.frameopts.locked then
+		self.resize_thumb:Show()
+		return
+	end
+	
+	if (self.mouseon and IsShiftKeyDown()) or self.doingSizing then
 		self.resize_thumb:Show()
 	else
 		self.resize_thumb:Hide()
@@ -1244,6 +1257,21 @@ function Method:CopyText()
 end
 
 -------------------------------------------------------------------------------
+function Method:MouseOn()
+	self.mouseon = true
+	self:UpdateResizeShow()
+end
+
+-------------------------------------------------------------------------------
+function Method:MouseOff()
+	self.mouseon = false
+	C_Timer.After( 0.1, function()
+		self:UpdateShown()
+		self:UpdateResizeShow()
+	end)
+end
+
+-------------------------------------------------------------------------------
 -- Handlers (And psuedo ones.)
 -------------------------------------------------------------------------------
 function Me.OnLoad( self )
@@ -1267,16 +1295,17 @@ end
 
 -------------------------------------------------------------------------------
 function Me.OnEnter( self )
+	self:MouseOn()
 	self.show_highlight = true
-	self:UpdateResizeShow()
 end
 
 -------------------------------------------------------------------------------
 function Me.OnLeave( self )
+	self:MouseOff()
 	self.show_highlight = false
-	self:UpdateResizeShow()
 end
 
+-------------------------------------------------------------------------------
 local function DoPainting( self, pid )
 	if not self.painting then return end
 	
@@ -1435,7 +1464,14 @@ StaticPopupDialogs["LISTENER_COPYLINK"] = {
 	enterClicksFirstButton = true,
 	hasEditBox             = true,
 	
+	EditBoxOnEscapePressed = function(self)
+		self:GetParent():Hide();
+	end;
+	EditBoxOnEnterPressed = function(self, data)
+		self:GetParent():Hide();
+	end;
 	OnShow = function ( self )
+		self.editBox:SetMaxLetters( 0 )
 		self.editBox:SetText( g_listener_copylink_text )
 		self.editBox:HighlightText()
 	end
@@ -1591,7 +1627,7 @@ end
 
 -------------------------------------------------------------------------------
 function Me.ResizeThumb_OnLeave( self )
-	self:GetParent():UpdateResizeShow()
+
 end
 
 -------------------------------------------------------------------------------

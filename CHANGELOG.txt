@@ -1,3 +1,8 @@
+## 2.0.3
+Fixed bug with guild loot announcement format.
+
+Fixed bugs with copying links.
+
 ## 2.0.2
 Fixed bug in Snooper where message history would be cut short.
 

@@ -86,8 +86,8 @@ local function ChatFilter( self, event, msg, sender, ... )
 			-- and then removed from the string, to be added later after
 			-- all filtering is done, to prevent keyword collisions.
 			--
-			table.insert( replaced, a .. g_color .. b .. "|r" .. c )
-			return "\001\001" .. #replaced .. "\001\001"
+			table.insert( replaced, g_color .. b .. "|r" )
+			return a .. "\001\001" .. #replaced .. "\001\001" .. c
 		end)
 		
 		if subs > 0 then
@@ -96,6 +96,7 @@ local function ChatFilter( self, event, msg, sender, ... )
 				-- we have our own cooldown in here because this shit is going to be spammed a lot
 				-- on message matches.
 				g_beeptime = GetTime() + 0.15
+				Main.SetMessageBeepCD()
 				PlaySoundFile( SharedMedia:Fetch( "sound", "ListenerPoke" ), "Master" )
 				Main.FlashClient()
 			end
@@ -121,27 +122,36 @@ function Main.LoadKeywordsConfig()
 	g_color = "|c" .. GetHexCode( Main.db.profile.keywords_color )
 	g_triggers = {}
 	
-	local firstname = Main.GetICName( UnitName("player") ):match( "^%s*(%S+)" )
-	local lastname  = Main.GetICName( UnitName("player"), true ):match( "(%S+)%s*$" )
+	local quotepattern = '(['..("%^$().[]*+-?"):gsub("(.)", "%%%1")..'])'
+	
+	local firstname = Main.GetICName( UnitName("player") ):match( "^%s*(%S+)" ) or ""
+	local lastname  = Main.GetICName( UnitName("player"), true ):match( "(%S+)%s*$" ) or ""
 	local oocname   = UnitName('player')
+	
+	firstname = firstname:gsub( quotepattern, "%%%1" )
+	lastname  = lastname:gsub( quotepattern, "%%%1" )
 	
 	for word in Main.db.profile.keywords_string:gmatch( "[^,]+" ) do
 	
 		-- trim space, lowercase
 		word = word:match( "^%s*(.-)%s*$" ):lower()
 		
-		word = word:gsub( "<firstname>", firstname )
-		word = word:gsub( "<lastname>", lastname )
-		word = word:gsub( "<oocname>", oocname )
 		
 		if word then
 			-- and now, format the trigger...
-			word = word:lower()
 			
-			if not word:find( "[^%a%d%s]" ) then
+			if not word:find( quotepattern ) then
+			
 				-- if word doesn't have any special characters, then we
+				-- make our normal substitutions,
 				-- turn it into a case insensitive pattern, and wrap it
 				-- in word boundaries
+				
+				word = word:gsub( "<firstname>", firstname )
+				word = word:gsub( "<lastname>", lastname )
+				word = word:gsub( "<oocname>", oocname )
+				word = word:lower()
+				
 				word = word:gsub( "%a", function(c)
 					return string.format( "[%s%s]", c:lower(), c:upper() )
 				end)
@@ -150,7 +160,15 @@ function Main.LoadKeywordsConfig()
 				word = "([%s%p])(" .. word .. ")([%s%p])"
 			else
 				-- otherwise, they're doing something weird, and let them do it.
-				-- meaning, they can use lua patterns.
+				-- meaning, they can use lua patterns. we just add the spaces
+				-- pattern to wrap it.
+				
+				-- escape parenthesis because they can cause errors.
+				word = word:gsub( "([%(%)])", "%%%1" )
+				
+				-- and match spaces on ends
+				word = "([%s%p])(" .. word .. ")([%s%p])"
+				
 			end
 			g_triggers[word] = true
 		end

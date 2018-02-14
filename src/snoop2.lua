@@ -93,7 +93,7 @@ function Me.OnUpdate( self )
 	
 	if self.frameopts.hidecombat and InCombatLockdown() then return end
 	
-	local name = IsShiftKeyDown() and g_current_name or Main.GetProbed()
+	local name = (IsShiftKeyDown() or self.mouseon) and g_current_name or Main.GetProbed()
 	
 	if g_current_name == name and GetTime() - g_update_time < 10 then
 		-- throttle updates when the name matches

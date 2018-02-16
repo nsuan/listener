@@ -398,6 +398,9 @@ function Me.PopulateMenu( level, menuList )
 		info.notCheckable     = true
 		info.hasArrow         = true
 		info.menuList         = "FILTERS_SNOOPER"
+		info.tooltipTitle     = L["Display filter."]
+		info.tooltipText      = L["Selects which chat types to display."]
+		info.tooltipOnButton  = true
 		info.keepShownOnClick = true
 		UIDropDownMenu_AddButton( info, level )
 		

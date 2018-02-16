@@ -64,7 +64,7 @@ local function ChatFilter( self, event, msg, sender, ... )
 	local found = false
 	
 	-- Don't filter player's own text.
---	if Ambiguate(sender,"all") == UnitName("player") then return end
+	if Ambiguate(sender,"all") == UnitName("player") then return end
 	
 	local replaced = {}
 	

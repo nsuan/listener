@@ -198,6 +198,12 @@ local function ShowOrHide( self, show, save )
 		if show then self.fade_time = GetTime() end
 	end
 	
+	if self.charopts.hidden then
+		if Main.active_frame == self and self.frame_index ~= 1 then
+			Main.SetActiveFrame( Main.frames[1] )
+		end
+	end
+	
 	self:UpdateShown()
 end
 
@@ -769,6 +775,7 @@ end
 -- @param silent Do not print chat message.
 --
 function Method:TogglePlayer( name, silent )
+	name = Main.FixupName( name )
 	if self.players[name] == 1 then
 		self:RemovePlayer( name, silent )
 	elseif self.players[name] == 0 then

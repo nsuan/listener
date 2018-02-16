@@ -64,7 +64,7 @@ local function ChatFilter( self, event, msg, sender, ... )
 	local found = false
 	
 	-- Don't filter player's own text.
-	if Ambiguate(sender,"all") == UnitName("player") then return end
+--	if Ambiguate(sender,"all") == UnitName("player") then return end
 	
 	local replaced = {}
 	
@@ -80,27 +80,34 @@ local function ChatFilter( self, event, msg, sender, ... )
 	-- Now iterate through the triggers...
 	for trigger, _ in pairs( g_triggers ) do
 		
-		local subs
-		msg, subs = msg:gsub( trigger, function( a,b,c )
-			-- Any matches that are found are processed with the color code
-			-- and then removed from the string, to be added later after
-			-- all filtering is done, to prevent keyword collisions.
-			--
-			table.insert( replaced, g_color .. b .. "|r" )
-			return a .. "\001\001" .. #replaced .. "\001\001" .. c
-		end)
-		
-		if subs > 0 then
-			found = true
-			if GetTime() > g_beeptime then
-				-- we have our own cooldown in here because this shit is going to be spammed a lot
-				-- on message matches.
-				g_beeptime = GetTime() + 0.15
-				Main.SetMessageBeepCD()
-				PlaySoundFile( SharedMedia:Fetch( "sound", "ListenerPoke" ), "Master" )
-				Main.FlashClient()
+		for maxsubs = 1,10 do
+					
+			local subs
+			msg, subs = msg:gsub( trigger, function( a,b,c )
+				-- Any matches that are found are processed with the color code
+				-- and then removed from the string, to be added later after
+				-- all filtering is done, to prevent keyword collisions.
+				--
+				table.insert( replaced, g_color .. b .. "|r" )
+				return a .. "\001\001" .. #replaced .. "\001\001" .. c
+			end)
+			
+			if subs > 0 then
+				found = true
+				if GetTime() > g_beeptime then
+					-- we have our own cooldown in here because this shit is going to be spammed a lot
+					-- on message matches.
+					g_beeptime = GetTime() + 0.15
+					Main.SetMessageBeepCD()
+					PlaySoundFile( SharedMedia:Fetch( "sound", "ListenerPoke" ), "Master" )
+					Main.FlashClient()
+				end
+			else
+				break
 			end
+		
 		end
+		
 	end
 	
 	if found then

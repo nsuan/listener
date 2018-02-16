@@ -1,19 +1,15 @@
-kyphaz keywords bug					(fixed! needs testing.)
-normalize showing of resize thumb			(fixed!)
 allow more mouse options for other windows
 	add Enable Mouse feature for all windows
 	when shift is held, it enabkes mouse
 	there is no Enable Scroll option for normal windows (as that doesnt make sense)
-move console commands to separate file and clean them up (and fix them)
 merge the frame settings into the main settings panel
 separate taskbar flashing and sounds
 custom sounds (maybe next version)
-link bug (when posting two links, the latter doesnt work.)
 combat hide is broken
-
 merge the listener minimap menu together, having the "hide" values part of the frame dropdown menues only
 sylvia bug with channels
 tooltip for snooper>filter menu
+
 WINDOWS
 [ ] MAIN
 [ ] SNOOPER
@@ -37,6 +33,12 @@ DM TAGS >
 	MARK ALL
 SETTINGS
 
+link bug (when posting two links, the latter doesnt work.) (fixed)
+improved keyword highlighting				(fixed)
+kyphaz keywords bug					(fixed! needs testing.)
+normalize showing of resize thumb			(fixed!)
+move console commands to separate file and clean them up (and fix them)	(done)
+---
 the poke sound should cancel beeps.								(fixed!)
 no beep for WHISPER_INFORM (and other messages that shouldnt beep according to the ignor filter (fixed!)
 sort target beep by snooper.									(fixed!)

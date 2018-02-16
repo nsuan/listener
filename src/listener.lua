@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- LISTENER by Tammya-MoonGuard (2017)
+-- LISTENER by Tammya-MoonGuard (2018)
 --
 -- This is the center that links everything together and is otherwise
 -- cluttered with anything that isn't stuffed into a module.
@@ -663,17 +663,29 @@ local function Linkify( msg )
 		return a .. "\001" .. #links .. "\001" .. c
 	end
 	
-	-- http://abc.com/aaa
-	-- we also handle if its wrapped in ()
-	msg = msg:gsub( "([%s%(])(https?://[^%)%s]+)([%s%)])", getlink )
+	local subs
 	
-	-- abc.me/aaa
-	msg = msg:gsub( "([%s%(])([A-Za-z0-9-%.]+[A-Za-z0-9-]+%.[A-Za-z0-9]+/[^%)%s]*)([%s%)])", getlink )
+	for limiter = 1,10 do
 	
-	-- and then insert them with formatting.
-	msg = msg:gsub( "\001(%d+)\001", function(i)
-		return "|cFF0FBEF4|Hlrurl|h" .. links[tonumber(i)] .. "|h|r"
-	end)
+		-- http://abc.com/aaa
+		-- we also handle if its wrapped in ()
+		msg,subs = msg:gsub( "([%s%(])(https?://[^%)%s]+)([%s%)])", getlink )
+		
+		if subs == 0 then
+			-- abc.me/aaa
+			msg,subs = msg:gsub( "([%s%(])([A-Za-z0-9-%.]+[A-Za-z0-9-]+%.[A-Za-z0-9]+/[^%)%s]*)([%s%)])", getlink )
+		end
+		
+		-- and then insert them with formatting.
+		if subs == 0 then
+			msg,subs = msg:gsub( "\001(%d+)\001", function(i)
+				return "|cFF0FBEF4|Hlrurl|h" .. links[tonumber(i)] .. "|h|r"
+			end)
+		end
+		
+		if subs == 0 then break end
+	
+	end
 	
 	return msg:sub( 2, msg:len() - 1 )
 end
@@ -820,70 +832,6 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	end
 end
 
-function Main.ToggleCommand( arg, command )
-	
-	arg = arg or Main.GetProbed()
-	if not arg then
-		Main.Print( L["Specify name or target someone."] )
-		return
-	end
-	
-	if command == "add" then
-		Main.active_frame:AddPlayer( arg )
-	elseif command == "remove" then
-		Main.active_frame:RemovePlayer( arg )
-	elseif command == "toggle" then
-		Main.active_frame:TogglePlayer( arg )
-	end
-end
-
--------------------------------------------------------------------------------
-function SlashCmdList.LISTENER( msg )
-	local args = {}
-	
-	for i in string.gmatch( msg, "%S+" ) do
-		table.insert( args, i )
-	end
-	
-	if args[1] == nil then
-		Main.OpenConfig()
-		return
-	end
-	
-	if args[1] ~= nil then args[1] = string.lower( args[1] ) end
-	
-	if args[1] == "read" or args[1] == L["read"] then
-		
-	elseif args[1] == "add" or args[1] == L["add"] then
-	
-		Main.ToggleCommand( args[2], "add" )
-		
-	elseif args[1] == "remove" or args[1] == L["remove"] then
-	
-		Main.ToggleCommand( args[2], "remove" )
-		
-	elseif args[1] == "toggle" or args[1] == L["toggle"] then
-	
-		Main.ToggleCommand( args[2], "toggle" )
-		
-	elseif args[1] == "clear" or args[1] == L["clear"] then
-	
-		--Main:ClearAllPlayers()
-		
-	elseif args[1] == "list" or args[1] == L["list"] then
-	
-		--Main:ListPlayers()
-	
-	elseif args[1] == "show" or args[1] == L["show"] then
-	
-		Main:ShowFrame()
-
-	elseif args[1] == "hide" or args[1] == L["hide"] then
-		
-		Main:HideFrame()
-	
-	end  
-end
 
 -------------------------------------------------------------------------------
 -- Clean a name so that it starts with a capital letter.
@@ -1268,8 +1216,6 @@ end
 -- The Ace3 callback when the addon is fully loaded.
 --
 function Main:OnEnable()
-	SLASH_LISTENER1 = "/listener"
-	SLASH_LISTENER2 = "/lr"
 	
 	Main.realm = select( 2, UnitFullName("player") )
 	Main.SetupBindingText()
@@ -1348,4 +1294,5 @@ function Main:OnEnable()
 	C_Timer.After( 1, TryGetMOTD )
 	
 	Main.Help_Init()
+	Main.InitConsole()
 end

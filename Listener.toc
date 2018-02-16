@@ -28,5 +28,6 @@ src\names_trp3.lua
 src\names_mrp.lua
 src\names_xrp.lua
 src\help.lua
+src\console.lua
 
 ui.xml

@@ -9,6 +9,7 @@ Chat commands fixed.
 
 More changes are on the way.
 
+
 ## 2.0.2
 Fixed bug in Snooper where message history would be cut short.
 

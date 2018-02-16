@@ -1,3 +1,4 @@
+option to not clear readmark automatically
 allow more mouse options for other windows
 	add Enable Mouse feature for all windows
 	when shift is held, it enabkes mouse

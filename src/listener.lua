@@ -812,7 +812,9 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	-- we don't clear read messages if theyre just whispering.
 	if entry.p and event ~= "WHISPER_INFORM" then
 		-- player is posting...
-		Main.MarkMessagesRead( entry )
+		if Main.db.profile.auto_clear_readmark then
+			Main.MarkMessagesRead( entry )
+		end
 	end
 	
 	-- if the player's target emotes, then beep+flash

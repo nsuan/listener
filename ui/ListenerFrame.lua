@@ -129,14 +129,17 @@ end
 
 -------------------------------------------------------------------------------
 local function PickTextRegion( self, setup_highlight )
-	for _,v in pairs( self.pick_regions ) do
-		if v.region:IsMouseOver() then
-			if setup_highlight then
-				self.chatbox.highlight:SetPoint( "TOP", v.region, "TOP" )
-				self.chatbox.highlight:SetPoint( "BOTTOM", v.region, "BOTTOM" )
-				self.chatbox.highlight:Show()
+
+	if self:IsMouseOver() then
+		for _,v in pairs( self.pick_regions ) do
+			if v.region:IsMouseOver() then
+				if setup_highlight then
+					self.chatbox.highlight:SetPoint( "TOP", v.region, "TOP" )
+					self.chatbox.highlight:SetPoint( "BOTTOM", v.region, "BOTTOM" )
+					self.chatbox.highlight:Show()
+				end
+				return v
 			end
-			return v
 		end
 	end
 	
@@ -558,6 +561,8 @@ function Method:ApplyOtherOptions()
 	
 	self.auto_fade         = self.frameopts.auto_fade or self.baseopts.auto_fade
 	self.auto_fade_opacity = self.baseopts.auto_fade_opacity / 100
+	
+	self:UpdateResizeShow()
 end
 
 -------------------------------------------------------------------------------
@@ -1343,9 +1348,7 @@ function Me.OnUpdate( self )
 	
 	local picked = nil
 	
-	if (Main.active_frame == self or self.snooper)
-	   and (self.show_highlight or self.painting)
-	   and not (self.auto_fade > 0 and GetTime() > self.fade_time + self.auto_fade) then
+	if (self.show_highlight or self.painting) then
 		-- do some picking
 		picked = PickTextRegion( self, true )
 		
@@ -1386,9 +1389,9 @@ end
 function Me.OnMouseDown( self, button )
 	local active = Main.active_frame == self
 	
-	if not active and not self.snooper then
-		Main.SetActiveFrame( self )
-	end
+--	if not active and not self.snooper then
+--		Main.SetActiveFrame( self )
+--	end
 	
 	local faded = false
 
@@ -1396,7 +1399,7 @@ function Me.OnMouseDown( self, button )
 		faded = true
 	end
 	
-	if (active or self.snooper) and GetTime() > self.clickblock + CLICKBLOCK_TIME and not faded then
+	if GetTime() > self.clickblock + CLICKBLOCK_TIME then
 		local p = PickTextRegion( self, false )
 		if p then
 		

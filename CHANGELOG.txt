@@ -1,3 +1,8 @@
+## 2.0.5
+Changes in how the mouse is handled, and more options for that.
+
+Option to not automatically clear the readmark. So you can post freely without losing where you last read messages.
+
 ## 2.0.4
 Fixed bug with guild loot announcement format.
 

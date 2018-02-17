@@ -144,8 +144,9 @@ local DB_DEFAULTS = {
 	--
 	profile = {
 	
-		--------------------------------------------
+		-------------------------------------------------------------
 		-- Savedata for the minimap button library.
+		--
 		minimapicon = {
 		
 			-- If the button is shown or not.
@@ -153,8 +154,15 @@ local DB_DEFAULTS = {
 		};
 		
 		-------------------------------------------------------------
+		-- Automatically clear the readmark when a message is
+		-- posted.
+		--
+		auto_clear_readmark = true;
+		
+		-------------------------------------------------------------
 		-- Flash the taskbar when a notification is received 
 		-- (whenever a sound plays).
+		--
 		flashclient      = true;
 		
 		-------------------------------------------------------------
@@ -648,6 +656,19 @@ Main.config_options = {
 					end;
 					get = function( info )
 						return Main.db.profile.trp_emotes
+					end;
+				};
+				
+				auto_clear_readmark = {
+					order = 83;
+					name  = L["Auto-clear Readmark"];
+					desc  = L["Automatically clear readmark (new messages line) when you post a message. Otherwise, you have to press the hotkey."];
+					type  = "toggle";
+					set   = function( info, val )
+						Main.db.profile.auto_clear_readmark = val
+					end;
+					get = function( info )
+						return Main.db.profile.auto_clear_readmark
 					end;
 				};
 				

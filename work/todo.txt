@@ -1,4 +1,4 @@
-option to not clear readmark automatically
+npc emote text wasnt keyword highlighted in listener window
 allow more mouse options for other windows
 	add Enable Mouse feature for all windows
 	when shift is held, it enabkes mouse
@@ -34,6 +34,8 @@ DM TAGS >
 	MARK ALL
 SETTINGS
 
+
+option to not clear readmark automatically			(added)
 link bug (when posting two links, the latter doesnt work.) (fixed)
 improved keyword highlighting				(fixed)
 kyphaz keywords bug					(fixed! needs testing.)

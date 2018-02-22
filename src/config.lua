@@ -28,6 +28,8 @@ local VERSION = 1
 
 -- List of fonts for font picker options.
 local g_font_list = {}
+
+local g_sound_list = {}
  
 -------------------------------------------------------------------------------
 -- These functions are for converting a hex string into a color value.
@@ -234,9 +236,12 @@ local DB_DEFAULTS = {
 		--
 		-- keywords_color is the color they are highlighted with.
 		--
-		keywords_enable  = true;
-		keywords_string  = "<firstname>, <lastname>, <oocname>";
-		keywords_color   = Hexc "75F754";
+		keywords_enable    = true;
+		keywords_string    = "<firstname>, <lastname>, <oocname>";
+		keywords_color     = Hexc "75F754";
+		keywords_flash     = true;
+		keywords_sound     = true;
+		keywords_soundfile = "ListenerPoke";
 		
 		-------------------------------------------------------------
 		-- Notification settings.
@@ -682,7 +687,7 @@ Main.config_options = {
 						keywords_desc = {
 							order = 91;
 							type  = "description";
-							name  = L["The keywords feature highlights things that appear in chat, such as your name. They also make a notification. Separate keywords with commas. Keywords are not case-sensitive. Some substitutions are available:\n<firstname> - Your character's RP first name.\n<lastname> - Your character's RP last name.\n<oocname> - Your character's in-game name."];
+							name  = L["The keywords feature highlights things that appear in chat, such as your name. They may also make a notification. Separate keywords with commas. Keywords are not case-sensitive. Some substitutions are available:\n<firstname> - Your character's RP first name.\n<lastname> - Your character's RP last name.\n<oocname> - Your character's in-game name."];
 						};
 						
 						keywords_enable = {
@@ -727,6 +732,46 @@ Main.config_options = {
 								return unpack( Main.db.profile.keywords_color )
 							end;
 						};
+						
+						keywords_flash = {
+							order = 100;
+							type  = "toggle";
+							name  = L["Flash Taskbar"];
+							desc  = L["Flash the taskbar icon when someone mentions one of your keywords."];
+							set = function( info, val )
+								Main.db.profile.keywords_flash = val
+							end;
+							get = function( info )
+								return Main.db.profile.keywords_flash
+							end;
+						};
+						
+						keywords_sound = {
+							order = 101;
+							type = "toggle";
+							name = L["Play Sound"];
+							desc = L["Play a sound when someone mentions one of your keywords."];
+							set = function( info, val )
+								Main.db.profile.keywords_sound = val
+							end;
+							get = function( info )
+								return Main.db.profile.keywords_sound
+							end
+						};
+						
+						keywords_soundfile = {
+							order = 102;
+							type = "select";
+							name = L["Sound"];
+							desc = L["Sound to play."];
+							set = function( info, val )
+								Main.db.profile.keywords_soundfile = g_sound_list[val]
+								Main.Sound.Play( "messages", 10, g_sound_list[val] )
+							end;
+							get = function( info )
+								return FindValueKey( g_sound_list, Main.db.profile.keywords_soundfile )
+							end;
+						}
 					};
 				};
 				dmtags = {
@@ -961,9 +1006,14 @@ local function InitConfigPanel()
 	
 	local options = Main.config_options
 	
-	g_font_list = SharedMedia:List( "font" ) 
+	g_font_list = SharedMedia:List( "font" )
+	g_sound_list = SharedMedia:List( "sound" )
+	
 	options.args.frame.args.bar_fontface.values = g_font_list 
 	options.args.general.args.dmtags.args.fontface.values = g_font_list
+	
+	options.args.general.args.keywords.args.keywords_soundfile.values = g_sound_list
+	
 	options.args.profile = LibStub("AceDBOptions-3.0"):GetOptionsTable( Main.db )
 	options.args.profile.order = 500
 	 

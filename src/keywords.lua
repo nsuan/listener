@@ -98,9 +98,14 @@ local function ChatFilter( self, event, msg, sender, ... )
 					-- we have our own cooldown in here because this shit is going to be spammed a lot
 					-- on message matches.
 					g_beeptime = GetTime() + 0.15
-					Main.SetMessageBeepCD()
-					PlaySoundFile( SharedMedia:Fetch( "sound", "ListenerPoke" ), "Master" )
-					Main.FlashClient()
+					
+					if Main.db.profile.keywords_sound then
+						Main.Sound.Play( "messages", 10, Main.db.profile.keywords_soundfile )
+					end
+					
+					if Main.db.profile.keywords_flash then
+						Main.FlashClient()
+					end
 				end
 			else
 				break

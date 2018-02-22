@@ -1458,8 +1458,7 @@ function Me.OnChatboxScroll( self, delta )
 	
 	-- for the snooper, shift is used to activate the mouse sometimes
 	-- if so, ignore the shift modifier in here.
-	
-	-- TODO add this support for normal windows too which need shift.
+	-- for normal windows, mouse wheel always works, so functionality is normal
 	if self.snooper and self.frameopts.shift_mouse then
 		reps = 1
 	end

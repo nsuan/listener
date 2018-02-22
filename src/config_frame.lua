@@ -547,7 +547,6 @@ local hidden_opts = {
 		OPTIONS.args.font.args.reset;
 		OPTIONS.args.timestamp_brackets;
 		OPTIONS.args.hideempty;
-		OPTIONS.args.shift_mouse;
 		OPTIONS.args.name_colors;
 	};
 	
@@ -569,7 +568,6 @@ local hidden_opts = {
 	other = {
 		OPTIONS.args.timestamp_brackets;
 		OPTIONS.args.hideempty;
-		OPTIONS.args.shift_mouse;
 		OPTIONS.args.name_colors;
 	};
 }

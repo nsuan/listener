@@ -1,8 +1,4 @@
 npc emote text wasnt keyword highlighted in listener window
-allow more mouse options for other windows
-	add Enable Mouse feature for all windows
-	when shift is held, it enabkes mouse
-	there is no Enable Scroll option for normal windows (as that doesnt make sense)
 merge the frame settings into the main settings panel
 separate taskbar flashing and sounds
 custom sounds (maybe next version)
@@ -10,6 +6,7 @@ combat hide is broken
 merge the listener minimap menu together, having the "hide" values part of the frame dropdown menues only
 sylvia bug with channels
 tooltip for snooper>filter menu
+hide "close" button
 
 WINDOWS
 [ ] MAIN
@@ -35,6 +32,10 @@ DM TAGS >
 SETTINGS
 
 
+allow more mouse options for other windows							(done.)
+	add Enable Mouse feature for all windows						(done.)
+	when shift is held, it enabkes mouse							(done.)
+	there is no Enable Scroll option for normal windows (as that doesnt make sense)		(done.)
 option to not clear readmark automatically			(added)
 link bug (when posting two links, the latter doesnt work.) (fixed)
 improved keyword highlighting				(fixed)

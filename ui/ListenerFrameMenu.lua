@@ -40,6 +40,11 @@ local function AutoPopupClicked( self, arg1, arg2, checked )
 	Me.menu_parent.frameopts.auto_popup = checked
 end
 
+local function EnableMouseClicked( self, arg1, arg2, checked )
+	Me.menu_parent.frameopts.enable_mouse = checked
+	Me.menu_parent:ApplyOtherOptions()
+end
+
 -------------------------------------------------------------------------------
 local function LockClicked( self, arg1, arg2, checked )
 	Me.menu_parent.frameopts.locked = checked
@@ -360,6 +365,18 @@ local function InitializeMenu( self, level, menuList )
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Auto-popup."]
 		info.tooltipText      = L["Reopen window automatically upon receiving new messages."]
+		info.tooltipOnButton  = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = L["Enable Mouse"]
+		info.notCheckable     = false
+		info.isNotRadio       = true
+		info.checked          = Me.menu_parent.frameopts.enable_mouse
+		info.func             = EnableMouseClicked
+		info.keepShownOnClick = true
+		info.tooltipTitle     = L["Enable mouse."]
+		info.tooltipText      = L["Enables mouse interaction with content in this frame."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
 		

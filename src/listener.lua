@@ -302,6 +302,7 @@ function Main:OnModifierChanged( evt, key, state )
 	if key == "LSHIFT" or key == "RSHIFT" then
 	
 		for _, frame in pairs( Main.frames ) do
+			frame:OnModifierPressed()
 			frame:UpdateResizeShow()
 		end
 		

@@ -295,7 +295,7 @@ function Me:FormatChatMessage( e )
 	
 	local name, _, color = Main.GetICName( e.s )
 	
-	if color and self.frameopts.name_colors then 
+	if color and self.frameopts.name_colors then
 		name = "|c" .. color .. name .. "|r"
 	end
 	

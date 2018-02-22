@@ -211,6 +211,20 @@ local function ShowOrHide( self, show, save )
 end
 
 -------------------------------------------------------------------------------
+-- This enables/disables mouse interaction according to options and the shift
+-- key.
+--
+local function UpdateMouseLock( self )
+	self:EnableMouse( self.frameopts.enable_mouse or (self.frameopts.shift_mouse and IsShiftKeyDown()) )
+	
+	if self.snooper then
+		self.chatbox:EnableMouseWheel( self.frameopts.enable_scroll or (self.frameopts.shift_mouse and IsShiftKeyDown()) )
+	else
+		self.chatbox:EnableMouseWheel( true )
+	end
+end
+
+-------------------------------------------------------------------------------
 -- Add or remove player from the filter.
 --
 -- @param name   Name of player.
@@ -563,6 +577,7 @@ function Method:ApplyOtherOptions()
 	self.auto_fade_opacity = self.baseopts.auto_fade_opacity / 100
 	
 	self:UpdateResizeShow()
+	UpdateMouseLock( self )
 end
 
 -------------------------------------------------------------------------------
@@ -1284,6 +1299,11 @@ function Method:MouseOff()
 end
 
 -------------------------------------------------------------------------------
+function Method:OnModifierPressed()
+	UpdateMouseLock( self )
+end
+
+-------------------------------------------------------------------------------
 -- Handlers (And psuedo ones.)
 -------------------------------------------------------------------------------
 function Me.OnLoad( self )
@@ -1695,6 +1715,7 @@ function Me.InitOptions( index )
 			color        = {};
 			font         = {};
 			readmark     = true;
+			enable_mouse = true;
 		}
 		for k,v in pairs( DEFAULT_LISTEN_EVENTS ) do
 			Main.db.char.frames[index].filter[v] = true

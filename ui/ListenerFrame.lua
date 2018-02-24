@@ -864,11 +864,15 @@ function Method:AddMessage( e, beep, from_refresh )
 	
 	if e.r and not e.p and not hidden then -- not read and not from the player and not hidden
 		if self:IsShown() then
-			if beep and self.charopts.sound and not SKIP_BEEP[e.e] then
-				Main.PlayMessageBeep() 
-				Main.FlashClient()
+			if beep and not SKIP_BEEP[e.e] then
+				if self.charopts.sound then
+					Main.PlayMessageBeep( self.frameopts.notify_sound or self.baseopts.notify_sound )
+				end
+				
+				if self.charopts.flash then
+					Main.FlashClient()
+				end
 			end
-			
 		end
 		
 		if self.top_unread_id == nil then

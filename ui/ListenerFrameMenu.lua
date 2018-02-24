@@ -36,6 +36,11 @@ local function SoundClicked( self, arg1, arg2, checked )
 end
 
 -------------------------------------------------------------------------------
+local function FlashClicked( self, arg1, arg2, checked )
+	Me.menu_parent.charopts.flash = checked
+end
+
+-------------------------------------------------------------------------------
 local function AutoPopupClicked( self, arg1, arg2, checked )
 	Me.menu_parent.frameopts.auto_popup = checked
 end
@@ -345,18 +350,6 @@ local function InitializeMenu( self, level, menuList )
 		UIDropDownMenu_AddButton( info, level )
 		
 		info = UIDropDownMenu_CreateInfo()
-		info.text             = L["Notify"]
-		info.notCheckable     = false
-		info.isNotRadio       = true
-		info.checked          = Me.menu_parent.charopts.sound
-		info.func             = SoundClicked
-		info.keepShownOnClick = true
-		info.tooltipTitle     = L["Enable notifications."]
-		info.tooltipText      = L["Play a sound when receiving new messages."]
-		info.tooltipOnButton  = true
-		UIDropDownMenu_AddButton( info, level )
-		
-		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Auto-Popup"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
@@ -399,6 +392,17 @@ local function InitializeMenu( self, level, menuList )
 		info.func             = CopyClicked
 		info.tooltipTitle     = L["Copy text."]
 		info.tooltipText      = L["Opens a window to copy text."]
+		info.tooltipOnButton  = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = L["Notify"]
+		info.notCheckable     = true
+		info.hasArrow         = true
+		info.menuList         = "NOTIFY"
+		info.keepShownOnClick = true
+		info.tooltipTitle     = L["Notification settings."]
+		info.tooltipText      = L["Settings for alerting you when receiving new messages in this frame."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
 		
@@ -473,7 +477,33 @@ local function InitializeMenu( self, level, menuList )
 			end
 			UIDropDownMenu_AddButton( info, level )
 		end
+		
+	elseif menuList and menuList == "NOTIFY" then
 	
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = L["Sound"]
+		info.notCheckable     = false
+		info.isNotRadio       = true
+		info.checked          = Me.menu_parent.charopts.sound
+		info.func             = SoundClicked
+		info.keepShownOnClick = true
+		info.tooltipTitle     = L["Notification sound."]
+		info.tooltipText      = L["Play a sound when receiving new messages."]
+		info.tooltipOnButton  = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = L["Flash"]
+		info.notCheckable     = false
+		info.isNotRadio       = true
+		info.checked          = Me.menu_parent.charopts.flash
+		info.func             = FlashClicked
+		info.keepShownOnClick = true
+		info.tooltipTitle     = L["Taskbar flashing."]
+		info.tooltipText      = L["Flash the taskbar icon when receiving new messages."]
+		info.tooltipOnButton  = true
+		UIDropDownMenu_AddButton( info, level )
+		
 	elseif menuList and menuList:find( "FILTERS" ) then
 		
 		Main.PopulateFilterMenu( level, menuList )

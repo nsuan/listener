@@ -101,6 +101,7 @@ local function ChatFilter( self, event, msg, sender, ... )
 					
 					if Main.db.profile.keywords_sound then
 						Main.Sound.Play( "messages", 10, Main.db.profile.keywords_soundfile )
+						Main.SetMessageBeepCD()
 					end
 					
 					if Main.db.profile.keywords_flash then

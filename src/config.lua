@@ -26,11 +26,36 @@ local SharedMedia     = LibStub("LibSharedMedia-3.0")
 --
 local VERSION = 1
 
--- List of fonts for font picker options.
+-- these tables mirror the sharedmedia list with metamethods
 local g_font_list = {}
+local g_font_list_tag = {} -- tag is replaced with font list after init
 
 local g_sound_list = {}
- 
+local g_sound_list_tag = {}
+
+--[[ wow doesnt have lua 5.2
+local smlist_metatable = {
+	__index = function( table, key )
+		return table.source[key]
+	end;
+	
+	__len = function( table )
+		return #table.source
+	end;
+	
+	__pairs = function( table )
+		return pairs( table.source )
+	end;
+	
+	__ipairs = function( table )
+		return ipairs( table.source )
+	end;
+}]]
+
+--setmetatable( g_sound_list, smlist_metatable )
+--setmetatable( g_font_list, smlist_metatable )
+
+
 -------------------------------------------------------------------------------
 -- These functions are for converting a hex string into a color value.
 -- 
@@ -121,6 +146,7 @@ local DB_DEFAULTS = {
 			--   showhidden - Show excluded players as faded instead of hidden.
 			--   hidden     - The window is closed.
 			--   sound      - The "notify" option. Plays a sound on message.
+			--   flash      - Flash the taskbar on message.
 			
 			--
 			-- Some options are split, but they're not overrides. For example
@@ -165,7 +191,8 @@ local DB_DEFAULTS = {
 		-- Flash the taskbar when a notification is received 
 		-- (whenever a sound plays).
 		--
-		flashclient      = true;
+		-- replaced with more specific options.
+		--flashclient      = true;
 		
 		-------------------------------------------------------------
 		-- Time that needs to pass before another beep is 
@@ -243,29 +270,27 @@ local DB_DEFAULTS = {
 		keywords_sound     = true;
 		keywords_soundfile = "ListenerPoke";
 		
-		-------------------------------------------------------------
-		-- Notification settings.
+		---------------------------------------------------------
+		-- Play a sound when target emotes. This means that if
+		-- you're targeting someone ("target" unit is them), then
+		-- a notification will occur whenever you receive a
+		-- chat event from them.
 		--
-		sound = {
+		-- This might change to use the snooper filter.
+		--
+		notify_target_sound = true;
+		notify_target_file  = "ListenerBeep";
+		notify_target_flash = true;
 		
-			---------------------------------------------------------
-			-- Play a sound when target emotes. This means that if
-			-- you're targeting someone ("target" unit is them), then
-			-- a notification will occur whenever you receive a
-			-- chat event from them.
-			--
-			-- This might change to use the snooper filter.
-			--
-			target = true; -- play sound when target emotes
-			
-			---------------------------------------------------------
-			-- Enable /poke notifications. This is a special sound
-			-- whenever someone directs a stock emote at you, such
-			-- as /wave, /poke, /hi, etc. It works by looking for
-			-- "you" in the message.
-			--
-			poke   = true;
-		};
+		---------------------------------------------------------
+		-- Enable /poke notifications. This is a special sound
+		-- whenever someone directs a stock emote at you, such
+		-- as /wave, /poke, /hi, etc. It works by looking for
+		-- "you" in the message.
+		--
+		notify_poke_sound   = true;
+		notify_poke_file    = "ListenerPoke";
+		notify_poke_flash   = true;
 		
 		-----------------------------------------------------------------------
 		-- Profile frame settings. (See note above!)
@@ -321,6 +346,11 @@ local DB_DEFAULTS = {
 			-- Show the readmark.
 			--
 			readmark = true;
+			
+			---------------------------------------------------------
+			-- (Split) Sound file for notifications.
+			--
+			notify_sound = "ListenerBeep";
 			
 			---------------------------------------------------------
 			-- Split option.
@@ -583,6 +613,7 @@ Main.config_options = {
 			order = 1;
 			args  = {
 			
+				--[[
 				playsound_target = {
 					order = 61;
 					name = L["Target Emote Sound"];
@@ -590,7 +621,7 @@ Main.config_options = {
 					type = "toggle";
 					set = function( info, val ) Main.db.profile.sound.target = val end;
 					get = function( info ) return Main.db.profile.sound.target end;
-				};
+				};]]
 				
 				soundthrottle = {
 					order = 62;
@@ -604,7 +635,7 @@ Main.config_options = {
 					set = function( info, val ) Main.db.profile.beeptime = val end;
 					get = function( info ) return Main.db.profile.beeptime end;
 				};
-				
+--[[				
 				playsound2 = {
 					order = 63;
 					name = L["Poke Sound"];
@@ -613,7 +644,8 @@ Main.config_options = {
 					set = function( info, val ) Main.db.profile.sound.poke = val end;
 					get = function( info ) return Main.db.profile.sound.poke end;
 				};
-				
+	]]
+--[[	
 				flash1 = {
 					order = 65;
 					name = L["Flash Taskbar Icon"];
@@ -622,7 +654,7 @@ Main.config_options = {
 					set = function( info, val ) Main.db.profile.flashclient = val end;
 					get = function( info ) return Main.db.profile.flashclient end;
 				};
-				
+	]]			
 				shorten_names = {
 					order = 71;
 					name = L["Shorten Names"];
@@ -677,8 +709,96 @@ Main.config_options = {
 					end;
 				};
 				
+				notify_target = {
+					order  = 90;
+					name   = L["Target Notification"];
+					type   = "group";
+					inline = true;
+					args = {
+						desc = {
+							order = 0;
+							type = "description";
+							name = L["Notification options for when your current target emotes."];
+						};
+						flash = {
+							order = 1;
+							type = "toggle";
+							name = L["Flash Taskbar"];
+							desc = L["Flash the taskbar icon when your current target emotes."];
+							set = function( info, val ) Main.db.profile.notify_target_flash = val end;
+							get = function( info ) return Main.db.profile.notify_target_flash end;
+						};
+						sound = {
+							order = 2;
+							type = "toggle";
+							name = L["Play Sound"];
+							desc = L["Play a sound when your current target emotes."];
+							set = function( info, val ) Main.db.profile.notify_target_sound = val end;
+							get = function( info ) return Main.db.profile.notify_target_sound end;
+						};
+						file = {
+							order = 3;
+							type = "select";
+							name = L["Sound"];
+							desc = L["Which sound to play when your target emotes."];
+							values = g_sound_list_tag;
+							set = function( info, val )
+								Main.db.profile.notify_target_file = g_sound_list[val]
+								Main.Sound.Play( "messages", 10, g_sound_list[val] )
+							end;
+							get = function( info )
+								return FindValueKey( g_sound_list, Main.db.profile.notify_target_file )
+							end;
+						};
+					}
+				};
+				
+				notify_poke = {
+					order  = 91;
+					name   = L["Poke Notification"];
+					type   = "group";
+					inline = true;
+					args = {
+						desc = {
+							order = 0;
+							type = "description";
+							name = L["Notification options for when a stock emote is directed at you. e.g. /poke, /wave, etc."];
+						};
+						flash = {
+							order = 1;
+							type = "toggle";
+							name = L["Flash Taskbar"];
+							desc = L["Flash the taskbar icon when you're poked."];
+							set = function( info, val ) Main.db.profile.notify_poke_flash = val end;
+							get = function( info ) return Main.db.profile.notify_poke_flash end;
+						};
+						sound = {
+							order = 2;
+							type = "toggle";
+							name = L["Play Sound"];
+							desc = L["Play a sound when you're poked."];
+							set = function( info, val ) Main.db.profile.notify_poke_sound = val end;
+							get = function( info ) return Main.db.profile.notify_poke_sound end;
+						};
+						file = {
+							order = 3;
+							type = "select";
+							name = L["Sound"];
+							desc = L["Which sound to play when you're poked."];
+							values = g_sound_list_tag;
+							set = function( info, val )
+								Main.db.profile.notify_poke_file = g_sound_list[val]
+								Main.Sound.Play( "messages", 10, g_sound_list[val] )
+							end;
+							get = function( info )
+								return FindValueKey( g_sound_list, Main.db.profile.notify_poke_file )
+							end;
+						};
+					}
+				};
+				
 				keywords = {
-					order = 91;
+					order = 92;
 					name  = L["Keywords"];
 					type = "group";
 					inline = true;
@@ -764,6 +884,7 @@ Main.config_options = {
 							type = "select";
 							name = L["Sound"];
 							desc = L["Sound to play."];
+							values = g_sound_list_tag;
 							set = function( info, val )
 								Main.db.profile.keywords_soundfile = g_sound_list[val]
 								Main.Sound.Play( "messages", 10, g_sound_list[val] )
@@ -790,6 +911,7 @@ Main.config_options = {
 							name  = L["Font"];
 							desc  = L["Font for DM tags."];
 							type  = "select";
+							values = g_font_list_tag;
 							set   = function( info, val ) 
 								Main.db.profile.dmtags.font.face = g_font_list[val]
 								Main.DMTags.LoadConfig()
@@ -858,6 +980,7 @@ Main.config_options = {
 					name  = L["Header Font"];
 					desc  = L["Font face for header above the chatbox."];
 					type  = "select";
+					values = g_font_list_tag;
 					set   = function( info, val ) 
 						Main.db.profile.frame.barfont.face = g_font_list[val]
 						FrameSettingsChanged()
@@ -996,11 +1119,28 @@ function Main.CreateDB()
 	Main.db.global.version = VERSION
 end
 
+Main.config_font_list_tag = g_font_list_tag
+Main.config_sound_list_tag = g_sound_list_tag
+
+function Main.Config_SearchForSMLists( table )
+	for k,v in pairs( table ) do
+		if type( v ) == "table" then
+			if v == g_font_list_tag then
+				table[k] = g_font_list
+			elseif v == g_sound_list_tag then
+				table[k] = g_sound_list
+			else
+				Main.Config_SearchForSMLists( v )
+			end
+		end
+	end
+end
+
 -------------------------------------------------------------------------------
 -- Initialize the configuration panel.
 --
 local g_init
-local function InitConfigPanel()
+function Main.InitConfigPanel()
 	if g_init then return end
 	g_init = true
 	
@@ -1008,11 +1148,9 @@ local function InitConfigPanel()
 	
 	g_font_list = SharedMedia:List( "font" )
 	g_sound_list = SharedMedia:List( "sound" )
-	
-	options.args.frame.args.bar_fontface.values = g_font_list 
-	options.args.general.args.dmtags.args.fontface.values = g_font_list
-	
-	options.args.general.args.keywords.args.keywords_soundfile.values = g_sound_list
+	Main.config_font_list  = g_font_list
+	Main.config_sound_list = g_sound_list
+	Main.Config_SearchForSMLists( Main.config_options )
 	
 	options.args.profile = LibStub("AceDBOptions-3.0"):GetOptionsTable( Main.db )
 	options.args.profile.order = 500
@@ -1025,7 +1163,7 @@ end
 -- in the minimap menu.
 --
 function Main.OpenConfig()
-	InitConfigPanel()	
+	Main.InitConfigPanel()	
 	AceConfigDialog:Open( "Listener" )
 	
 	-- hack to fix the scrollbar missing on the first page when you

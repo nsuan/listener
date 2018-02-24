@@ -15,8 +15,8 @@ locale\index.xml
 
 src\listener.lua
 src\filter_menu.lua
-src\config_frame.lua
 src\config.lua
+src\config_frame.lua
 src\dmtags.lua
 src\keywords.lua
 src\raid_roster.lua

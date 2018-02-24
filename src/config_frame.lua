@@ -42,14 +42,6 @@ end
 local OUTLINE_VALUES = { "None", "Thin Outline", "Thick Outline" }
 
 -------------------------------------------------------------------------------
--- Cached font list value.
---
--- This is a bit strange that we're doing this. Might be a better idea to
--- just use SharedMedia directly.
---
-local g_font_list
-
--------------------------------------------------------------------------------
 -- Okay, now an important thing to consider for most of this program is that
 -- the configuration frame operates on only one frame at a time.
 --
@@ -159,12 +151,13 @@ local OPTIONS = {
 					order = 1;
 					name  = L["Font Face"];
 					type  = "select";
+					values = Main.config_font_list_tag;
 					set = function( info, val )
-						g_frame.frameopts.font.face = g_font_list[val]
+						g_frame.frameopts.font.face = Main.config_font_list[val]
 						ApplyOptionsAllIfMain()
 					end;
 					get = function( info )
-						return FindValueKey( g_font_list, g_frame.frameopts.font.face or g_frame.baseopts.font.face )
+						return FindValueKey( Main.config_font_list, g_frame.frameopts.font.face or g_frame.baseopts.font.face )
 					end;
 				};
 				size = {
@@ -283,6 +276,19 @@ local OPTIONS = {
 					end
 				};
 			};
+		};
+		notify_sound = {
+			order = 19;
+			name = L["Notify Sound"];
+			desc = L["Sound to play when notifications occur."];
+			type = "select";
+			values = Main.config_sound_list_tag;
+			set = function( info, val )
+				g_frame.frameopts.notify_sound = Main.config_sound_list[val]
+			end;
+			get = function( info )
+				return FindValueKey( Main.config_sound_list, g_frame.frameopts.notify_sound or g_frame.baseopts.notify_sound )
+			end;
 		};
 		hidecombat = {
 			order = 20;
@@ -533,7 +539,7 @@ local OPTIONS = {
 		};
 	};
 }
-
+DEBUG2 = OPTIONS
 -------------------------------------------------------------------------------
 -- This is for hiding options for certain frame types.
 -- Anything listed in these blocks will be hidden via the "hidden" key.
@@ -594,8 +600,12 @@ end
 --
 local g_init
 function Main.OpenFrameConfig( frame )
+	Main.InitConfigPanel()
+	
 	if not g_init then
+		g_init = true
 		AceConfig:RegisterOptionsTable( "Listener Frame Settings", OPTIONS )
+		Main.Config_SearchForSMLists( OPTIONS )
 	end
 	
 	if frame.frame_index == 1 then
@@ -605,9 +615,6 @@ function Main.OpenFrameConfig( frame )
 	else
 		HideOptions( "other" )
 	end
-	
-	g_font_list = SharedMedia:List( "font" )
-	OPTIONS.args.font.args.face.values = g_font_list
 	
 	g_frame = frame
 	g_main  = frame.frame_index == 1

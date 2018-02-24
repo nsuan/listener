@@ -338,16 +338,16 @@ end
 -- Flash the taskbar icon, if this feature is enabled in the settings.
 --
 function Main:FlashClient()
-	if Main.db.profile.flashclient then
-		FlashClientIcon()
-	end
+	--if Main.db.profile.flashclient then
+	FlashClientIcon()
+	--end
 end
 
 -------------------------------------------------------------------------------
 -- Play the message beep.
 --
 local g_message_beep_cd = 0
-function Main.PlayMessageBeep()
+function Main.PlayMessageBeep( sound )
 
 	-- we want to only play a beep if a beep hasn't tried to play in the last X seconds
 	-- in other words, if there is a constant stream of spam, no beeps will play
@@ -361,8 +361,7 @@ function Main.PlayMessageBeep()
 	end
 	
 	g_message_beep_cd = GetTime()
-	
-	PlaySoundFile( SharedMedia:Fetch( "sound", "ListenerBeep" ), "Master" )
+	Main.Sound.Play( "messages", 5, sound )
 end
 
 function Main.SetMessageBeepCD()
@@ -378,7 +377,7 @@ end
 --               to them.)
 --
 function Main.CheckPoke( msg, sender )
-	if not Main.db.profile.sound.poke then return end
+	if not Main.db.profile.notify_poke_sound and not Main.db.profile.notify_poke_flash then return end
 	
 	local loc = GetLocale()
 	if loc == "enUS" then
@@ -393,10 +392,16 @@ function Main.CheckPoke( msg, sender )
 			if msg:find( "asks you to wait."          ) then return end
 			if msg:find( "tells you to attack"        ) then return end
 			if msg:find( "motions for you to follow." ) then return end
+			if msg:find( "looks at you with crossed eyes." ) then return end
 			
-			Main.SetMessageBeepCD()
-			PlaySoundFile( SharedMedia:Fetch( "sound", "ListenerPoke" ), "Master" )
-			Main.FlashClient()
+			if Main.db.profile.notify_poke_sound then
+				Main.SetMessageBeepCD()
+				Main.Sound.Play( "messages", 10, Main.db.profile.notify_poke_file )
+			end
+			
+			if Main.db.profile.notify_poke_flash then
+				Main.FlashClient()
+			end
 		end
 	end
 end
@@ -819,14 +824,20 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	end
 	
 	-- if the player's target emotes, then beep+flash
-	if Main.db.profile.sound.target
+	if (Main.db.profile.notify_target_sound or Main.db.profile.notify_target_flash)
 	   and not Main.Frame.SKIP_BEEP[entry.e]
 	   and Main.frames[2]:EntryFilter( entry ) -- snooper filter
        and Main.FullName("target") == sender
 	   and not isplayer then
 		
-		Main.PlayMessageBeep()
-		Main.FlashClient()
+		if Main.db.profile.notify_target_sound then
+			Main.SetMessageBeepCD()
+			Main.Sound.Play( "messages", 6, Main.db.profile.notify_target_file )
+		end
+		
+		if Main.db.profile.notify_target_flash then
+			Main.FlashClient()
+		end
 	end
  
 	-- and then finally, add to the listener windows.

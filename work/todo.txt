@@ -1,11 +1,6 @@
-npc emote text wasnt keyword highlighted in listener window
 merge the frame settings into the main settings panel
-separate taskbar flashing and sounds
-custom sounds (maybe next version)
 combat hide is broken
 merge the listener minimap menu together, having the "hide" values part of the frame dropdown menues only
-sylvia bug with channels
-tooltip for snooper>filter menu
 hide "close" button
 
 WINDOWS
@@ -31,7 +26,11 @@ DM TAGS >
 	MARK ALL
 SETTINGS
 
-
+tooltip for snooper>filter menu	(done)
+sylvia bug with channels		(not found)
+separate taskbar flashing and sounds			(done)
+custom sounds (maybe next version)			(done)
+npc emote text wasnt keyword highlighted in listener window		(who cares)
 allow more mouse options for other windows							(done.)
 	add Enable Mouse feature for all windows						(done.)
 	when shift is held, it enabkes mouse							(done.)

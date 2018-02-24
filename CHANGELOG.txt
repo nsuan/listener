@@ -3,6 +3,13 @@ Changes in how the mouse is handled, and more options for that.
 
 Option to not automatically clear the readmark. So you can post freely without losing where you last read messages.
 
+More flexible notification options, e.g. having taskbar flashing only without a beep.
+
+Custom sounds too, so you can use your favorite sounds from other addons for message beeps and such.
+
+More quality of life changes are on the way.
+
+
 ## 2.0.4
 Fixed bug with guild loot announcement format.
 

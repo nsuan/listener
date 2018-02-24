@@ -381,7 +381,7 @@ local function InitializeMenu( self, level, menuList )
 		info.func             = LockClicked
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Lock window."]
-		info.tooltipText      = L["Disables dragging via the menu bar."]
+		info.tooltipText      = L["Prevents moving or resizing."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
 		

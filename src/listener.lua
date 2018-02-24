@@ -941,6 +941,7 @@ function Main.AddWindow()
 	Main.frames[index] = frame
 	frame:ApplyOptions()
 	frame:RefreshChat()
+	Main.Config_NotifyChange()
 	return frame
 end
 
@@ -952,7 +953,11 @@ end
 function Main.DestroyWindow( frame )
 	if frame.frame_index <= 2 then return end -- cannot delete the primary frame or snooper
 	
-	Main.CloseFrameConfig( frame )
+	if Main.FrameConfig_GetFrame() == frame then
+		Main.FrameConfig_SetFrame( Main.frames[1] )
+		Main.Config_NotifyChange()
+	end
+	
 	frame:Hide()
 	
 	if frame == Main.active_frame then

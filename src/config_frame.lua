@@ -41,6 +41,20 @@ end
 --
 local OUTLINE_VALUES = { "None", "Thin Outline", "Thick Outline" }
 
+local function FrameIndexValues()
+	local values = {
+		"Main",
+		"Snooper",
+	}
+	
+	for k, v in pairs( Main.frames ) do
+		if k > 2 then
+			values[k] = v.charopts.name
+		end
+	end
+	return values
+end
+
 -------------------------------------------------------------------------------
 -- Okay, now an important thing to consider for most of this program is that
 -- the configuration frame operates on only one frame at a time.
@@ -131,22 +145,57 @@ local function ColorOption( order, name, desc, color )
 end
 
 -------------------------------------------------------------------------------
+-- Functions for the "hidden" key on some settings.
+--
+-- Hide if it's the main frame being configured.
+--
+local function HideMain()
+	return g_main
+end
+
+-- Hide when it's not the snooper being configured
+local function HideNotSnooper()
+	return g_frame.frame_index ~= 2
+end
+
+-- Hide when configuring the snooper
+local function HideSnooper()
+	return g_frame.frame_index == 2
+end
+
+-------------------------------------------------------------------------------
 -- And here we have the Ace3 options table.
 --
 local OPTIONS = {
-	type = "group";
-	args = {
+	order  = 90;
+	name   = L["Per-Frame Settings"];
+	type   = "group";
+	inline = true;
+	args   = {
+		frame = {
+			order = 1;
+			type   = "select";
+			name   = L["Frame"];
+			desc   = L["Which frame to adjust settings for."];
+			values = FrameIndexValues;
+			set = function( info, val )
+				Main.FrameConfig_SetFrame( Main.frames[val] )
+			end;
+			get = function( info )
+				return g_frame.frame_index
+			end;
+		};
 		font = {
 			order  = 9;
 			type   = "group";
 			name   = L["Font"];
 			inline = true;
 			args   = {
-				desc1 = {
+--[[				desc1 = {
 					order = 0;
 					type = "description";
 					name = L["Tip: Font size can be adjusted easily by holding Ctrl and then scrolling the window."];
-				};
+				};]]
 				face = {
 					order = 1;
 					name  = L["Font Face"];
@@ -206,10 +255,11 @@ local OPTIONS = {
 					end;
 				};
 				reset = {
-					order = 5;
-					name = L["Inherit From Main"];
-					desc = L["Copy the font that the main window uses."];
-					type = "execute";
+					order  = 5;
+					name   = L["Inherit From Main"];
+					desc   = L["Copy the font that the main window uses."];
+					type   = "execute";
+					hidden = HideMain;
 					func = function()
 						if g_main then error( "Internal error." ) end
 						g_frame.frameopts.font = {}
@@ -219,9 +269,9 @@ local OPTIONS = {
 			};
 		};
 		color = { 
-			order=10;
-			type = "group";
-			name = L["Color"];
+			order  = 10;
+			type   = "group";
+			name   = L["Color"];
 			inline = true;
 			args = {
 				bg_color   = ColorOption( 10, L["Background Color"], nil, "bg" );
@@ -265,10 +315,11 @@ local OPTIONS = {
 					end;
 				};
 				reset = {
-					order = 21;
-					name = L["Inherit From Main"];
-					desc = L["Copy the colors that the main window uses."];
-					type = "execute";
+					order  = 21;
+					name   = L["Inherit From Main"];
+					desc   = L["Copy the colors that the main window uses."];
+					type   = "execute";
+					hidden = HideMain;
 					func = function()
 						if g_main then error( "Internal error." ) end
 						g_frame.frameopts.color = {}
@@ -318,6 +369,7 @@ local OPTIONS = {
 			name = L["Hide When Empty"];
 			desc = L["Hide the window when there is nothing being shown."];
 			type = "toggle";
+			hidden = HideNotSnooper;
 			set = function( info, val ) 
 				g_frame.frameopts.hideempty = val
 			end;
@@ -328,6 +380,7 @@ local OPTIONS = {
 			name  = L["Timestamp Brackets"];
 			desc  = L["Surround timestamps in brackets."];
 			type  = "toggle";
+			hidden = HideNotSnooper;
 			set = function( info, val )
 				g_frame.frameopts.timestamp_brackets = val
 				g_frame:RefreshChat()
@@ -339,6 +392,7 @@ local OPTIONS = {
 			name  = L["Name Colors"];
 			desc  = L["Use TRP3 or class colors to color names."];
 			type  = "toggle";
+			hidden = HideNotSnooper;
 			set = function( info, val )
 				g_frame.frameopts.name_colors = val
 				g_frame:RefreshChat()
@@ -381,7 +435,7 @@ local OPTIONS = {
 			min   = 0;
 			max   = 600;
 			step  = 1;
-			
+			hidden = HideSnooper;
 			set = function( info, val )
 				g_frame.frameopts.auto_fade = val
 				ApplyOptionsAllIfMain()
@@ -395,8 +449,9 @@ local OPTIONS = {
 		readmark = {
 			order = 50;
 			name  = L["Readmark"];
-			desc  = L["Show the readmark for this window. The readmark is the line that separates new messages and old messages."];
+			desc  = L["The readmark is the line that separates new messages and old messages."];
 			type  = "toggle";
+			hidden = HideSnooper;
 			set   = function( info, val )
 				g_frame.frameopts.readmark = val
 				g_frame:ApplyOptions()
@@ -428,11 +483,11 @@ local OPTIONS = {
 			type = "group";
 			inline = true;
 			args = {
-				desc1 = {
+		--[[		desc1 = {
 					order  = 9;
 					type   = "description";
 					name   = L["Tip: Listener frames can easily be resized by holding SHIFT."];
-				};
+				};]]
 				anchor_from = {
 					order  = 10;
 					name   = L["Anchor From"];
@@ -554,7 +609,9 @@ local OPTIONS = {
 		};
 	};
 }
-DEBUG2 = OPTIONS
+
+Main.config_options.args.frame.args.perframe = OPTIONS
+
 -------------------------------------------------------------------------------
 -- This is for hiding options for certain frame types.
 -- Anything listed in these blocks will be hidden via the "hidden" key.
@@ -564,11 +621,11 @@ local hidden_opts = {
 	-- Options listed in this block will be hidden when configuring the main
 	-- window. (Frame #1)
 	main = {
-		OPTIONS.args.color.args.reset;
-		OPTIONS.args.font.args.reset;
-		OPTIONS.args.timestamp_brackets;
-		OPTIONS.args.hideempty;
-		OPTIONS.args.name_colors;
+--		OPTIONS.args.color.args.reset;
+--		OPTIONS.args.font.args.reset;
+--		OPTIONS.args.timestamp_brackets;
+--		OPTIONS.args.hideempty;
+--		OPTIONS.args.name_colors;
 	};
 	
 	---------------------------------------------------------------------------
@@ -576,20 +633,20 @@ local hidden_opts = {
 	-- window. (Frame #2)
 	snooper = {
 	
-		-- Snooper does not support auto_fade.
-		OPTIONS.args.auto_fade;
+		-- Snooper doesn't have support auto_fade.
+	--	OPTIONS.args.auto_fade;
 		
 		-- Readmark doesn't make sense in the snooper.
-		OPTIONS.args.readmark;
+	--	OPTIONS.args.readmark;
 	};
 	
 	---------------------------------------------------------------------------
 	-- Options listed in this block will be hidden when configuring custom
 	-- frames. (Frame #3+)
 	other = {
-		OPTIONS.args.timestamp_brackets;
-		OPTIONS.args.hideempty;
-		OPTIONS.args.name_colors;
+--		OPTIONS.args.timestamp_brackets;
+--		OPTIONS.args.hideempty;
+--		OPTIONS.args.name_colors;
 	};
 }
 
@@ -610,13 +667,19 @@ local function HideOptions( name )
 	end
 end
 
+
+function Main.FrameConfigInit()
+	g_frame = Main.frames[1]
+	g_main  = true
+end
+
 -------------------------------------------------------------------------------
 -- Open the configuration panel for a frame.
 --
 local g_init
 function Main.OpenFrameConfig( frame )
 	Main.InitConfigPanel()
-	
+	--[[
 	if not g_init then
 		g_init = true
 		AceConfig:RegisterOptionsTable( "Listener Frame Settings", OPTIONS )
@@ -635,14 +698,21 @@ function Main.OpenFrameConfig( frame )
 	g_main  = frame.frame_index == 1
 	AceConfigDialog:SetDefaultSize( "Listener Frame Settings", 420, 400 )
 	AceConfigDialog:Open( "Listener Frame Settings" )
-	LibStub("AceConfigRegistry-3.0"):NotifyChange( "Listener Frame Settings" )
+	LibStub("AceConfigRegistry-3.0"):NotifyChange( "Listener Frame Settings" )]]
 end
 
--------------------------------------------------------------------------------
--- Close the configuration panel, but only if the frame matches.
---
-function Main.CloseFrameConfig( frame )
-	if frame == g_frame then
-		AceConfigDialog:Close( "Listener Frame Settings" )
-	end
+function Main.FrameConfig_Open( frame )
+	Main.FrameConfig_SetFrame( frame )
+	Main.OpenConfig( "frame" )
+end
+
+function Main.FrameConfig_GetFrame()
+	return g_frame
+end
+
+function Main.FrameConfig_SetFrame( frame )
+	if frame == nil then frame = Main.frames[1] end
+	
+	g_frame = frame
+	g_main  = frame.frame_index == 1
 end

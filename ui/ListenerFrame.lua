@@ -495,7 +495,7 @@ function Method:UpdateVisibility()
 	local faded = self.auto_fade > 0 and GetTime() > self.fade_time + self.auto_fade
 	
 	self:ShowBar( 
-		(hover and not (self.snooper and self.frameopts.locked))
+		hover
 		or self.dragging 
 		or (Main.active_frame == self and not faded) )
 	
@@ -1277,7 +1277,7 @@ end
 
 -------------------------------------------------------------------------------
 function Method:OpenConfig()
-	Main.OpenFrameConfig( self )
+	Main.FrameConfig_Open( self )
 end
 
 -------------------------------------------------------------------------------

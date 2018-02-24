@@ -370,7 +370,7 @@ function Me.PopulateMenu( level, menuList )
 		end
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Lock frame."]
-		info.tooltipText      = L["Prevents the snooper from being moved. Also hides the titlebar that appears when you mouseover."]
+		info.tooltipText      = L["Prevents the snooper from being moved or resized."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
 		

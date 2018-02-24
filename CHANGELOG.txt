@@ -3,6 +3,8 @@ Fixed frames hiding during combat.
 
 Option to hide the close buttons.
 
+Snooper title bar doesn't hide with lock anymore.
+
 
 ## 2.0.5
 Changes in how the mouse is handled, and more options for that.

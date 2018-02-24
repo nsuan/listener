@@ -1151,6 +1151,8 @@ function Main.InitConfigPanel()
 	if g_init then return end
 	g_init = true
 	
+	Main.FrameConfigInit()
+	
 	local options = Main.config_options
 	
 	g_font_list = SharedMedia:List( "font" )
@@ -1169,15 +1171,22 @@ end
 -- Open the configuration panel, as done through the Settings button
 -- in the minimap menu.
 --
-function Main.OpenConfig()
+function Main.OpenConfig( tab )
 	Main.InitConfigPanel()	
 	AceConfigDialog:Open( "Listener" )
+	if tab then 
+		AceConfigDialog:SelectGroup( "Listener", tab )
+	end
 	
 	-- hack to fix the scrollbar missing on the first page when you
 	-- first open the panel
+	Main.Config_NotifyChange()
+end
+
+function Main.Config_NotifyChange()
+	if not g_init then return end
 	LibStub("AceConfigRegistry-3.0"):NotifyChange( "Listener" )
 end
- 
  
 -------------------------------------------------------------------------------
 -- Apply the configuration settings.

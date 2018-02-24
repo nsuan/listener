@@ -348,6 +348,13 @@ local DB_DEFAULTS = {
 			readmark = true;
 			
 			---------------------------------------------------------
+			-- Split option.
+			--
+			-- Show the close button.
+			--
+			close_button = true;
+			
+			---------------------------------------------------------
 			-- (Split) Sound file for notifications.
 			--
 			notify_sound = "ListenerBeep";

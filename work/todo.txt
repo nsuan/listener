@@ -1,7 +1,6 @@
 merge the frame settings into the main settings panel
-combat hide is broken
 merge the listener minimap menu together, having the "hide" values part of the frame dropdown menues only
-hide "close" button
+snooper only shows for target
 
 WINDOWS
 [ ] MAIN
@@ -26,6 +25,8 @@ DM TAGS >
 	MARK ALL
 SETTINGS
 
+hide "close" button (done)
+combat hide is broken (done)
 tooltip for snooper>filter menu	(done)
 sylvia bug with channels		(not found)
 separate taskbar flashing and sounds			(done)

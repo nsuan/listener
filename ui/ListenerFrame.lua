@@ -682,7 +682,16 @@ end
 -- Options for the title bar.
 --
 function Method:ApplyBarOptions()
-
+	local o = self.frameopts.close_button
+	if o == nil then o = self.baseopts.close_button end
+	
+	if not o then
+		self.bar2.close_button:Hide()
+		self.bar2.hidden_button:SetPoint( "TOPRIGHT", 0, 0 )
+	else
+		self.bar2.close_button:Show()
+		self.bar2.hidden_button:SetPoint( "TOPRIGHT", -15, 0 )
+	end
 end
 
 -------------------------------------------------------------------------------
@@ -1094,14 +1103,14 @@ end
 function Method:UpdateShown()
 	if self:IsShown() then
 		if self.charopts.hidden 
-		   or (self.frameopts.combathide and InCombatLockdown()) 
+		   or (self.frameopts.combathide and (InCombatLockdown() or Main.in_combat)) 
 		   or (self.chatbox:GetNumMessages() == 0 and self.frameopts.hideempty and not self.mouseon) then
 		   
 			self:Hide()
 		end
 	else
 		if not self.charopts.hidden
-		   and not (self.frameopts.combathide and InCombatLockdown()) 
+		   and not (self.frameopts.combathide and (InCombatLockdown() or Main.in_combat)) 
 		   and not (self.chatbox:GetNumMessages() == 0 and self.frameopts.hideempty) then
 			self:Show()
 		end

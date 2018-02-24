@@ -548,6 +548,7 @@ end
 -- Hook for when entering combat. PLAYER_REGEN_DISABLED
 --
 function Main:OnEnterCombat()
+	Main.in_combat = true
 	for _, frame in pairs(Main.frames) do
 		frame:CombatHide( true )
 	end
@@ -557,6 +558,7 @@ end
 -- Hook for exiting combat. PLAYER_REGEN_ENABLED
 --
 function Main:OnLeaveCombat()
+	Main.in_combat = false
 	for _, frame in pairs( Main.frames ) do
 		frame:CombatHide( false )
 	end

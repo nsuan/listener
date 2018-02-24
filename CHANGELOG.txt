@@ -1,3 +1,9 @@
+## 2.0.6
+Fixed frames hiding during combat.
+
+Option to hide the close buttons.
+
+
 ## 2.0.5
 Changes in how the mouse is handled, and more options for that.
 

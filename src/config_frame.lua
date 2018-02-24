@@ -298,6 +298,21 @@ local OPTIONS = {
 			set = function( info, val ) g_frame.frameopts.combathide = val end;
 			get = function( info ) return g_frame.frameopts.combathide end;
 		};
+		close_button = {
+			order = 21;
+			name = L["Close Button"];
+			desc = L["Show the X button that closes the window."];
+			type = "toggle";
+			set = function( info, val ) 
+				g_frame.frameopts.close_button = val 
+				ApplyOptionsAllIfMain()
+			end;
+			get = function( info ) 
+				local s = g_frame.frameopts.close_button
+				if s == nil then s = g_frame.baseopts.close_button end
+				return s
+			end;
+		};
 		hideempty = {
 			order = 21;
 			name = L["Hide When Empty"];

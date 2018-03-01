@@ -471,7 +471,7 @@ end
 -- Toggle the frame.
 --
 function Method:Toggle()
-	ShowOrHide( self, not self:IsShown(), true )
+	ShowOrHide( self, self.charopts.hidden, true )
 end
 
 -------------------------------------------------------------------------------
@@ -1103,14 +1103,14 @@ end
 function Method:UpdateShown()
 	if self:IsShown() then
 		if self.charopts.hidden 
-		   or (self.frameopts.combathide and (InCombatLockdown() or Main.in_combat)) 
+		   or ((not self.combat_ignore) and self.frameopts.combathide and ((InCombatLockdown() or Main.in_combat))) 
 		   or (self.chatbox:GetNumMessages() == 0 and self.frameopts.hideempty and not self.mouseon) then
 		   
 			self:Hide()
 		end
 	else
 		if not self.charopts.hidden
-		   and not (self.frameopts.combathide and (InCombatLockdown() or Main.in_combat)) 
+		   and not ((not self.combat_ignore) and self.frameopts.combathide and (InCombatLockdown() or Main.in_combat)) 
 		   and not (self.chatbox:GetNumMessages() == 0 and self.frameopts.hideempty) then
 			self:Show()
 		end
@@ -1268,6 +1268,14 @@ end
 
 -------------------------------------------------------------------------------
 function Method:CombatHide( combat )
+	-- the combat_ignore flag is set when the user toggles the frame on
+	-- so that, if they're in combat, they can turn on the frame
+	-- on manually, still, but the next time they enter combat
+	-- it will be reset.
+	if combat then
+		self.combat_ignore = nil
+	end
+	
 	self:UpdateShown()
 	
 	if not combat and self.fadein_after_combat then

@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- LISTENER by Tammya-MoonGuard (2017)
+-- LISTENER by Tammya-MoonGuard (2018)
 --
 -- Here we control the context menu for Listener windows.
 -------------------------------------------------------------------------------
@@ -223,7 +223,7 @@ end
 
 -------------------------------------------------------------------------------
 local function PopulatePlayersSubmenu( level, menuList )
-	local index = tonumber(menuList:sub( 8 ))
+	local index = tonumber(menuList:match("FRAMEOPTS_%d+_PLAYERS_(%d+)"))
 	local list = g_player_list[index]
 	
 	for key, player in ipairs( list ) do
@@ -246,7 +246,7 @@ local function PopulatePlayersMenu( level )
 	if #g_player_list == 1 then
 		-- if there's just one list (of max 10) then 
 		-- we populate that menu here directly.
-		PopulatePlayersSubmenu( level, "PLAYERS1" )
+		PopulatePlayersSubmenu( level, "FRAMEOPTS_" .. Me.menu_parent.frame_index .. "_PLAYERS_1" )
 	else
 		for key, list in ipairs( g_player_list ) do
 		
@@ -266,7 +266,7 @@ local function PopulatePlayersMenu( level )
 				info.text             = name
 				info.notCheckable     = true
 				info.hasArrow         = true
-				info.menuList         = "PLAYERS" .. key
+				info.menuList         = "FRAMEOPTS_" .. Me.menu_parent.frame_index .. "_PLAYERS_" .. key
 				info.keepShownOnClick = true
 				UIDropDownMenu_AddButton( info, level )
 			end
@@ -320,28 +320,36 @@ local function PopulateRaidGroupsMenu( level )
 	end
 end
 
--------------------------------------------------------------------------------
-local function InitializeMenu( self, level, menuList )
-	local info
-	if level == 1 then
+function Me.PopulateFrameMenu( level, menuList )
+	if not menuList then return end
 	
+	local info
+	
+	local frame_index, submenu = menuList:match( "FRAMEOPTS_(%d+)(.*)" )
+	if not frame_index then return end
+	frame_index = tonumber(frame_index)
+	
+	local frame = Main.frames[frame_index]
+	Me.menu_parent = Main.frames[frame_index]
+	
+	if submenu == "" then
 		if Me.menu_parent.frame_index > 2 then
 			
 			info = UIDropDownMenu_CreateInfo()
-			info.text             = "|cFFECCD35" .. Me.menu_parent.charopts.name
+			info.text             = "|cFFECCD35" .. frame.charopts.name
 			info.notCheckable     = true
-			info.tooltipTitle     = Me.menu_parent.charopts.name
+			info.tooltipTitle     = frame.charopts.name
 			info.tooltipText      = L["Click to rename this window."]
 			info.tooltipOnButton  = true
 			info.func             = RenameClicked
 			UIDropDownMenu_AddButton( info, level )
 		end
-	
+		
 		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Inclusion"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
-		info.checked          = Me.menu_parent.charopts.listen_all
+		info.checked          = frame.charopts.listen_all
 		info.func             = InclusionClicked
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Inclusion mode."]
@@ -353,53 +361,52 @@ local function InitializeMenu( self, level, menuList )
 		info.text             = L["Auto-Popup"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
-		info.checked          = Me.menu_parent.frameopts.auto_popup
+		info.checked          = frame.frameopts.auto_popup
 		info.func             = AutoPopupClicked
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Auto-popup."]
 		info.tooltipText      = L["Reopen window automatically upon receiving new messages."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
-		
+	
 		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Enable Mouse"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
-		info.checked          = Me.menu_parent.frameopts.enable_mouse
+		info.checked          = frame.frameopts.enable_mouse
 		info.func             = EnableMouseClicked
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Enable mouse."]
 		info.tooltipText      = L["Enables mouse interaction with content in this frame."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
-		
+	
 		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Lock"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
-		info.checked          = Me.menu_parent.frameopts.locked
+		info.checked          = frame.frameopts.locked
 		info.func             = LockClicked
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Lock window."]
 		info.tooltipText      = L["Prevents moving or resizing."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
-		
+	
 		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Copy Text"]
 		info.notCheckable     = true
-		info.checked          = Me.menu_parent.frameopts.locked
 		info.func             = CopyClicked
 		info.tooltipTitle     = L["Copy text."]
 		info.tooltipText      = L["Opens a window to copy text."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
-		
+	
 		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Notify"]
 		info.notCheckable     = true
 		info.hasArrow         = true
-		info.menuList         = "NOTIFY"
+		info.menuList         = "FRAMEOPTS_" .. frame_index .. "_NOTIFY"
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Notification settings."]
 		info.tooltipText      = L["Settings for alerting you when receiving new messages in this frame."]
@@ -410,7 +417,7 @@ local function InitializeMenu( self, level, menuList )
 		info.text             = L["Filter"]
 		info.notCheckable     = true
 		info.hasArrow         = true
-		info.menuList         = "FILTERS_MAIN"
+		info.menuList         = "FRAMEOPTS_" .. frame_index .. "_FILTERS_MAIN"
 		info.tooltipTitle     = L["Display filter."]
 		info.tooltipText      = L["Selects which chat types to display."]
 		info.tooltipOnButton  = true
@@ -423,7 +430,7 @@ local function InitializeMenu( self, level, menuList )
 			info.text             = L["Players"]
 			info.notCheckable     = true
 			info.hasArrow         = true
-			info.menuList         = "PLAYERS"
+			info.menuList         = "FRAMEOPTS_" .. frame_index .. "_PLAYERS"
 			info.tooltipTitle     = L["Player filter."]
 			info.tooltipText      = L["Adjusts filter for players in your group."]
 			info.tooltipOnButton  = true
@@ -431,12 +438,11 @@ local function InitializeMenu( self, level, menuList )
 			UIDropDownMenu_AddButton( info, level )
 			
 			if IsInRaid() then
-				
 				info = UIDropDownMenu_CreateInfo()
 				info.text             = L["Raid Groups"]
 				info.notCheckable     = true
 				info.hasArrow         = true
-				info.menuList         = "RAID"
+				info.menuList         = "FRAMEOPTS_" .. frame_index .. "_RAID"
 				info.tooltipTitle     = L["Raid group filters."]
 				info.tooltipText      = L["Adjusts filter for groups in your raid."]
 				info.tooltipOnButton  = true
@@ -449,7 +455,7 @@ local function InitializeMenu( self, level, menuList )
 		info.text             = L["Settings"]
 		info.notCheckable     = true
 		info.func             = function()
-			Me.menu_parent:OpenConfig()
+			frame:OpenConfig()
 		end
 		UIDropDownMenu_AddButton( info, level )
 		
@@ -478,43 +484,51 @@ local function InitializeMenu( self, level, menuList )
 			UIDropDownMenu_AddButton( info, level )
 		end
 		
-	elseif menuList and menuList == "NOTIFY" then
+	elseif submenu == "_NOTIFY" then
 	
 		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Sound"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
-		info.checked          = Me.menu_parent.charopts.sound
+		info.checked          = frame.charopts.sound
 		info.func             = SoundClicked
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Notification sound."]
 		info.tooltipText      = L["Play a sound when receiving new messages."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
-		
+	
 		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Flash"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
-		info.checked          = Me.menu_parent.charopts.flash
+		info.checked          = frame.charopts.flash
 		info.func             = FlashClicked
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Taskbar flashing."]
 		info.tooltipText      = L["Flash the taskbar icon when receiving new messages."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
-		
-	elseif menuList and menuList:find( "FILTERS" ) then
-		
-		Main.PopulateFilterMenu( level, menuList )
-		
-	elseif menuList == "PLAYERS" then
-		PopulatePlayersMenu( level )
-	elseif menuList == "RAID" then
+	elseif submenu:find("_PLAYERS") then
+		local sub_index = submenu:match( "_PLAYERS_(%d+)" )
+		if sub_index then
+			PopularPlayersSubmenu( level, menuList )
+		else
+			PopulatePlayersMenu( level )
+		end
+	elseif submenu:find("_RAID") then
 		PopulateRaidGroupsMenu( level )
-	elseif menuList and menuList:sub( 1,7 ) == "PLAYERS" then
-		PopulatePlayersSubmenu( level, menuList )
-	
+	elseif submenu:find("_FILTERS") then
+		Main.PopulateFilterMenu( level, menuList:match( "FILTERS.*" ) )
+	end
+end
+
+-------------------------------------------------------------------------------
+local function InitializeMenu( self, level, menuList )
+	if level == 1 then
+		Me.PopulateFrameMenu( level, "FRAMEOPTS_" .. Me.menu_parent.frame_index )
+	else
+		Me.PopulateFrameMenu( level, menuList )
 	end
 end
 

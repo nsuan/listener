@@ -3,7 +3,13 @@ Fixed frames hiding during combat.
 
 Option to hide the close buttons.
 
-Snooper title bar doesn't hide with lock anymore.
+Reworked the minimap menu.
+
+Snooper title bar doesn't hide with lock anymore. Consistency and I feel it works better like that.
+
+Option for snooper to only show when targeting. (requested by Sarah Baker).
+
+Frame settings are merged with the main settings, so you can access them there too.
 
 
 ## 2.0.5

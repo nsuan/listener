@@ -1,8 +1,9 @@
 
-merge the listener minimap menu together, having the "hide" values part of the frame dropdown menues only
-snooper only shows for target
 context menu for right clicking messages
 
+---------------------------------------
+
+DONE:
 WINDOWS
 [ ] MAIN
 [ ] SNOOPER
@@ -26,6 +27,8 @@ DM TAGS >
 	MARK ALL
 SETTINGS
 
+merge the listener minimap menu together, having the "hide" values part of the frame dropdown menues only (done)
+snooper only shows for target (done)
 merge the frame settings into the main settings panel (done)
 dont hide snooper title bar for consistency - that should be a main option, to hide titlebars (done)
 hide "close" button (done)

@@ -94,6 +94,9 @@ function Me.OnUpdate( self )
 	if self.frameopts.hidecombat and InCombatLockdown() then return end
 	
 	local name = (IsShiftKeyDown() or self.mouseon) and g_current_name or Main.GetProbed()
+	if self.frameopts.target_only and not UnitExists( "target" ) then
+		name = nil
+	end
 	
 	if g_current_name == name and GetTime() - g_update_time < 10 then
 		-- throttle updates when the name matches
@@ -374,7 +377,7 @@ function Me.PopulateMenu( level, menuList )
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
 		
-		info = UIDropDownMenu_CreateInfo()
+--[[		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Hide"]
 		info.notCheckable     = false
 		info.isNotRadio       = true
@@ -390,6 +393,15 @@ function Me.PopulateMenu( level, menuList )
 		info.keepShownOnClick = true
 		info.tooltipTitle     = L["Hide."]
 		info.tooltipText      = L["Hides/disables the snooper window."]
+		info.tooltipOnButton  = true
+		UIDropDownMenu_AddButton( info, level )]]
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = L["Copy Text"]
+		info.notCheckable     = true
+		info.func             = function() Main.frames[2]:CopyText() end
+		info.tooltipTitle     = L["Copy text."]
+		info.tooltipText      = L["Opens a window to copy text."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
 		
@@ -408,10 +420,10 @@ function Me.PopulateMenu( level, menuList )
 		info.text             = L["Settings"]
 		info.notCheckable     = true
 		info.func             = function( self, a1, a2, checked )
-			Main.OpenFrameConfig( Main.frames[2] )
+			Main.FrameConfig_Open( Main.frames[2] )
 		end
 		UIDropDownMenu_AddButton( info, level )
 	elseif menuList and menuList:find("FILTERS") then
-		Main.PopulateFilterMenu( level, menuList )
+		Main.PopulateFilterMenu( level, menuList:match( "FILTERS.*" ) )
 	end
 end

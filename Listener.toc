@@ -5,7 +5,7 @@
 ## SavedVariables: ListenerAddonSaved
 ## SavedVariablesPerCharacter: ListenerChatHistory
 ## OptionalDeps: totalRP3 MyRolePlay XRP
-## Version: 2.0.5
+## Version: 2.0.6
 embeds.xml
 
 src\init.lua

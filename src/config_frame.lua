@@ -375,6 +375,19 @@ local OPTIONS = {
 			end;
 			get = function( info ) return g_frame.frameopts.hideempty end
 		};
+		target_only = {
+			order = 22;
+			name = L["Target Only"];
+			desc = L["Don't show snooper on mouseover."];
+			type = "toggle";
+			hidden = HideNotSnooper;
+			set = function( info, val )
+				g_frame.frameopts.target_only = val
+			end;
+			get = function( info )
+				return g_frame.frameopts.target_only
+			end;
+		};
 		timestamp_brackets = {
 			order = 22;
 			name  = L["Timestamp Brackets"];
@@ -702,6 +715,8 @@ function Main.OpenFrameConfig( frame )
 end
 
 function Main.FrameConfig_Open( frame )
+	Main.InitConfigPanel()
+	
 	Main.FrameConfig_SetFrame( frame )
 	Main.OpenConfig( "frame" )
 end

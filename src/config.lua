@@ -531,6 +531,8 @@ local DB_DEFAULTS = {
 			-- Color names. (/e messages include the character name.)
 			name_colors        = false;
 			
+			-- don't show for mouseover
+			target_only        = false;
 		};
 		
 		-------------------------------------------------------------

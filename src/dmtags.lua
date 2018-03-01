@@ -146,6 +146,27 @@ function Me.HookFrames()
 	-- }
 end
 
+local function MarkPlayer( player )
+	local time = time()
+	local chat = Main.chat_history[ player ]
+	if chat then
+		for i = #chat, 1, -1 do
+			local e = chat[i]
+			
+			-- we filter what it touches according to the snooper
+			-- the tags are tied to the snooper's filter.
+			if Main.frames[2]:EntryFilter(e) then
+				-- only mark messages at least 3 seconds old.
+				if e.t >= time - CUTOFF_TIME and e.t < time - 3 then
+					e.h = true -- mark as highlighted
+					e.r = nil  -- mark as read
+					Main.unread_entries[e] = nil
+				end
+			end
+		end
+	end
+end
+
 -------------------------------------------------------------------------------
 -- Callback for when one of the tags are clicked.
 --
@@ -157,24 +178,7 @@ function Me.OnClick( self, button )
 		-- when the user right-clicks one of the tags
 		-- it sets highlight on all of the entries of the tag
 		
-		local time = time()
-		local chat = Main.chat_history[ self.player ]
-		if chat then
-			for i = #chat, 1, -1 do
-				local e = chat[i]
-				
-				-- we filter what it touches according to the snooper
-				-- the tags are tied to the snooper's filter.
-				if Main.frames[2]:EntryFilter(e) then
-					-- only mark messages at least 3 seconds old.
-					if e.t >= time - CUTOFF_TIME and e.t < time - 3 then
-						e.h = true -- mark as highlighted
-						e.r = nil  -- mark as read
-						Main.unread_entries[e] = nil
-					end
-				end
-			end
-		end
+		MarkPlayer( self.player )
 		
 		-- refresh all frames
 		for _,f in pairs( Main.frames ) do
@@ -185,6 +189,22 @@ function Me.OnClick( self, button )
 		-- and force an update.
 		Me.last_update = 0
 	end
+end
+
+function Me.MarkAll()
+	for i = 1, Me.next_tag-1 do
+		local p = Me.tags[i].player
+		MarkPlayer( p )
+	end
+	
+	-- refresh all frames
+	for _,f in pairs( Main.frames ) do
+		f:CheckUnread()
+		f:UpdateHighlight()
+	end
+	
+	-- and force an update.
+	Me.last_update = 0
 end
 
 -------------------------------------------------------------------------------

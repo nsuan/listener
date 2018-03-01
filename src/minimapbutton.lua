@@ -68,12 +68,118 @@ function Me.OnClick( frame, button )
 		if wc <= 2 or IsShiftKeyDown() then
 			Main.frames[1]:Toggle()
 		else
-			Me.ShowMenu( frame, "FRAMES" )
+			Me.ShowMenu( frame, "MENU2" )
 		end
 		
 	elseif button == "RightButton" then
 		
-		Me.ShowMenu( frame, "OPTIONS" )
+		Main.OpenConfig()
+		
+		--Me.ShowMenu( frame, "OPTIONS" )
+	end
+end
+
+local function InitializeMenu2( self, level, menuList )
+	if level == 1 then
+		local info
+		info = UIDropDownMenu_CreateInfo()
+		info.text    = "Windows"
+		info.isTitle = true
+		info.notCheckable = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		local frames = {}
+		
+		-- we add everything but first frame
+		for _, f in pairs( Main.frames ) do
+			if f.frame_index > 2 then
+				table.insert( frames, f )
+			end
+		end
+		-- we sort the frames by their name
+		table.sort( frames, function( a, b )
+			local an, bn = Main.db.char.frames[a.frame_index].name or "", Main.db.char.frames[b.frame_index].name or ""
+			return an < bn
+		end)
+		
+		-- and the first/primary frame always appears at the top.
+		table.insert( frames, 1, Main.frames[2] )
+		table.insert( frames, 1, Main.frames[1] )
+		
+		for _, f in ipairs( frames ) do
+			local name = f.charopts.name
+			if f.frame_index == 1 then name = L["Main"] end
+			if f.frame_index == 2 then name = L["Snooper"] end
+			
+			info = UIDropDownMenu_CreateInfo()
+			info.text = name
+			info.func = function()
+				f.combat_ignore = true
+				f:Toggle()
+			end
+			info.notCheckable = false
+			info.isNotRadio   = true
+			info.hasArrow     = true
+			if f.frame_index ~= 2 then
+				info.menuList   = "FRAMEOPTS_" .. f.frame_index
+			else
+				info.menuList   = "SNOOPER"
+			end
+			info.tooltipTitle     = name
+			info.tooltipText      = L["Click to toggle frame."]
+			info.tooltipOnButton  = true
+			info.checked      = not f.charopts.hidden
+			info.keepShownOnClick = true
+			UIDropDownMenu_AddButton( info, level )
+		end
+		
+		info = UIDropDownMenu_CreateInfo()
+		UIDropDownMenu_AddSeparator( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = L["DM Tags"]
+		info.notCheckable     = false
+		info.isNotRadio       = true
+		info.hasArrow         = true
+		info.menuList         = "DMTAGS"
+		info.checked          = Main.db.char.dmtags
+		info.func             = function( self, a1, a2, checked )
+			Main.DMTags.Enable( checked )
+		end
+		info.keepShownOnClick = true
+		info.tooltipTitle     = L["Enable DM tags."]
+		info.tooltipText      = L["This is a helper feature for dungeon masters. It tags your unit frames with whoever has unmarked messages."]
+		info.tooltipOnButton  = true
+		UIDropDownMenu_AddButton( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		UIDropDownMenu_AddSeparator( info, level )
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text = L["Settings"]
+		info.func = function()
+			Main.OpenConfig()
+		end
+		info.notCheckable = true
+		UIDropDownMenu_AddButton( info, level )
+		
+	elseif menuList == "DMTAGS" then
+		
+		info = UIDropDownMenu_CreateInfo()
+		info.text             = L["Mark All"]
+		info.notCheckable     = true
+		info.hasArrow         = false
+		info.func             = function( self, a1, a2, checked )
+			Main.DMTags.MarkAll()
+		end
+		info.tooltipTitle     = L["Mark all players."]
+		info.tooltipText      = L["Clears any waiting DM tags."]
+		info.tooltipOnButton  = true
+		UIDropDownMenu_AddButton( info, level )
+	elseif menuList and menuList:find( "FRAMEOPTS" ) then
+		Main.Frame.PopulateFrameMenu( level, menuList )
+	elseif menuList and menuList:find("SNOOPER") then
+		Main.Snoop2.PopulateMenu( level, menuList )
 	end
 end
 
@@ -85,45 +191,10 @@ local function InitializeFramesMenu( self, level, menuList )
 	
 	if level == 1 then
 		local info
-		info = UIDropDownMenu_CreateInfo()
-		info.text    = "Windows"
-		info.isTitle = true
-		info.notCheckable = true
-		UIDropDownMenu_AddButton( info, level )
+		
 
-		local frames = {}
 		
-		-- we add everything but first frame
-		for _, f in pairs( Main.frames ) do
-			if f.frame_index > 2 then
-				table.insert( frames, f )
-			end
-		end
 		
-		-- we sort the frames by their name
-		table.sort( frames, function( a, b )
-			local an, bn = Main.db.char.frames[a.frame_index].name or "", Main.db.char.frames[b.frame_index].name or ""
-			return an < bn
-		end)
-		
-		-- and the first/primary frame always appears at the top.
-		table.insert( frames, 1, Main.frames[1] )
-		
-		for _, f in ipairs( frames ) do
-			local name = f.charopts.name
-			if f.frame_index == 1 then name = "Main" end
-			
-			info = UIDropDownMenu_CreateInfo()
-			info.text = name
-			info.func = function()
-				f:Toggle()
-			end
-			info.notCheckable = false
-			info.isNotRadio   = true
-			info.checked = f:IsShown()
-			info.keepShownOnClick = true
-			UIDropDownMenu_AddButton( info, level )
-		end
 	end
 end
 
@@ -140,20 +211,6 @@ local function InitializeOptionsMenu( self, level, menuList )
 		UIDropDownMenu_AddButton( info, level )
 		
 		info = UIDropDownMenu_CreateInfo()
-		info.text             = L["DM Tags"]
-		info.notCheckable     = false
-		info.isNotRadio       = true
-		info.checked          = Main.db.char.dmtags
-		info.func             = function( self, a1, a2, checked )
-			Main.DMTags.Enable( checked )
-		end
-		info.keepShownOnClick = true
-		info.tooltipTitle     = L["Enable DM tags."]
-		info.tooltipText      = L["This is a helper feature for dungeon masters. It tags your unit frames with whoever has unmarked messages."]
-		info.tooltipOnButton  = true
-		UIDropDownMenu_AddButton( info, level )
-		
-		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["Snooper"]
 		info.notCheckable     = true
 		info.hasArrow         = true
@@ -161,13 +218,6 @@ local function InitializeOptionsMenu( self, level, menuList )
 		info.keepShownOnClick = true
 		UIDropDownMenu_AddButton( info, level )
 		
-		info = UIDropDownMenu_CreateInfo()
-		info.text = L["Settings"]
-		info.func = function()
-			Main.OpenConfig()
-		end
-		info.notCheckable = true
-		UIDropDownMenu_AddButton( info, level )
 	elseif menuList and menuList:find("FILTERS") then
 		Main.PopulateFilterMenu( level, menuList )
 	elseif menuList and menuList:find( "SNOOPER" ) then
@@ -183,8 +233,7 @@ end
 function Me.ShowMenu( parent, menu )
 
 	local menus = {
-		FRAMES  = InitializeFramesMenu;
-		OPTIONS = InitializeOptionsMenu;
+		MENU2   = InitializeMenu2;
 	}
 	
 	Main.ToggleMenu( parent, "minimap_menu_" .. menu, menus[menu] )
@@ -198,19 +247,19 @@ function Me.OnEnter( frame )
 	
 	GameTooltip:AddDoubleLine("Listener", Main.version, 0, 0.7, 1, 1, 1, 1)
 	GameTooltip:AddLine( " " )
-	
+--[[	
 	local window_count = 0
 	for _,_ in pairs( Main.frames ) do
 		window_count = window_count + 1
-	end
+	end]]
 	
-	if window_count < 3 then
-		GameTooltip:AddLine( L["|cff00ff00Left-click|r to toggle window."], 1, 1, 1 )
-	else
-		GameTooltip:AddLine( L["|cff00ff00Left-click|r to toggle windows."], 1, 1, 1 )
-	end
+--	if window_count < 3 then
+		GameTooltip:AddLine( L["|cff00ff00Left-click|r to open menu."], 1, 1, 1 )
+--	else
+--		GameTooltip:AddLine( L["|cff00ff00Left-click|r to toggle windows."], 1, 1, 1 )
+--	end
 	
-	GameTooltip:AddLine( L["|cff00ff00Right-click|r to open menu."], 1, 1, 1 )
+	GameTooltip:AddLine( L["|cff00ff00Right-click|r to open settings."], 1, 1, 1 )
 	GameTooltip:Show()
 end
 

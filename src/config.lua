@@ -964,7 +964,7 @@ Main.config_options = {
 			order = 2;
 			args  = {
 				desc1 = {
-					name  = L["Listener frames can be resized holding shift. The font size can be adjusted by holding Ctrl and scrolling! Additional options can be found per-frame, which is accessed from the context menu (right click the top left corner of the frame)."];
+					name  = L["Global settings. See below for per-frame settings."];
 					type  = "description"; 
 					order = 9;
 				};

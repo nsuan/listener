@@ -70,5 +70,5 @@ L.help_snooper2 = tidystring [[
 	This is the "Snooper" display. When you mouseover or target someone, their
 	recent chat history will show up in here. It's for helping keep track of
 	what a player is saying. You can adjust the settings by clicking the top
-	left corner, or right-clicking the minimap button and going to Snooper.
+	left corner, or clicking the minimap button and going to Snooper.
 ]]

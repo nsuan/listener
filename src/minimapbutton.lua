@@ -60,12 +60,8 @@ function Me.OnClick( frame, button )
 	
 	GameTooltip:Hide()
 	if button == "LeftButton" then
-		local wc = 0
-		for _,_ in pairs( Main.frames ) do
-			wc = wc + 1
-		end
 		
-		if wc <= 2 or IsShiftKeyDown() then
+		if IsShiftKeyDown() then
 			Main.frames[1]:Toggle()
 		else
 			Me.ShowMenu( frame, "MENU2" )
@@ -75,7 +71,6 @@ function Me.OnClick( frame, button )
 		
 		Main.OpenConfig()
 		
-		--Me.ShowMenu( frame, "OPTIONS" )
 	end
 end
 

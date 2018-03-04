@@ -171,6 +171,8 @@ local function InitializeMenu2( self, level, menuList )
 		info.tooltipText      = L["Clears any waiting DM tags."]
 		info.tooltipOnButton  = true
 		UIDropDownMenu_AddButton( info, level )
+	elseif menuList and menuList:find("FILTERS") then
+		Main.PopulateFilterMenu( level, menuList )
 	elseif menuList and menuList:find( "FRAMEOPTS" ) then
 		Main.Frame.PopulateFrameMenu( level, menuList )
 	elseif menuList and menuList:find("SNOOPER") then

@@ -323,6 +323,12 @@ end
 function Me.PopulateFrameMenu( level, menuList )
 	if not menuList then return end
 	
+	-- handle filters menu
+	if menuList:find("FILTERS") then
+		Main.PopulateFilterMenu( level, menuList:match( "FILTERS.*" ) )
+		return
+	end
+	
 	local info
 	
 	local frame_index, submenu = menuList:match( "FRAMEOPTS_(%d+)(.*)" )
@@ -417,7 +423,7 @@ function Me.PopulateFrameMenu( level, menuList )
 		info.text             = L["Filter"]
 		info.notCheckable     = true
 		info.hasArrow         = true
-		info.menuList         = "FRAMEOPTS_" .. frame_index .. "_FILTERS_MAIN"
+		info.menuList         = "FILTERS_MAIN"
 		info.tooltipTitle     = L["Display filter."]
 		info.tooltipText      = L["Selects which chat types to display."]
 		info.tooltipOnButton  = true
@@ -518,8 +524,6 @@ function Me.PopulateFrameMenu( level, menuList )
 		end
 	elseif submenu:find("_RAID") then
 		PopulateRaidGroupsMenu( level )
-	elseif submenu:find("_FILTERS") then
-		Main.PopulateFilterMenu( level, menuList:match( "FILTERS.*" ) )
 	end
 end
 

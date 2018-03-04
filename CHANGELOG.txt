@@ -1,3 +1,9 @@
+## 2.0.7
+Bugfix for minimap clicking. Oops!
+
+Updated help tips.
+
+
 ## 2.0.6
 Fixed frames hiding during combat.
 

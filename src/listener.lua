@@ -42,9 +42,9 @@ local IGNORED_CHANNELS = {
 local SYSTEM_ROLL_PATTERN = RANDOM_ROLL_RESULT 
 
 -- Convert to a pattern.
-SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%%s", "(%%S+)" )
-SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%%d", "(%%d+)" )
-SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%(%(%%d%+%)%-%(%%d%+%)%)", "%%((%%d+)%%-(%%d+)%%)" ) -- this is what we call voodoo?
+SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%%%d?$?s", "(%%S+)" )
+SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%%%d?$?d", "(%%d+)" )
+SYSTEM_ROLL_PATTERN = SYSTEM_ROLL_PATTERN:gsub( "%(%(%%%d?$?d%+%)%-%(%%%d?$?d%+%)%)", "%%((%%d+)%%-(%%d+)%%)" ) -- this is what we call voodoo?
 
 -- English is "|Hplayer:%s|h[%s]|h has come online."
 local SYSTEM_ONLINE_PATTERN = ERR_FRIEND_ONLINE_SS

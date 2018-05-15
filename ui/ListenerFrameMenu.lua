@@ -518,7 +518,7 @@ function Me.PopulateFrameMenu( level, menuList )
 	elseif submenu:find("_PLAYERS") then
 		local sub_index = submenu:match( "_PLAYERS_(%d+)" )
 		if sub_index then
-			PopularPlayersSubmenu( level, menuList )
+			PopulatePlayersSubmenu( level, menuList )
 		else
 			PopulatePlayersMenu( level )
 		end

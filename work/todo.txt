@@ -1,8 +1,6 @@
 
 yve wants the titlebar to be gone
-player filter menu is broken
 context menu for right clicking messages
-
 
 ---------------------------------------
 
@@ -30,6 +28,7 @@ DM TAGS >
 	MARK ALL
 SETTINGS
 
+player filter menu is broken
 merge the listener minimap menu together, having the "hide" values part of the frame dropdown menues only (done)
 snooper only shows for target (done)
 merge the frame settings into the main settings panel (done)

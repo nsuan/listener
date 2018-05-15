@@ -1,5 +1,8 @@
 
+yve wants the titlebar to be gone
+player filter menu is broken
 context menu for right clicking messages
+
 
 ---------------------------------------
 

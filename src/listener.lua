@@ -570,15 +570,14 @@ end
 -- e.g. {circle} or {rt2} will become a texture code for circle.
 --
 local RAID_TARGETS = { 
-	star     = 1; rt1 = 1;
-	circle   = 2; rt2 = 2;
-	diamond  = 3; rt3 = 3;
-	triangle = 4; rt4 = 4;
-	moon     = 5; rt5 = 5;
-	square   = 6; rt6 = 6;
-	x        = 7; rt7 = 7;
-	cross    = 7; 
-	skull    = 8; rt8 = 8;
+	star     = 1; rt1 = 1; yellow = 1;
+	circle   = 2; rt2 = 2; orange = 2;
+	diamond  = 3; rt3 = 3; purple = 3;
+	triangle = 4; rt4 = 4; green  = 4;
+	moon     = 5; rt5 = 5; silver = 5;
+	square   = 6; rt6 = 6; blue   = 6;
+	x        = 7; rt7 = 7; red    = 7; cross = 7; 
+	skull    = 8; rt8 = 8; white  = 8;
 }
 
 -------------------------------------------------------------------------------

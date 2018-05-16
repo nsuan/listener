@@ -1,3 +1,10 @@
+## 2.0.9
+Fixed player menu in larger raids.
+Fixed bug which was causing errors in german clients.
+Added option for locked frames to not show their title bars.
+Added colors to raid target matches. e.g. {blue} for square.
+
+
 ## 2.0.8
 Bugfix for the additional filters menus.
 

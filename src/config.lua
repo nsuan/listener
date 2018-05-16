@@ -355,6 +355,14 @@ local DB_DEFAULTS = {
 			close_button = true;
 			
 			---------------------------------------------------------
+			-- Split option.
+			--
+			-- Hide the frame title bar when the frame is Locked.
+			-- Ignores mouseover too.
+			--
+			hide_bar_when_locked = false;
+			
+			---------------------------------------------------------
 			-- (Split) Sound file for notifications.
 			--
 			notify_sound = "ListenerBeep";

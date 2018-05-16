@@ -495,8 +495,8 @@ function Method:UpdateVisibility()
 	local faded = self.auto_fade > 0 and GetTime() > self.fade_time + self.auto_fade
 	
 	self:ShowBar( 
-		hover
-		or self.dragging 
+		(hover and not (self.frameopts.locked and self.frameopts.hide_bar_when_locked))
+		or self.dragging
 		or (Main.active_frame == self and not faded) )
 	
 	if self.auto_fade > 0 then

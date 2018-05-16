@@ -490,8 +490,22 @@ local OPTIONS = {
 			end;
 		};
 		
+		hide_bar_when_locked = {
+			order = 52;
+			name  = L["Hide Locked Bar"];
+			desc  = L["If the frame is locked, don't show the top bar on mouseover."];
+			type  = "toggle";
+			set   = function( info, val )
+				g_frame.frameopts.hide_bar_when_locked = val
+			end;
+			get   = function( info )
+				return g_frame.frameopts.hide_bar_when_locked
+			end;
+		};
+		
 		-- layout settings
 		layout = {
+			order = 91;
 			name = L["Layout"];
 			type = "group";
 			inline = true;

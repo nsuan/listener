@@ -707,7 +707,7 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	if message == "" and (event ~= "CHANNEL_JOIN" and event ~= "CHANNEL_LEAVE") then return end
 	
 	-- Strip realm if they're on the same realm.
-	sender = Ambiguate( sender, "all" )
+	sender = Main.MyAmbiguate( sender )
 	
 	-- Update the guidmap. Right now, this is basically just used to
 	-- get a character's class color if we otherwise don't have a color
@@ -1232,12 +1232,17 @@ function Main:OnChannelUIUpdate()
 	end
 end
 
+function Main.MyAmbiguate( name )
+	return name:gsub( Main.ambiguate_pattern, "" )
+end
+
 -------------------------------------------------------------------------------
 -- The Ace3 callback when the addon is fully loaded.
 --
 function Main:OnEnable()
 	
 	Main.realm = select( 2, UnitFullName("player") )
+	Main.ambiguate_pattern = "%-" .. Main.realm:gsub(" ","")
 	Main.SetupBindingText()
 
 	CleanChatHistory() 

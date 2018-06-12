@@ -92,7 +92,7 @@ end
 -- The realm the player is on, for building player-realm strings.
 -- This actually isn't safe here, and it's refetched after the addon is loaded.
 --
-Main.realm          = select(2,UnitFullName("player"))
+Main.realm          = select( 2, UnitFullName("player") )
 
 -------------------------------------------------------------------------------
 -- The first lineid in the chat history. This is 1 after the first load or
@@ -707,7 +707,7 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	if message == "" and (event ~= "CHANNEL_JOIN" and event ~= "CHANNEL_LEAVE") then return end
 	
 	-- Strip realm if they're on the same realm.
-	sender = Main.MyAmbiguate( sender )
+	sender = Ambiguate( sender, "all" )
 	
 	-- Update the guidmap. Right now, this is basically just used to
 	-- get a character's class color if we otherwise don't have a color
@@ -1232,8 +1232,12 @@ function Main:OnChannelUIUpdate()
 	end
 end
 
-function Main.MyAmbiguate( name )
-	return name:gsub( Main.ambiguate_pattern, "" )
+local function FetchRealm()
+	Main.realm = select( 2, UnitFullName("player") )
+	if not Main.realm then
+		-- try again if it failed.
+		C_Timer.After( 1, FetchRealm )
+	end
 end
 
 -------------------------------------------------------------------------------
@@ -1241,8 +1245,7 @@ end
 --
 function Main:OnEnable()
 	
-	Main.realm = select( 2, UnitFullName("player") )
-	Main.ambiguate_pattern = "%-" .. Main.realm:gsub(" ","")
+	FetchRealm()
 	Main.SetupBindingText()
 
 	CleanChatHistory() 

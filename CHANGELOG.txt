@@ -1,7 +1,14 @@
+## 2.1.0
+Fixes for latest patch.
+
+
 ## 2.0.9
 Fixed player menu in larger raids.
+
 Fixed bug which was causing errors in german clients.
+
 Added option for locked frames to not show their title bars.
+
 Added colors to raid target matches. e.g. {blue} for square.
 
 

@@ -143,11 +143,11 @@ function Main.GetICName( name, get_full )
 	local firstname, lastname, icon, color = g_resolver( name )
 	
 	-- strip title
-	local a = firstname:match( "^%S+" )
+	local a = firstname:match( "^%s*%S+" ) or firstname
 	if Main.titles[a:lower()] then
 		-- note that this pattern should not destroy the word if it
 		-- is the only word.
-		firstname = firstname:gsub( "^%S+%s+", "" )
+		firstname = firstname:gsub( "^%s*%S+%s+", "" )
 	end
 	
 	if Main.db.profile.shorten_names and not get_full then

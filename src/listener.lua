@@ -491,6 +491,40 @@ function Main:OnChatMsgTextEmote( event, message, sender, language,
 	                a4, a5, a6, a7, a8, a9, a10, a11, guid, a13, a14 )
 		
 end
+
+function Main:OnChatMsgClub( event, message, sender, language, channelName, sender2, specialFlags, zoneChannelID,
+                             channelIndex, channelBaseName, _, lineID, guid, bnSenderID, ... )
+	if not guid then
+		-- this is a bnet message
+		-- we use format "@name" for bnet messages
+		-- this can be ambiguous with people using same name
+		sender = "@" .. sender
+		if BNIsSelf( bnSenderID ) then
+			sender = sender .. "-self"
+		end
+		return -- Bnet communities not supported yet
+	end
+	
+	-- community channel format is "#clubid:streamid"
+	local club,stream = channelName:match( "Community:(%d+):(%d+)" )
+	if not club then
+		-- we don't know how to handle this message
+		return
+	end
+	
+	-- we pretend its a CHANNEL message, because that makes things simpler underneath
+	event = "CHAT_MSG_CHANNEL"
+	channelName = "Community:" .. club .. ":" .. stream
+	
+	if C_Club.GetStreamInfo( club, stream ).name == "#RELAY#" then
+		-- RP Link relay
+		return
+	end
+	
+
+	Main:OnChatMsg( event, message, sender, language, channelName, sender2, specialFlags, zoneChannelID, channelIndex, channelName, nil, lineID, guid, bnSenderID, ... )
+end
+
   
 -------------------------------------------------------------------------------
 -- The main chat event handler.
@@ -707,7 +741,9 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	if message == "" and (event ~= "CHANNEL_JOIN" and event ~= "CHANNEL_LEAVE") then return end
 	
 	-- Strip realm if they're on the same realm.
-	sender = Ambiguate( sender, "all" )
+	if sender:sub(1,1) ~= "@" then
+		sender = Ambiguate( sender, "all" )
+	end
 	
 	-- Update the guidmap. Right now, this is basically just used to
 	-- get a character's class color if we otherwise don't have a color
@@ -719,7 +755,9 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	-- Create an entry in the chat history table if we don't have one yet.
 	Main.chat_history[sender] = Main.chat_history[sender] or {}
 	
-	local isplayer = sender == UnitName("player") or event == "WHISPER_INFORM"
+	local isplayer = sender == UnitName("player") 
+	                 or event == "WHISPER_INFORM" 
+					 or sender:match( "^@.+%-self$" )
 	
 	---------------------------------------------------------------------------
 	-- Language Filter
@@ -840,7 +878,7 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 			Main.FlashClient()
 		end
 	end
- 
+	
 	-- and then finally, add to the listener windows.
 	for _,frame in pairs( Main.frames ) do
 		frame:TryAddMessage( entry, true )
@@ -1287,6 +1325,7 @@ function Main:OnEnable()
 	Main:RegisterEvent( "CHAT_MSG_INSTANCE_CHAT_LEADER", "OnChatMsg" )
 	Main:RegisterEvent( "CHAT_MSG_GUILD_ITEM_LOOTED",    "OnChatMsg" )
 	Main:RegisterEvent( "CHAT_MSG_GUILD_ACHIEVEMENT",    "OnChatMsg" )
+	Main:RegisterEvent( "CHAT_MSG_COMMUNITIES_CHANNEL",  "OnChatMsgClub" )
 	Main:RegisterEvent( "GUILD_MOTD",                    "OnGuildMOTD" )
 	Main:RegisterEvent( "CHAT_MSG_SYSTEM",               "OnSystemMsg" )
 	Main:RegisterMessage( "DiceMaster4_Roll",            "OnDiceMasterRoll" )
@@ -1310,10 +1349,12 @@ function Main:OnEnable()
 	
 	Main.SetupProbe()
 	
-	for _, frame in pairs( Main.frames ) do
-		frame:RefreshChat()
-		frame:UpdateProbe()
-	end
+	C_Timer.After( 1, function() 
+		for _, frame in pairs( Main.frames ) do
+			frame:RefreshChat()
+			frame:UpdateProbe()
+		end
+	end)
 	
 	C_Timer.After( 3, function() Main:OnRaidRosterUpdate() end )
 	

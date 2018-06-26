@@ -13,7 +13,7 @@ Me.menu        = nil
 Me.menu_parent = nil
 
 Main.RegisterFilterMenu( "MAIN",
-	{ "Public", "Party", "Raid", "Raid Warning", "Whisper", "Instance", "Guild", "Officer", "Rolls", "Channel", "Misc" }, 
+	{ "Public", "Party", "Raid", "Raid Warning", "Whisper", "Instance", "Guild", "Officer", "Rolls", "Channel", "CrossRP", "Misc" }, 
 	function( filter )
 		return Me.menu_parent:HasEvent( filter )
 	end,

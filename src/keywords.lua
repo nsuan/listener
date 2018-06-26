@@ -57,6 +57,7 @@ local CHAT_EVENTS = {
 -- Here's our chat filter. 
 --
 local function ChatFilter( self, event, msg, sender, ... )
+	local bnet = select( 13-2, ... )
 
 	-- Skip if not turned on.
 	if not Main.db.profile.keywords_enable then return end
@@ -64,6 +65,7 @@ local function ChatFilter( self, event, msg, sender, ... )
 	local found = false
 	
 	-- Don't filter player's own text.
+	if bnet and bnet > 0 and BNIsSelf( bnet ) then return end
 	if Ambiguate( sender, "all" ) == UnitName("player") then return end
 	
 	local replaced = {}

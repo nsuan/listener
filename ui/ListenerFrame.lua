@@ -59,6 +59,16 @@ local MSG_FORMAT_PREFIX = {
 	PARTY_LEADER          = "[P] ";
 	RAID                  = "[R] ";
 	RAID_LEADER           = "[R] ";
+	RP1                   = "[RP] ";
+	RP2                   = "[RP2] ";
+	RP3                   = "[RP3] ";
+	RP4                   = "[RP4] ";
+	RP5                   = "[RP5] ";
+	RP6                   = "[RP6] ";
+	RP7                   = "[RP7] ";
+	RP8                   = "[RP8] ";
+	RP9                   = "[RP9] ";
+	RPW                   = "[RP!] ";
 	INSTANCE_CHAT         = "[I] ";
 	INSTANCE_CHAT_LEADER  = "[I] ";
 	GUILD                 = "[G] ";
@@ -349,7 +359,25 @@ end
 -------------------------------------------------------------------------------
 local function MsgFormatNormalChannel( e, name )
 	local prefix = MSG_FORMAT_PREFIX[e.e] or ""
-	prefix = prefix:gsub( "C", (GetChannelName( e.c )) )
+	local index = GetChannelName( e.c )
+	if index ~= 0 then
+		prefix = prefix:gsub( "C", index )
+	else
+		-- this is an unregistered channel
+		local club, stream = e.c:match( "(%d+):(%d+)" )
+		if not club then
+			prefix = prefix:gsub( "C", e.c )
+		else
+			local club_info = C_Club.GetClubInfo( club )
+			channel_name = club_info.shortName
+			if channel_name == "" then channel_name = club_info.name end
+			local stream_info = C_Club.GetStreamInfo( club, stream )
+			if stream_info.streamType ~= Enum.ClubStreamType.General then
+				channel_name = channel_name .. " - " .. stream_info.name
+			end
+			prefix = prefix:gsub( "C", channel_name )
+		end
+	end
 	return prefix .. name .. ": " .. e.m
 end
 
@@ -397,6 +425,8 @@ local MSG_FORMAT_FUNCTIONS = {
 	RAID                 = MsgFormatNormal;
 	RAID_LEADER          = MsgFormatNormal;
 	RAID_WARNING         = MsgFormatNormal;
+	RP                   = MsgFormatNormal;
+	RPW                  = MsgFormatNormal;
 	YELL                 = MsgFormatNormal;
 	INSTANCE_CHAT        = MsgFormatNormal;
 	INSTANCE_CHAT_LEADER = MsgFormatNormal;

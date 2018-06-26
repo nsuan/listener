@@ -15,10 +15,10 @@ local L    = Main.Locale
 -- @param name Ingame name. Realm is optional.
 --
 local function GetTRPCharacterInfo( name )
-	
+	if not TRP3_API.register.getCharacterList() then return {} end
 	local char, realm = TRP3_API.utils.str.unitIDToInfo( name )
 	if not realm then
-		realm = TRP3_API.globals.player_realm_id
+		realm = Main.realm
 	end
 	name = TRP3_API.utils.str.unitInfoToID( char, realm )
 	

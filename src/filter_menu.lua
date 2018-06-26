@@ -44,6 +44,8 @@ local FILTER_OPTIONS = {
 	Whisper          = { "WHISPER", "WHISPER_INFORM" };
 	Rolls            = { "ROLL" };
 	
+	CrossRP           = "CrossRP";
+	
 	-- these are treated in a specially.
 	-- (see the populate code)
 	Channel          = "Channels";
@@ -144,7 +146,18 @@ function Main.PopulateFilterMenu( level, menuList )
 				info.keepShownOnClick = true
 				info.menuList         = "FILTERS_" .. id .. "_MISC"
 				UIDropDownMenu_AddButton( info, level )
+			elseif item == "CrossRP" then
+				if CrossRP then
 				
+					info = UIDropDownMenu_CreateInfo()
+					info.text             = "Cross RP"
+					info.notCheckable     = true
+					info.hasArrow         = true
+					info.keepShownOnClick = true
+					info.menuList         = "FILTERS_" .. id .. "_CROSSRP"
+					UIDropDownMenu_AddButton( info, level )
+					
+				end
 			elseif FILTER_OPTIONS[item] then
 				
 				-- Otherwise just a simple call for this option.
@@ -154,17 +167,45 @@ function Main.PopulateFilterMenu( level, menuList )
 		end
 	elseif submenu == "CHANNELS" then
 	
-		-- Add all channels, except for ones that are ignored.
+		if C_Club then -- 7.x compat
+			local clubs = {}
+			for _, club in pairs( C_Club.GetSubscribedClubs() ) do
+				if club.clubType == Enum.ClubType.Character then
+					-- We want to support ClubType.BattleNet in the future
+					
+					for _, stream in pairs( C_Club.GetStreams( club.clubId )) do
+						local event = "#Community:" .. club.clubId .. ":" .. stream.streamId
+						local name = club.shortName
+						if name == "" then name = club.name end
+						if stream.streamType ~= Enum.ClubStreamType.General then
+							name = name .. " - " .. stream.name
+						end
+						table.insert( clubs, { name = name, event = event })
+						
+					end
+				end
+			end
+			table.sort( clubs, function( a,b ) return a.name < b.name end )
+			for _,v in ipairs( clubs ) do
+				AddFilterOption( level, GetColorCode( v.event ) .. v.name, {v.event}, id )
+			end
+		end
 		
+		-- Add all channels, except for ones that are ignored.
 		local channels = { GetChannelList() }
 		for i = 1, #channels, 2 do
 			local index = channels[i]
 			local name = channels[i+1]
 			name = name:lower()
-			if not IGNORED_CHANNELS[name] then
+			if not IGNORED_CHANNELS[name] and not name:match( "community:" ) then
 				local event = "#" .. name:upper()
 				AddFilterOption( level, GetColorCode( event ) .. "#" .. name, { event }, id )
 			end
+		end
+	elseif submenu == "CROSSRP" then
+		AddFilterOption( level, GetColorCode( "RPW" ) .. L["RP Warning"], { "RPW" }, id )
+		for i = 1, 9 do
+			AddFilterOption( level, GetColorCode( "RP" .. i ) .. L("RP Channel {1}", i), { "RP" .. i }, id )
 		end
 	elseif submenu == "MISC" then
 		

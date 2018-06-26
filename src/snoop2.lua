@@ -28,7 +28,7 @@ function Me.Setup()
 
 	Main.RegisterFilterMenu( "SNOOPER",
 		{ "Public", "Party", "Raid", "Raid Warning", "Instance", 
-		  "Guild", "Officer", "Rolls", "Whisper", "Channel" },
+		  "Guild", "Officer", "Rolls", "Whisper", "Channel", "CrossRP" },
 		function( filter )
 			return Main.frames[2].charopts.filter[filter]
 		end,
@@ -167,6 +167,16 @@ local MESSAGE_PREFIXES = {
 	PARTY_LEADER    = "[P] ";
 	RAID            = "[R] ";
 	RAID_LEADER     = "[R] ";
+	RP1             = "[RP] ";
+	RP2             = "[RP2] ";
+	RP3             = "[RP3] ";
+	RP4             = "[RP4] ";
+	RP5             = "[RP5] ";
+	RP6             = "[RP6] ";
+	RP7             = "[RP7] ";
+	RP8             = "[RP8] ";
+	RP9             = "[RP9] ";
+	RPW             = "[RP!] ";
 	INSTANCE        = "[I] ";
 	INSTANCE_LEADER = "[I] ";
 	OFFICER         = "[O] ";
@@ -183,7 +193,25 @@ local MESSAGE_PREFIXES = {
 local function MsgFormatNormal( e, name )
 	local prefix = MESSAGE_PREFIXES[e.e] or ""
 	if e.e == "CHANNEL" then
-		prefix = prefix:gsub( "C", (GetChannelName( e.c )) )
+		local index = GetChannelName( e.c )
+		if index ~= 0 then
+			prefix = prefix:gsub( "C", index )
+		else
+			-- this is an unregistered channel
+			local club, stream = e.c:match( "(%d+):(%d+)" )
+			if not club then
+				prefix = prefix:gsub( "C", e.c )
+			else
+				local club_info = C_Club.GetClubInfo( club )
+				channel_name = club_info.shortName
+				if channel_name == "" then channel_name = club_info.name end
+				local stream_info = C_Club.GetStreamInfo( club, stream )
+				if stream_info.streamType ~= Enum.ClubStreamType.General then
+					channel_name = channel_name .. " - " .. stream_info.name
+				end
+				prefix = prefix:gsub( "C", channel_name )
+			end
+		end
 	end
 	return prefix .. e.m
 end
@@ -230,13 +258,23 @@ end
 -------------------------------------------------------------------------------
 -- Function table for formatting events.
 --
-local MSG_FORMAT_FUNCTIONS = { 
+local MSG_FORMAT_FUNCTIONS = {
 	SAY                  = MsgFormatNormal;
 	PARTY                = MsgFormatNormal;
 	PARTY_LEADER         = MsgFormatNormal;
 	RAID                 = MsgFormatNormal;
 	RAID_LEADER          = MsgFormatNormal;
 	RAID_WARNING         = MsgFormatNormal;
+	RP1                  = MsgFormatNormal;
+	RP2                  = MsgFormatNormal;
+	RP3                  = MsgFormatNormal;
+	RP4                  = MsgFormatNormal;
+	RP5                  = MsgFormatNormal;
+	RP6                  = MsgFormatNormal;
+	RP7                  = MsgFormatNormal;
+	RP8                  = MsgFormatNormal;
+	RP9                  = MsgFormatNormal;
+	RPW                  = MsgFormatNormal;
 	YELL                 = MsgFormatNormal;
 	INSTANCE_CHAT        = MsgFormatNormal;
 	INSTANCE_CHAT_LEADER = MsgFormatNormal;

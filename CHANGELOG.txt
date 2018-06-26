@@ -1,3 +1,9 @@
+## 2.1.2
+Support for Patch 8.0.
+
+Cross RP support.
+
+
 ## 2.1.1
 More fixes.
 

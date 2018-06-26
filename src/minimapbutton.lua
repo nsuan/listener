@@ -129,7 +129,11 @@ local function InitializeMenu2( self, level, menuList )
 		end
 		
 		info = UIDropDownMenu_CreateInfo()
-		UIDropDownMenu_AddSeparator( info, level )
+		if C_Club then -- 7.x compat
+			UIDropDownMenu_AddSeparator( level )
+		else
+			UIDropDownMenu_AddSeparator( info, level )
+		end
 		
 		info = UIDropDownMenu_CreateInfo()
 		info.text             = L["DM Tags"]
@@ -148,7 +152,11 @@ local function InitializeMenu2( self, level, menuList )
 		UIDropDownMenu_AddButton( info, level )
 		
 		info = UIDropDownMenu_CreateInfo()
-		UIDropDownMenu_AddSeparator( info, level )
+		if C_Club then -- 7.x compat
+			UIDropDownMenu_AddSeparator( level )
+		else
+			UIDropDownMenu_AddSeparator( info, level )
+		end
 		
 		info = UIDropDownMenu_CreateInfo()
 		info.text = L["Settings"]

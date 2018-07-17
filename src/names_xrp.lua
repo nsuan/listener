@@ -19,10 +19,10 @@ local function Resolve( name )
 		local icname = ch.fields.NA or name
 		
 		-- get trp color code
-		color = icname:match( "^|c([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])" )
+		color = icname:match( "^|c(%x%x%x%x%x%x%x%x)" )
 		icname = xrp.Strip( icname )
 		
-		return icname, nil, color
+		return icname, nil, nil, color
 	end
 	
 	return name

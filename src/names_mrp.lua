@@ -17,10 +17,10 @@ local function TryGet( name )
 	   and mrp.DisplayChat.NA( msp.char[name].field.NA ) ~= "" then
 		
 		local icname = msp.char[name].field.NA
-		local color  = icname:match( "^|c([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])" )
+		local color  = icname:match( "^|c(%x%x%x%x%x%x%x%x)" )
 		local name   = mrp.DisplayChat.NA( msp.char[name].field.NA )
 		
-		return name, nil, color
+		return name, color
 	end
 end
  

@@ -166,7 +166,7 @@ function Main.PopulateFilterMenu( level, menuList )
 			end
 		end
 	elseif submenu == "CHANNELS" then
-	
+	--[[
 		if C_Club then -- 7.x compat
 			local clubs = {}
 			for _, club in pairs( C_Club.GetSubscribedClubs() ) do
@@ -190,15 +190,31 @@ function Main.PopulateFilterMenu( level, menuList )
 				AddFilterOption( level, GetColorCode( v.event ) .. v.name, {v.event}, id )
 			end
 		end
-		
+		]]
 		-- Add all channels, except for ones that are ignored.
 		local channels = { GetChannelList() }
-		for i = 1, #channels, 2 do
+		for i = 1, #channels, 3 do
 			local index = channels[i]
 			local name = channels[i+1]
 			name = name:lower()
-			if not IGNORED_CHANNELS[name] and not name:match( "community:" ) then
-				local event = "#" .. name:upper()
+			local use_stream = true
+			local club, stream = name:match( "community:(%d+):(%d+)" )
+			local event
+			if club then
+				club, stream = tonumber(club), tonumber(stream)
+				local ci = C_Club.GetClubInfo( club )
+				use_stream = ci.clubType == Enum.ClubType.Character
+				event = "#Community:" .. club .. ":" .. stream
+				local si = C_Club.GetStreamInfo( club, stream )
+				name = ci.shortName
+				if name == "" then name = ci.name end
+				if si.streamType ~= Enum.ClubStreamType.General then
+					name = name .. " - " .. si.name
+				end
+			else
+				event = "#" .. name:upper()
+			end
+			if not IGNORED_CHANNELS[name] and use_stream then
 				AddFilterOption( level, GetColorCode( event ) .. "#" .. name, { event }, id )
 			end
 		end

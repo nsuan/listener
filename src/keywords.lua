@@ -139,9 +139,10 @@ function Main.LoadKeywordsConfig()
 	
 	local quotepattern = '(['..("%^$().[]*+-?"):gsub("(.)", "%%%1")..'])'
 	
-	local firstname = Main.GetICName( UnitName("player") ):match( "^%s*(%S+)" ) or ""
-	local lastname  = Main.GetICName( UnitName("player"), true ):match( "(%S+)%s*$" ) or ""
 	local oocname   = UnitName('player')
+	local icname, short_icname = LibRPNames.Get( oocname )
+	local firstname = short_icname:match( "^%s*(%S+)" ) or ""
+	local lastname  = icname:match( "(%S+)%s*$" ) or ""
 	
 	firstname = firstname:gsub( quotepattern, "%%%1" )
 	lastname  = lastname:gsub( quotepattern, "%%%1" )

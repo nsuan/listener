@@ -23,10 +23,6 @@ src\raid_roster.lua
 src\minimapbutton.lua
 src\snoop2.lua
 src\probe.lua
-src\names.lua
-src\names_trp3.lua
-src\names_mrp.lua
-src\names_xrp.lua
 src\help.lua
 src\console.lua
 src\sound.lua

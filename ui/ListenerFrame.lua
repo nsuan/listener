@@ -396,7 +396,9 @@ end
 -------------------------------------------------------------------------------
 -- <name> <msg> - name is substituted
 local function MsgFormatTextEmote( e, name )
-	local msg = e.m:gsub( e.s, name )
+	-- Need to convert - to %- to avoid it triggering a pattern and
+	--  invalidating the name match.
+	local msg = e.m:gsub( e.s:gsub("%-","%%-"), name )
 	return msg
 end
 
@@ -466,7 +468,10 @@ function Method:FormatChatMessage( e )
 	end
 	
 	-- get icon and name 
-	local name, icon, color = Main.GetICName( e.s )
+	local name, shortname, icon, color = LibRPNames.Get( e.s, Main.guidmap[e.s] )
+	if Main.db.profile.shorten_names then
+		name = shortname
+	end
 	
 	if icon and Main.db.profile.frame.show_icons then
 		if Main.db.profile.frame.zoom_icons then
@@ -478,7 +483,7 @@ function Method:FormatChatMessage( e )
 		icon = ""
 	end
 	
-	if color then 
+	if color then
 		name = "|c" .. color .. name .. "|r"
 	end
 	
@@ -864,8 +869,8 @@ function Method:UpdateProbe()
 		
 		on = self:ListeningTo( target )
 		
-		local name, icon, color = Main.GetICName( target )
-		title = name
+		local name, shortname = LibRPNames.Get( target )
+		title = Main.db.profile.shorten_names and shortname or name
 		
 	end
 	

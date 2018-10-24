@@ -3,7 +3,7 @@
 --
 -- This is the name resolver for MyRolePlay users.
 -------------------------------------------------------------------------------
-
+if true return end
 local Main = ListenerAddon
 local L    = Main.Locale
 

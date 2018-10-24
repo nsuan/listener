@@ -251,7 +251,9 @@ end
 -- <name> <msg> - name is substituted
 --
 local function MsgFormatTextEmote( e, name )
-	local msg = e.m:gsub( e.s, name )
+	-- Need to convert - to %- to avoid it triggering a pattern and
+	--  invalidating the name match.
+	local msg = e.m:gsub( e.s:gsub("%-","%%-"), name )
 	return msg
 end
 
@@ -334,7 +336,10 @@ function Me:FormatChatMessage( e )
 	
 	stamp = timecolor .. stamp .. "|r "
 	
-	local name, _, color = Main.GetICName( e.s )
+	local name, shortname, _, color = LibRPNames.Get( e.s, Main.guidmap[e.s] )
+	if Main.db.profile.shorten_names then
+		name = shortname
+	end
 	
 	if color and self.frameopts.name_colors then
 		name = "|c" .. color .. name .. "|r"

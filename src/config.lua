@@ -677,8 +677,8 @@ Main.config_options = {
 					name = L["Shorten Names"];
 					desc = L["Shorten names in chat and other places. Cuts off surnames unless the first name is really short."];
 					type = "toggle";
-					set = function( info, val ) 
-						Main.ClearICNameCache()
+					set = function( info, val )
+						LibRPNames.ClearCache()
 						Main.db.profile.shorten_names = val
 						RefreshAllChat()
 						FrameSettingsChanged()

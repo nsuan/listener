@@ -532,6 +532,8 @@ end
 function Main:OnChatMsg( event, message, sender, language, a4, a5, a6, a7, a8, 
                          a9, a10, a11, guid, a13, a14 )
 						 
+	if sender == "" then return end
+	
 	local filters = ChatFrame_GetMessageEventFilters( event )
 	event = event:sub( 10 )
 	
@@ -739,6 +741,7 @@ function Main.AddChatHistory( sender, event, message, language, guid, channel )
 	
 	-- discard empty messages (unless the event doesn't have a message).
 	if message == "" and (event ~= "CHANNEL_JOIN" and event ~= "CHANNEL_LEAVE") then return end
+	if sender == "" then return end -- don't record stupid world messages.
 	
 	-- Strip realm if they're on the same realm.
 	if sender:sub(1,1) ~= "@" then

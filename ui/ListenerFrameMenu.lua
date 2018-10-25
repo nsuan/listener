@@ -159,7 +159,7 @@ local g_player_list = {}
 local function CreatePlayerList()
 	local players = {}
 	for p in IteratePlayers() do
-		local icname = Main.GetICName( p )
+		local _, icname = LibRPNames.Get( p )
 		table.insert( players, {
 			name   = p;
 			icname = icname;

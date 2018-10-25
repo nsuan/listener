@@ -231,7 +231,7 @@ end
 -------------------------------------------------------------------------------
 -- Cuts a realm tag off of a name.
 function Me.GetNormalName( toon )
-	return toon:match( "[^-]+" )
+	return toon:match( "[^-]*" )
 end
 
 -------------------------------------------------------------------------------
@@ -262,9 +262,9 @@ function Me.GetTRP3Name( toon )
 	--  fallback values are done in the upper layer of code.
 	local profile
 	if unit_id == TRP3_API.globals.player_id then
-		profile = TRP3_API.profile.getData( "player" );
+		profile = TRP3_API.profile.getData( "player" )
 	elseif TRP3_API.register.isUnitIDKnown( unit_id ) then
-		profile = TRP3_API.register.getUnitIDCurrentProfile( unit_id );
+		profile = TRP3_API.register.getUnitIDCurrentProfile( unit_id )
 	else
 		return
 	end

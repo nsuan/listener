@@ -396,6 +396,8 @@ end
 -------------------------------------------------------------------------------
 -- <name> <msg> - name is substituted
 local function MsgFormatTextEmote( e, name )
+	if e.s == "" then return e.m end -- Some dumb global emote by bosses.
+	
 	-- Need to convert - to %- to avoid it triggering a pattern and
 	--  invalidating the name match.
 	local msg = e.m:gsub( e.s:gsub("%-","%%-"), name )

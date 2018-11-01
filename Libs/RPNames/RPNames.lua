@@ -132,13 +132,13 @@ end
 --  Maxen Montclair -> Maxen
 --  Kim Sweete -> Kim Sweete (Uses full name since first name is only 3
 --                             characters)
--- If first term is less than 5 characters, the full name will be used.
+-- If first term is less than 4 characters, the full name will be used.
 --
 function Me.GetShortName( name )
 	if not name or name == "" then return name end
 	
 	local short = name:match( "%S+" )
-	if #short < 5 then
+	if #short < 4 then
 		short = name
 	end
 	

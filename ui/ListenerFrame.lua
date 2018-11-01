@@ -475,6 +475,18 @@ function Method:FormatChatMessage( e )
 		name = shortname
 	end
 	
+	if not icon then
+		local alliance = UnitFactionGroup( "player" ) == "Alliance"
+		if e.h then
+			alliance = not alliance
+		end
+		if alliance then
+			icon = "Inv_Misc_Tournaments_banner_Human"
+		else
+			icon = "Inv_Misc_Tournaments_banner_Orc"
+		end
+	end
+	
 	if icon and Main.db.profile.frame.show_icons then
 		if Main.db.profile.frame.zoom_icons then
 			icon = "|TInterface\\Icons\\" .. icon .. ":0:0:0:0:100:100:10:90:10:90:255:255:255|t "

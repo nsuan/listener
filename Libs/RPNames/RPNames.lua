@@ -174,15 +174,29 @@ end
 --  "Caroline Watson", "Caroline", nil, nil
 --
 function Me.Get( toon, guid )
+	-- Every so often, we just dump the entire cache. This might have some
+	--  caveats if the user is looking up a LOT of names, but under normal use
+	--  this seems like a good way to go about it.
 	if GetTime() > Me.cache_time + CACHE_RESET_TIME then
 		Me.ClearCache()
 	end
 	
 	toon = Ambiguate( toon, "all" )
 	
+	-- If we have a cached entry (not erased above) then we use that instantly.
 	local cached = Me.cache[ toon ]
 	if cached then
-		return cached[1], cached[2], cached[3], cached[4]
+		local color = cached[4]		
+		-- Color is kind of a weird thing. If the name doesn't have a color
+		--  code attached to it from their RP profile, then we default to the
+		--  class color, but we might not always have a valid guid. If the 
+		--  guid isn't given, then the color should default to nil rather than
+		--  whatever last value we got. Essentially, the class color is -not-
+		--  cached.
+		if not color then
+			color = Me.GetClassColor( guid )
+		end
+		return cached[1], cached[2], cached[3], color
 	end
 	
 	local name, shortname, icon, color
@@ -204,11 +218,13 @@ function Me.Get( toon, guid )
 		shortname = name
 	end
 	
+	
+	Me.cache[ toon ] = { name, shortname, icon, color }
+	
 	if not color then
 		color = Me.GetClassColor( guid )
 	end
 	
-	Me.cache[ toon ] = { name, shortname, icon, color }
 	return name, shortname, icon, color
 end
 

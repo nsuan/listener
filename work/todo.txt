@@ -1,4 +1,5 @@
 
+check that new files are there for people who update
 context menu for right clicking messages
 sato: wants option to have snooper prefer mouseover over target
 

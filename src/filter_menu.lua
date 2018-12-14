@@ -207,7 +207,7 @@ function Main.PopulateFilterMenu( level, menuList )
 				event = "#Community:" .. club .. ":" .. stream
 				local si = C_Club.GetStreamInfo( club, stream )
 				name = ci.shortName
-				if name == "" then name = ci.name end
+				if name == nil or name == "" then name = ci.name end
 				if si.streamType ~= Enum.ClubStreamType.General then
 					name = name .. " - " .. si.name
 				end

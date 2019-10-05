@@ -1,11 +1,11 @@
-## Interface: 80200
+## Interface: 80205
 ## Title: Listener
 ## Notes: Chat assistant.
 ## Author: Tammya-MoonGuard
 ## SavedVariables: ListenerAddonSaved
 ## SavedVariablesPerCharacter: ListenerChatHistory
 ## OptionalDeps: totalRP3 MyRolePlay XRP
-## Version: 2.1.6
+## Version: 2.1.7
 embeds.xml
 
 src\init.lua
